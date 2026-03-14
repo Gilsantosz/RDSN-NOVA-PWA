@@ -1,0 +1,41 @@
+name: Build and Release Electron App
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # Gerar instaladores para Mac e Windows simultaneamente
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checar o código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci || npm install
+
+      - name: Build do App
+        env:
+          # Token gerado automaticamente pelo GitHub para subir a release
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Variáveis de ambiente devem estar configuradas nas definições (Secrets) do seu repositório GitHub
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          npm run build:electron -- --publish always
