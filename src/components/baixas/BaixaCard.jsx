@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, User, MapPin, Package, Hash, ArrowRight, FileText } from "lucide-react";
+import { Calendar, User, MapPin, Package, Hash, ArrowRight, FileText, ScanLine } from "lucide-react";
 import { formatarNumeracao, extrairPrefixo } from '../formatacao/FormatacaoNumeracao';
 import { cn } from "@/lib/utils";
 
@@ -138,6 +138,57 @@ export default function BaixaCard({ baixa, setores }) {
                   <span className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate tracking-tight">{baixa.setor_producao}</span>
                 </div>
               )}
+              
+              {/* Novos Campos Industriais */}
+              {baixa.consultor && (
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950/30 rounded-lg py-1.5 px-3 border border-slate-100 dark:border-white/5">
+                  <User className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate tracking-tight">
+                    <span className="opacity-50 mr-1 uppercase text-[8px]">Cons:</span> {baixa.consultor}
+                  </span>
+                </div>
+              )}
+              {baixa.setor && (
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950/30 rounded-lg py-1.5 px-3 border border-slate-100 dark:border-white/5">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate tracking-tight">
+                    <span className="opacity-50 mr-1 uppercase text-[8px]">Setor:</span> {baixa.setor}
+                  </span>
+                </div>
+              )}
+              {baixa.requisicao && (
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950/30 rounded-lg py-1.5 px-3 border border-slate-100 dark:border-white/5">
+                  <FileText className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate tracking-tight">
+                    <span className="opacity-50 mr-1 uppercase text-[8px]">Req:</span> {baixa.requisicao}
+                  </span>
+                </div>
+              )}
+              {baixa.pedido && (
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950/30 rounded-lg py-1.5 px-3 border border-slate-100 dark:border-white/5">
+                  <FileText className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate tracking-tight">
+                    <span className="opacity-50 mr-1 uppercase text-[8px]">Ped:</span> {baixa.pedido}
+                  </span>
+                </div>
+              )}
+              {baixa.op && (
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950/30 rounded-lg py-1.5 px-3 border border-slate-100 dark:border-white/5">
+                  <Hash className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate tracking-tight">
+                    <span className="opacity-50 mr-1 uppercase text-[8px]">OP:</span> {baixa.op}
+                  </span>
+                </div>
+              )}
+              {baixa.chassi && (
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950/30 rounded-lg py-1.5 px-3 border border-slate-100 dark:border-white/5">
+                  <ScanLine className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate tracking-tight">
+                    <span className="opacity-50 mr-1 uppercase text-[8px]">Chassi:</span> {baixa.chassi}
+                  </span>
+                </div>
+              )}
+
               <div className="flex items-center col-span-2 gap-2 bg-slate-50 dark:bg-slate-950/30 rounded-lg py-1.5 px-3 border border-slate-100 dark:border-white/5">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-xs font-bold text-slate-600 dark:text-slate-300 tracking-tight">

@@ -42,7 +42,8 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
     setor_id: null,
     manual: false,
     numero_inicial: '',
-    numero_final: ''
+    numero_final: '',
+    unidade: 'UNIDADE 1'
   });
 
   const [preview, setPreview] = useState(null);
@@ -314,6 +315,16 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
       return;
     }
 
+    if (Number(formData.numero_inicial) > Number(formData.numero_final)) {
+      toast.error("O número inicial não pode ser maior que o final. Verifique os dados inseridos.");
+      return;
+    }
+
+    if (Number(formData.quantidade) <= 0) {
+      toast.error("A quantidade deve ser maior que zero.");
+      return;
+    }
+
 
 
     if (!permitirDuplicata) {
@@ -400,6 +411,28 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
                 placeholder="EX: NOME DO CLIENTE OU OPERAÇÃO"
                 className="h-16 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/5 rounded-2xl px-6 text-lg font-black uppercase italic tracking-tighter focus:bg-white dark:focus:bg-slate-800 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
               />
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1 italic">Unidade de Produção (PCP)</Label>
+              <div className="flex gap-4">
+                {['UNIDADE 1', 'UNIDADE 2'].map((u) => (
+                  <Button
+                    key={u}
+                    type="button"
+                    onClick={() => handleChange('unidade', u)}
+                    variant={formData.unidade === u ? 'default' : 'outline'}
+                    className={cn(
+                      "flex-1 h-14 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all",
+                      formData.unidade === u 
+                        ? "bg-blue-600 text-white shadow-lg scale-[1.02] border-0" 
+                        : "bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-white/5 opacity-60 hover:opacity-100"
+                    )}
+                  >
+                    {u}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             {isAdmin && (
@@ -584,6 +617,25 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
                     onChange={(e) => handleChange('ano', e.target.value.slice(0, 2))}
                     className="w-20 h-10 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-white/5 rounded-lg text-center font-black text-lg focus:border-indigo-500 transition-all text-slate-900 dark:text-white"
                   />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 border-l border-slate-200 dark:border-white/10 pl-8">
+              <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-white/5 shadow-sm">
+                <span className="text-xl">🏭</span>
+              </div>
+              <div>
+                <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest italic block mb-1">Unidade Fiscal</Label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={formData.unidade}
+                    onChange={(e) => handleChange('unidade', e.target.value)}
+                    className="h-10 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-white/5 rounded-lg px-2 font-black text-[11px] uppercase tracking-tighter italic text-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                  >
+                    <option value="UNIDADE 1">Unidade 1</option>
+                    <option value="UNIDADE 2">Unidade 2</option>
+                  </select>
                 </div>
               </div>
             </div>

@@ -42,6 +42,7 @@ import FeedbackToasts from '@/components/feedback/FeedbackToasts';
 // import KeyboardShortcuts from '@/components/shortcuts/KeyboardShortcuts';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useAuth } from '@/lib/AuthContext';
+import SessionManager from '@/lib/sessionManager';
 
 const navigationConfig = [
   { name: 'Dashboard', href: 'Dashboard', icon: LayoutDashboard, section: 'principal', permission: 'dashboard.visualizar' },
@@ -82,11 +83,10 @@ export default function Layout({ children, currentPageName }) {
     const isAuthPage = ['GateAuth', 'AcessoInterno', 'Acesso', 'CadastroUsuario'].includes(currentPageName || '');
     if (isAuthPage) return;
 
-    const currentVersion = localStorage.getItem('session_version');
+    const currentVersion = SessionManager.getVersion();
     if (currentVersion !== APP_SESSION_VERSION) {
       console.log('Atualizando versão do sistema para:', APP_SESSION_VERSION);
-      localStorage.setItem('session_version', APP_SESSION_VERSION);
-      // Não limpamos tudo agressivamente para evitar deslogar o usuário no meio do fluxo
+      SessionManager.setVersion(APP_SESSION_VERSION);
     }
   }, [currentPageName]);
 

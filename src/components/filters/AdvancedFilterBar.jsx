@@ -58,7 +58,7 @@ export default function AdvancedFilterBar({
             }
           }, 200);
         }}
-        className="flex h-9 w-full rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-slate-500 dark:placeholder:text-slate-400 dark:text-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-400 pr-8"
+        className="flex h-10 w-full rounded-lg border border-slate-200/80 dark:border-slate-700/80 bg-white/50 dark:bg-slate-800/50 px-3 py-2 text-sm shadow-sm transition-all duration-200 placeholder:text-slate-500 dark:placeholder:text-slate-400 dark:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-500/50 pr-8"
       />
       {value && (
         <button
@@ -69,7 +69,7 @@ export default function AdvancedFilterBar({
         </button>
       )}
       {openDropdown === fieldKey && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto mt-1 suggestions-container">
+        <div className="absolute top-full left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto mt-2 suggestions-container animate-in fade-in zoom-in-95 duration-200">
           {suggestions.slice(0, 50).map((item, idx) => (
             <button
               key={idx}
@@ -82,7 +82,7 @@ export default function AdvancedFilterBar({
                 onChange(item);
                 setOpenDropdown(null);
               }}
-              className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800 last:border-b-0"
+              className="w-full text-left px-4 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-sm text-slate-700 dark:text-slate-300 transition-colors border-b border-slate-100/50 dark:border-slate-800/50 last:border-b-0"
             >
               {item}
             </button>
@@ -98,7 +98,7 @@ export default function AdvancedFilterBar({
   return (
     <div className="space-y-3">
       {/* Barra Principal */}
-      <div className="flex flex-col lg:flex-row gap-3 p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col lg:flex-row gap-3 p-4 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm transition-all duration-300">
         <div className="flex items-center gap-2 flex-1">
           <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
           <AutocompleteField
@@ -137,7 +137,7 @@ export default function AdvancedFilterBar({
 
       {/* Filtros Avançados */}
       {showAdvanced && (
-        <div className="p-4 bg-slate-50 dark:bg-slate-950/50 rounded-lg border border-slate-200 dark:border-slate-800 space-y-4">
+        <div className="p-4 bg-slate-50/50 dark:bg-slate-900/40 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm transition-all duration-300 space-y-4 animate-in fade-in slide-in-from-top-4">
           {/* Linha 1: Código e Modelo */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>

@@ -404,210 +404,221 @@ export default function ProdutosTab() {
       </Dialog>
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-lg sm:max-w-[92vw] p-0 overflow-hidden border-none bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl shadow-[0_24px_48px_-12px_rgba(0,0,0,0.3)] rounded-[1.5rem]">
-          <DialogHeader className="relative p-5 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-900 opacity-90" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent)]" />
-            <div className="relative flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xl flex items-center justify-center shadow-lg border border-white/20">
-                <Package className="w-5 h-5 text-white" />
-              </div>
-              <div className="space-y-0.5">
-                <DialogTitle className="text-lg font-black tracking-tight text-white uppercase italic">
-                  {editingProduto ? 'Editar Produto' : 'Novo Produto'}
-                </DialogTitle>
-                <p className="text-blue-100/70 text-[8px] font-bold uppercase tracking-[0.2em]">
-                  {editingProduto ? 'Refining Excellence' : 'Expanding Catalog'}
-                </p>
-              </div>
-            </div>
-          </DialogHeader>
-          <form onSubmit={handleSubmit}>
-            <div className="p-5 max-h-[72vh] overflow-y-auto custom-scrollbar space-y-4">
+        <DialogContent className="max-w-3xl sm:max-w-[90vw] md:max-w-4xl dark:bg-slate-900/90 dark:border-white/10 rounded-[2.5rem] p-0 overflow-hidden backdrop-blur-3xl shadow-2xl border-0">
+          <div className="bg-gradient-to-br from-blue-900 to-indigo-900 p-8 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full -mr-32 -mt-32 blur-3xl" />
+            <DialogHeader className="relative z-10">
+              <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter flex items-center gap-3">
+                <span className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
+                  <Package className="w-6 h-6 text-blue-300" />
+                </span>
+                {editingProduto ? 'Editar' : 'Novo'} <span className="text-blue-300">Produto</span>
+              </DialogTitle>
+              <p className="text-xs font-bold text-blue-200/60 uppercase tracking-widest mt-1">
+                {editingProduto ? 'Atualização de Cadastro no Catálogo' : 'Inclusão de Novo Produto no Catálogo'}
+              </p>
+            </DialogHeader>
+          </div>
 
-              {/* Bloco 1: Identidade do Prefixo */}
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-100 dark:border-white/5 space-y-3">
-                <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Identidade do Prefixo</p>
-                <div className="flex items-end gap-2">
-                  <div className="space-y-1 w-16 shrink-0">
-                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Letra *</Label>
+          <form onSubmit={handleSubmit} className="p-0 overflow-y-auto max-h-[70vh] custom-scrollbar bg-slate-50 dark:bg-slate-900/50">
+            <div className="p-6 md:p-8 space-y-8">
+              
+              {/* Identificação */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center border border-blue-200 dark:border-blue-800/50 flex-shrink-0">
+                    <span className="text-blue-600 dark:text-blue-400 font-black text-xs">1</span>
+                  </div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">
+                    Identificação Inicial
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 p-5 bg-white dark:bg-slate-950/50 border border-slate-200 dark:border-white/5 rounded-2xl shadow-sm">
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Letra do Produto *</Label>
                     <Input
                       value={formData.letra_produto}
                       onChange={(e) => handleLetraOrSufixoChange(e.target.value.toUpperCase().slice(0, 1), undefined)}
-                      placeholder="A"
+                      placeholder="Ex: A"
                       maxLength={1}
-                      className="h-9 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-white/5 rounded-lg text-center font-mono font-black text-base"
                       required
+                      className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-blue-500/50 font-bold"
                     />
                   </div>
-                  <span className="text-slate-300 dark:text-slate-600 font-black text-lg pb-1.5">+</span>
-                  <div className="space-y-1 w-24 shrink-0">
-                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Sufixo *</Label>
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Sufixo *</Label>
                     <Input
                       value={formData.sufixo}
                       onChange={(e) => handleLetraOrSufixoChange(undefined, e.target.value.toUpperCase())}
-                      placeholder="LM"
+                      placeholder="Ex: LM"
                       maxLength={5}
-                      className="h-9 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-white/5 rounded-lg text-center font-mono text-sm italic text-blue-500 dark:text-blue-400"
                       required
+                      className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-blue-500/50 font-bold"
                     />
                   </div>
-                  <span className="text-slate-300 dark:text-slate-600 font-black text-sm pb-1.5">=</span>
-                  <div className="space-y-1 flex-1">
-                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
-                      Prefixo Padrão {!editingProduto && <span className="text-[8px] opacity-60 font-medium">(auto)</span>}
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center justify-between">
+                      Prefixo Padrão {!editingProduto && <span className="text-[9px] opacity-60 normal-case tracking-normal">(Auto gerado)</span>}
                     </Label>
                     <Input
                       value={formData.prefixo_padrao}
                       onChange={(e) => setFormData(prev => ({ ...prev, prefixo_padrao: e.target.value.toUpperCase() }))}
                       placeholder={generatePrefixo(formData.letra_produto, formData.sufixo) || "A26LM"}
                       maxLength={10}
-                      className="h-9 bg-white dark:bg-slate-800/50 border-slate-200 dark:border-white/5 rounded-lg font-mono text-sm"
+                      className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-blue-500/50 font-mono text-blue-600 dark:text-blue-400 font-bold"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Bloco 2: Dados do Produto */}
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Código do Produto</Label>
-                  <Input
-                    value={formData.codigo_produto}
-                    onChange={(e) => handleCodigoProdutoChange(e.target.value)}
-                    placeholder="Ex: GA3030"
-                    className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-white/5 rounded-lg font-mono text-sm"
-                  />
-                  {formData.codigo_produto && clientesPCP.find(c => c.codigo?.toUpperCase().trim() === formData.codigo_produto.toUpperCase().trim()) && (
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Cliente PCP identificado</p>
-                    </div>
-                  )}
+              {/* Detalhes do Produto */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center border border-orange-200 dark:border-orange-800/50 flex-shrink-0">
+                    <span className="text-orange-600 dark:text-orange-400 font-black text-xs">2</span>
+                  </div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">
+                    Detalhes e Relacionamentos
+                  </h3>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5 col-span-2">
-                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Modelo / Nome do Produto</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 bg-white dark:bg-slate-950/50 border border-slate-200 dark:border-white/5 rounded-2xl shadow-sm">
+                  <div className="space-y-3 relative">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Código do Produto (PCP)</Label>
+                    <Input
+                      value={formData.codigo_produto}
+                      onChange={(e) => handleCodigoProdutoChange(e.target.value)}
+                      placeholder="Ex: GA3030"
+                      className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-orange-500/50 uppercase font-bold"
+                    />
+                    {formData.codigo_produto && clientesPCP.find(c => c.codigo?.toUpperCase().trim() === formData.codigo_produto.toUpperCase().trim()) && (
+                      <p className="absolute -bottom-5 right-0 text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-md">
+                        ✨ PCP Identificado
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Empresa / Nome do Cliente</Label>
+                    <Input
+                      value={formData.nome_cliente || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, nome_cliente: e.target.value }))}
+                      placeholder="Nome amigável ou razão social..."
+                      className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-orange-500/50 font-bold"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Modelo Comercial</Label>
                     <Input
                       value={formData.modelo}
                       onChange={(e) => setFormData(prev => ({ ...prev, modelo: e.target.value }))}
                       placeholder="Ex: Molde Especial Alpha"
                       list="modelos-list"
-                      className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-white/5 rounded-lg font-bold text-sm"
-                    />
-                    <datalist id="modelos-list">
-                      {[...new Set(produtos.map(p => p.modelo).filter(Boolean))].map(modelo => (
-                        <option key={modelo} value={modelo} />
-                      ))}
-                    </datalist>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Nome do Cliente</Label>
-                    <Input
-                      value={formData.nome_cliente || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, nome_cliente: e.target.value }))}
-                      placeholder="Empresa ou cliente..."
-                      className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-white/5 rounded-lg text-sm"
+                      className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-orange-500/50 font-bold"
                     />
                   </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Categoria</Label>
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Categoria de Fabricação</Label>
                     <Select value={formData.categoria} onValueChange={(v) => setFormData(prev => ({ ...prev, categoria: v }))}>
-                      <SelectTrigger className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-white/5 rounded-lg text-sm">
+                      <SelectTrigger className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-orange-500/50 font-bold">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="rounded-lg border-slate-200 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
-                        <SelectItem value="Lacre">Lacre</SelectItem>
-                        <SelectItem value="Mostrador">Mostrador</SelectItem>
-                        <SelectItem value="Componente">Componente</SelectItem>
-                        <SelectItem value="Outro">Outro</SelectItem>
+                      <SelectContent className="dark:bg-slate-900 dark:border-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <SelectItem value="Lacre">Lacre de Segurança</SelectItem>
+                        <SelectItem value="Mostrador">Mostrador / Painel</SelectItem>
+                        <SelectItem value="Componente">Componente Interno</SelectItem>
+                        <SelectItem value="Outro">Outro Produto</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-
-                  <div className="space-y-1.5 col-span-2">
-                    <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Descrição Adicional</Label>
+                  <div className="space-y-3 md:col-span-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Descrição Adicional Opcional</Label>
                     <Input
                       value={formData.descricao}
                       onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-                      placeholder="Breve descrição do produto..."
-                      className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-white/5 rounded-lg text-sm"
+                      placeholder="Breve descrição, observações sobre o molde ou informações extras..."
+                      className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-orange-500/50"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Bloco 3: Configurações operacionais */}
-              <div className="grid grid-cols-3 gap-3 pt-1">
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Estoque Mínimo</Label>
-                  <Input
-                    type="number"
-                    value={formData.estoque_minimo}
-                    onChange={(e) => setFormData(prev => ({ ...prev, estoque_minimo: parseInt(e.target.value) || 0 }))}
-                    className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-white/5 rounded-lg font-mono text-sm"
-                  />
+              {/* Parâmetros Operacionais */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center border border-purple-200 dark:border-purple-800/50 flex-shrink-0">
+                    <span className="text-purple-600 dark:text-purple-400 font-black text-xs">3</span>
+                  </div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">
+                    Parâmetros Operacionais
+                  </h3>
                 </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Setor Produtivo</Label>
-                  <Select value={formData.setor_id} onValueChange={(v) => setFormData(prev => ({ ...prev, setor_id: v }))}>
-                    <SelectTrigger className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-white/5 rounded-lg text-sm">
-                      <SelectValue placeholder="Setor" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-lg border-slate-200 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
-                      <SelectItem value={null}>Nenhum setor</SelectItem>
-                      {setores.filter(s => s.ativo).map(setor => (
-                        <SelectItem key={setor.id} value={setor.id}>{setor.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 p-5 bg-white dark:bg-slate-950/50 border border-slate-200 dark:border-white/5 rounded-2xl shadow-sm">
+                  <div className="space-y-3 lg:col-span-1">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Estoque Min. (Alerta)</Label>
+                    <Input
+                      type="number"
+                      value={formData.estoque_minimo}
+                      onChange={(e) => setFormData(prev => ({ ...prev, estoque_minimo: parseInt(e.target.value) || 0 }))}
+                      className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-purple-500/50 text-center font-bold"
+                    />
+                  </div>
+                  <div className="space-y-3 lg:col-span-1">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Setor Alocado</Label>
+                    <Select value={formData.setor_id} onValueChange={(v) => setFormData(prev => ({ ...prev, setor_id: v }))}>
+                      <SelectTrigger className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-purple-500/50 font-bold">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent className="dark:bg-slate-900 dark:border-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <SelectItem value={null}>Nenhum setor</SelectItem>
+                        {setores.filter(s => s.ativo).map(setor => (
+                          <SelectItem key={setor.id} value={setor.id}>{setor.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3 lg:col-span-1">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 whitespace-nowrap">Ordem de Baixa Num.</Label>
+                    <Select value={formData.ordem_baixa || 'normal'} onValueChange={(v) => setFormData(prev => ({ ...prev, ordem_baixa: v }))}>
+                      <SelectTrigger className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-purple-500/50 font-bold">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="dark:bg-slate-900 dark:border-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <SelectItem value="normal" className="text-blue-600 dark:text-blue-400">↑ Crescente</SelectItem>
+                        <SelectItem value="decrescente" className="text-purple-600 dark:text-purple-400">↓ Decrescente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3 lg:col-span-1 flex flex-col justify-end pb-1 h-full">
+                    <div className="flex w-full items-center justify-between gap-3 bg-slate-100 dark:bg-slate-900 px-3 h-11 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 cursor-pointer">Ativo</Label>
+                      <Switch
+                        checked={formData.ativo}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, ativo: checked }))}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
+                  </div>
                 </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Ordem de Baixa</Label>
-                  <Select value={formData.ordem_baixa || 'normal'} onValueChange={(v) => setFormData(prev => ({ ...prev, ordem_baixa: v }))}>
-                    <SelectTrigger className="h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-white/5 rounded-lg text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-lg border-slate-200 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
-                      <SelectItem value="normal">↑ Normal</SelectItem>
-                      <SelectItem value="decrescente">↓ Invertida</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Toggle Ativo */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-100 dark:border-white/5">
-                <Label className="text-[10px] font-black text-slate-700 dark:text-white uppercase tracking-widest">Produto Ativo</Label>
-                <Switch
-                  checked={formData.ativo}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, ativo: checked }))}
-                  className="data-[state=checked]:bg-blue-600"
-                />
               </div>
 
             </div>
-            <DialogFooter className="px-5 py-4 bg-slate-50/50 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/5 gap-2">
+            
+            <div className="p-5 md:p-6 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-white/5 flex flex-wrap justify-end gap-3 sticky bottom-0 z-10 w-full rounded-b-[2.5rem]">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleCloseForm}
-                className="h-9 px-5 rounded-lg border-slate-200 dark:border-white/10 dark:hover:bg-white/5 font-bold uppercase text-[9px] tracking-widest transition-all"
+                className="rounded-xl px-8 h-12 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:border-slate-700 dark:hover:bg-slate-800 transition-colors"
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="h-9 px-6 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase text-[9px] tracking-widest shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-95"
+                className="rounded-xl px-8 h-12 bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 active:scale-95 flex items-center gap-2"
               >
-                {editingProduto ? 'Salvar' : 'Cadastrar'}
+                <Package className="w-4 h-4" />
+                {editingProduto ? 'Salvar Alterações' : 'Cadastrar Produto'}
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

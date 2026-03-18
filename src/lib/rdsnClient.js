@@ -21,9 +21,5 @@ rdsn.run = async (functionName, payload = {}) => {
   return data;
 };
 
-// Cliente administrativo (USAR APENAS SE ABSOLUTAMENTE NECESSÁRIO NO SERVER-SIDE MOCK)
-// No frontend, use sempre as API routes ou Edge Functions para operações sensíveis
-export const rdsnAdmin = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  import.meta.env.VITE_RDSN_SERVICE_ROLE_KEY || 'placeholder'
-);
+// NOTA: rdsnAdmin foi removido por razões de segurança (Lei 01: Isolamento Smith).
+// Toda operação administrativa deve ser feita via Edge Functions.

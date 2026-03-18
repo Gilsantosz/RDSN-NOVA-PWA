@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
+import SessionManager from '../lib/sessionManager';
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
@@ -131,18 +133,14 @@ export const rdsn = {
             // Fallback para SessionManager (Local)
             console.log('[AUTH] Nenhuma sessão ativa no Supabase, tentando SessionManager...');
             try {
-                const localData = localStorage.getItem('internalUser');
-                if (localData) {
-                    const payload = JSON.parse(localData);
-                    const sessionUser = payload?.user || payload;
-                    if (sessionUser) {
-                        console.log('[AUTH] Sessão local encontrada:', sessionUser.username);
-                        // Normaliza para o Shim (espera 'role' em minúsculo)
-                        return {
-                            ...sessionUser,
-                            role: sessionUser.role_custom?.toLowerCase() || 'user'
-                        };
-                    }
+                const sessionUser = SessionManager.getUser();
+                if (sessionUser) {
+                    console.log('[AUTH] Sessão local encontrada:', sessionUser.username);
+                    // Normaliza para o Shim (espera 'role' em minúsculo)
+                    return {
+                        ...sessionUser,
+                        role: sessionUser.role_custom?.toLowerCase() || 'user'
+                    };
                 }
             } catch (e) {
                 console.error('[AUTH] Erro ao ler sessão local:', e);

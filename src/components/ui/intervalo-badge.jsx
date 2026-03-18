@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
-export default function IntervaloBadge({ inicio, fim, variant = 'default', size = 'default' }) {
+export default function IntervaloBadge({ inicio, fim, variant = 'default', size = 'default', className }) {
   const sizeClasses = {
     sm: 'text-xs px-2 py-0.5',
     default: 'text-sm px-3 py-1',
@@ -20,7 +20,8 @@ export default function IntervaloBadge({ inicio, fim, variant = 'default', size 
     <div className={cn(
       "inline-flex items-center gap-1.5 rounded-lg border-2 font-mono font-semibold",
       sizeClasses[size],
-      variantClasses[variant]
+      variantClasses[variant],
+      className
     )}>
       <span className="tabular-nums">{inicio?.toLocaleString()}</span>
       <ArrowRight className={cn("flex-shrink-0", size === 'sm' ? 'w-3 h-3' : size === 'lg' ? 'w-5 h-5' : 'w-4 h-4')} />

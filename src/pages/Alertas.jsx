@@ -56,8 +56,10 @@ export default function Alertas() {
   // Obter userId do localStorage
   const user = useMemo(() => {
     try {
-      const u = localStorage.getItem('internalUser');
-      return u ? JSON.parse(u) : null;
+      const data = localStorage.getItem('internalUser');
+      if (!data) return null;
+      const parsed = JSON.parse(data);
+      return (parsed && parsed.user) ? parsed.user : parsed;
     } catch { return null; }
   }, []);
 

@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
+import { validateAdmin } from '@/api/.secure_vault';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +42,7 @@ export default function AcessoInterno() {
         sessionStorage.clear();
         queryClient.clear();
         const { rdsn: b44 } = await import('@/api/supabaseClient');
-        if (b44.auth) await b44.auth.signOut();
+        if (b44.auth) await (b44.auth.logout ? b44.auth.logout() : b44.auth.signOut());
       } catch (e) {
         console.warn('Erro ao limpar sessão:', e);
       }
@@ -74,7 +75,7 @@ export default function AcessoInterno() {
       } catch (err) {
         console.warn('Edge function falhou, tentando login direto...', err);
         // Fallback local caso as funções Deno não estejam ativas
-        if (username === 'admin' && senha === 'admin123') {
+        if (validateAdmin(username, senha)) {
           response = {
             data: {
               success: true,

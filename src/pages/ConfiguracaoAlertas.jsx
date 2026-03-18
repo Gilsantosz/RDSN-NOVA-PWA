@@ -80,8 +80,10 @@ export default function ConfiguracaoAlertas() {
   const { data: user } = useQuery({
     queryKey: ['internalUser'],
     queryFn: () => {
-      const loggedUser = localStorage.getItem('internalUser');
-      return loggedUser ? JSON.parse(loggedUser) : null;
+      const data = localStorage.getItem('internalUser');
+      if (!data) return null;
+      const parsed = JSON.parse(data);
+      return (parsed && parsed.user) ? parsed.user : parsed;
     }
   });
 

@@ -91,8 +91,12 @@ export default function LimparDadosProducao() {
       // Incluir ID do usuário interno para validação de permissão no backend
       let internalUserId = null;
       try {
-        const u = localStorage.getItem('internalUser');
-        if (u) internalUserId = JSON.parse(u).id;
+        const data = localStorage.getItem('internalUser');
+        if (data) {
+          const parsed = JSON.parse(data);
+          const user = (parsed && parsed.user) ? parsed.user : parsed;
+          internalUserId = user.id;
+        }
       } catch {}
 
       const payload = modoExclusao === 'total'

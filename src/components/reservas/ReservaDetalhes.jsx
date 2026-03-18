@@ -118,7 +118,11 @@ export default function ReservaDetalhes({ reserva, baixas, onBaixa }) {
           </div>
 
           <PremiumCard title="Especificações de Produção" icon={FileText} iconColor="#f59e0b" className="dark:bg-slate-900/80">
-            <div className="grid grid-cols-3 gap-8 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 py-4">
+              <div className="space-y-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Unidade Fiscal</span>
+                <p className="font-mono text-lg font-black text-slate-900 dark:text-white uppercase tracking-widest bg-emerald-500/5 dark:bg-emerald-500/10 px-3 py-2 rounded-xl border border-emerald-500/20 inline-block">{reserva.unidade || 'UNIDADE 1'}</p>
+              </div>
               <div className="space-y-2">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Código Global</span>
                 <p className="font-mono text-lg font-black text-slate-900 dark:text-white tracking-widest bg-slate-100 dark:bg-white/5 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/5 inline-block">{reserva.codigo_produto || '---'}</p>
@@ -208,7 +212,9 @@ export default function ReservaDetalhes({ reserva, baixas, onBaixa }) {
           <PremiumCard title="Intervalo Técnico" icon={ScanLine} iconColor="#3b82f6" className="dark:bg-slate-900/80">
             <div className="space-y-4">
               <IntervaloBadge
-                inicio={reserva.numero_inicial}
+                inicio={(reserva.numero_inicial > reserva.numero_final) 
+                  ? reserva.numero_inicial - (reserva.quantidade_baixada || 0)
+                  : reserva.numero_inicial + (reserva.quantidade_baixada || 0)}
                 fim={reserva.numero_final}
                 variant="primary"
                 size="lg"

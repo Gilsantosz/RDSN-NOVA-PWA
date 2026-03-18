@@ -7,12 +7,12 @@ import { useSetor } from '@/components/context/SetorContext';
 import { createPageUrl } from '../utils';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Plus, Package, Eye, History, BarChart3, RefreshCw, ScanLine } from 'lucide-react';
+import { Plus, Package, Eye, History, BarChart3, RefreshCw, ScanLine, Calendar, X } from 'lucide-react';
 import { useSearch } from '../components/hooks/useSearch';
-import SearchBar from '../components/search/SearchBar';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ReservaForm from '../components/reservas/ReservaForm';
 import BaixaForm from '../components/baixas/BaixaForm';
 import ReservasTable from '../components/tables/ReservasTable';
@@ -27,6 +27,8 @@ import NumeracoesLivres from '../components/reservas/NumeracoesLivres';
 import DashboardReservas from '../components/reservas/DashboardReservas';
 import SetorReadonlyBanner, { useSetorReadonly } from '@/components/pcp/SetorReadonlyBanner';
 import { PremiumCard } from '@/components/ui/PremiumCard';
+import SearchBar from '../components/search/SearchBar';
+import { PageTransition } from '@/components/ui/page-transition';
 
 import SessionManager from '@/lib/sessionManager';
 
@@ -70,6 +72,7 @@ export default function Reservas() {
   });
   const [sortField, setSortField] = useState('numero_inicial');
   const [sortDirection, setSortDirection] = useState('asc');
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   const { data: reservas = [], isLoading: loadingReservas } = useQuery({
     queryKey: ['reservas', setorAtivo, isAdmin],
@@ -295,9 +298,10 @@ export default function Reservas() {
         quantidade_baixada: 0
       });
 
-      if (data.numero_final > seq.ultimo_numero) {
+      const maxReservado = Math.max(data.numero_inicial, data.numero_final);
+      if (maxReservado > seq.ultimo_numero) {
         await rdsn.entities.SequenciaAnual.update(seq.id, {
-          ultimo_numero: data.numero_final
+          ultimo_numero: maxReservado
         });
       }
 
@@ -519,7 +523,11 @@ export default function Reservas() {
         // Criar numeração livre com os números não utilizados
         const quantidadeNaoUsada = reserva.quantidade - (reserva.quantidade_baixada || 0);
         if (quantidadeNaoUsada > 0) {
-          const numeroInicialLivre = reserva.numero_inicial + (reserva.quantidade_baixada || 0);
+          const prodInfo = produtos.find(p => p.letra_produto === reserva.letra_produto);
+          const isDecrescente = prodInfo?.ordem_numeracao === 'DECRESCENTE';
+          const numeroInicialLivre = isDecrescente 
+            ? reserva.numero_inicial - (reserva.quantidade_baixada || 0)
+            : reserva.numero_inicial + (reserva.quantidade_baixada || 0);
           const numeroFinalLivre = reserva.numero_final;
 
           await rdsn.entities.NumeracaoLivre.create({
@@ -641,6 +649,7 @@ export default function Reservas() {
   }, [filteredReservas]);
 
   const colunasExport = useMemo(() => [
+    { key: 'unidade', label: 'Unidade', width: 14 },
     { key: 'cliente', label: 'Cliente', width: 22 },
     { key: 'prefixo', label: 'Prefixo', width: 10 },
     { key: 'ano', label: 'Ano', width: 8 },
@@ -655,6 +664,7 @@ export default function Reservas() {
     { key: 'letra_produto', label: 'Letra', width: 8 },
     { key: 'numero_inicial', label: 'Nº Inicial', width: 12, tipo: 'numero' },
     { key: 'numero_final', label: 'Nº Final', width: 12, tipo: 'numero' },
+    { key: 'unidade', label: 'Unidade', width: 14 },
     { key: 'mes_producao', label: 'Mês Produção', width: 14 },
     { key: 'data_prevista', label: 'Data Prevista', width: 14 },
   ], []);
@@ -717,6 +727,42 @@ export default function Reservas() {
 
             <div className="flex flex-wrap gap-3 w-full xl:w-auto items-center">
               <SetorReadonlyBanner />
+
+              <div className="flex items-center gap-2 bg-slate-100/50 dark:bg-slate-800/50 p-1.5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-inner">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    queryClient.invalidateQueries({ queryKey: ['reservas'] });
+                    queryClient.invalidateQueries({ queryKey: ['sequencias'] });
+                    queryClient.invalidateQueries({ queryKey: ['numeracoes-livres'] });
+                    queryClient.invalidateQueries({ queryKey: ['movimentacoes-dashboard'] });
+                    queryClient.invalidateQueries({ queryKey: ['auditoria-dashboard'] });
+                    toast.success('Sync finalizado com êxito!');
+                  }}
+                  className="w-10 h-10 rounded-xl hover:bg-white dark:hover:bg-slate-700 transition-all text-slate-500 hover:text-blue-500 active:rotate-180 duration-500"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                </Button>
+
+                <div className="h-6 w-px bg-slate-200 dark:bg-white/10 mx-1" />
+
+                <div className="flex items-center gap-2 px-3 py-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200/50 dark:border-white/5">
+                  <Calendar className="w-4 h-4 text-blue-500" />
+                  <Select value={filters.ano || 'all'} onValueChange={(v) => setFilters(prev => ({ ...prev, ano: v === 'all' ? '' : v }))}>
+                    <SelectTrigger className="w-[110px] bg-transparent border-0 focus:ring-0 font-black uppercase text-[10px] tracking-widest h-7 px-0">
+                      <SelectValue placeholder="Safra" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-white/10 backdrop-blur-xl">
+                      <SelectItem value="all" className="font-bold uppercase text-[10px]">Todas</SelectItem>
+                      {anos.map(ano => (
+                        <SelectItem key={ano} value={String(ano)} className="font-bold uppercase text-[10px]">20{ano}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <ExportarRelatorio
                 dados={exportData}
                 colunas={colunasExport}
@@ -727,7 +773,7 @@ export default function Reservas() {
               {!isReadonly && (
                 <Button
                   onClick={() => setShowForm(true)}
-                  className="h-12 px-6 rounded-2xl bg-slate-900 dark:bg-blue-600 text-white font-black uppercase text-xs tracking-widest gap-2 shadow-xl hover:scale-[1.02] active:scale-95 transition-all border-0 shadow-blue-500/20"
+                  className="h-12 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 text-white font-black uppercase text-xs tracking-widest gap-2 shadow-xl hover:shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 transition-all border-0 ring-1 ring-white/20"
                 >
                   <Plus className="w-4 h-4" /> Nova Reserva
                 </Button>
@@ -737,7 +783,7 @@ export default function Reservas() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="dashboard" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="inline-flex gap-1 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl shadow-inner">
             <TabsTrigger value="dashboard" className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-md data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-100 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
               <BarChart3 className="w-4 h-4" />
@@ -754,100 +800,108 @@ export default function Reservas() {
           </TabsList>
 
           <TabsContent value="dashboard">
-            <DashboardReservas
-              filtroAno={filters.ano ? Number(filters.ano) : null}
-              setFiltroAno={(ano) => setFilters(prev => ({ ...prev, ano: ano?.toString() || '' }))}
-              sequencias={sequencias}
-            />
+            <PageTransition>
+              <DashboardReservas
+                filtroAno={filters.ano ? Number(filters.ano) : null}
+                setFiltroAno={(ano) => setFilters(prev => ({ ...prev, ano: ano?.toString() || '' }))}
+                sequencias={sequencias}
+                setActiveTab={setActiveTab}
+                setFilters={setFilters}
+              />
+            </PageTransition>
           </TabsContent>
 
           <TabsContent value="reservas" className="space-y-6">
-            <NumeracoesLivres
-              produtos={produtos}
-              sequencias={sequencias}
-              onReservaCreated={async () => {
-                queryClient.removeQueries({ queryKey: ['numeracoes-livres'] });
-                await queryClient.invalidateQueries({ queryKey: ['reservas'] });
-              }}
-            />
+            <PageTransition className="space-y-6">
+              <NumeracoesLivres
+                produtos={produtos}
+                sequencias={sequencias}
+                onReservaCreated={async () => {
+                  queryClient.removeQueries({ queryKey: ['numeracoes-livres'] });
+                  await queryClient.invalidateQueries({ queryKey: ['reservas'] });
+                }}
+              />
 
-            {/* Barra de Busca Global */}
-            <PremiumCard noPadding className="mb-6" title="Busca Rápida" icon={Plus}>
-              <div className="p-4">
-                <SearchBar
-                  value={searchTerm}
-                  onChange={handleSearch}
-                  placeholder="Buscar por código, cliente, modelo, produto..."
-                  resultCount={filteredReservas.length}
-                  showResultCount={searchTerm !== ''}
-                />
-              </div>
-            </PremiumCard>
+              {/* Barra de Busca Global */}
+              <PremiumCard noPadding className="mb-6" title="Busca Rápida" icon={Plus}>
+                <div className="p-4">
+                  <SearchBar
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    placeholder="Buscar por código, cliente, modelo, produto..."
+                    resultCount={filteredReservas.length}
+                    showResultCount={searchTerm !== ''}
+                  />
+                </div>
+              </PremiumCard>
 
-            <AdvancedFilterBar
-              filters={filters}
-              setFilters={setFilters}
-              reservas={reservas}
-              letras={letras}
-              anos={anos}
-              onClear={() => setFilters({
-                cliente: '',
-                codigoProduto: '',
-                modelo: '',
-                letra: '',
-                ano: '',
-                status: '',
-                dataInicio: '',
-                dataFim: ''
-              })}
-            />
+              <AdvancedFilterBar
+                filters={filters}
+                setFilters={setFilters}
+                reservas={reservas}
+                letras={letras}
+                anos={anos}
+                onClear={() => setFilters({
+                  cliente: '',
+                  codigoProduto: '',
+                  modelo: '',
+                  letra: '',
+                  ano: '',
+                  status: '',
+                  dataInicio: '',
+                  dataFim: ''
+                })}
+              />
 
-            <ReservasTable
-              reservas={filteredReservas}
-              isLoading={loadingReservas}
-              sortField={sortField}
-              sortDirection={sortDirection}
-              onSort={handleSort}
-              onDetalhes={(reserva) => {
-                setSelectedReserva(reserva);
-                setShowDetalhes(true);
-              }}
-              onHistorico={(reserva) => {
-                setSelectedReserva(reserva);
-                setShowHistorico(true);
-              }}
-              onBaixa={(reserva) => {
-                setSelectedReserva(reserva);
-                setShowBaixa(true);
-              }}
-              onCancelar={(reserva) => updateStatusMutation.mutate({
-                id: reserva.id,
-                status: 'CANCELADO',
-                acao: 'RESERVA_CANCELADA'
-              })}
-              onLiberar={(reserva) => updateStatusMutation.mutate({
-                id: reserva.id,
-                status: 'LIBERADO',
-                acao: 'RESERVA_LIBERADA'
-              })}
-              onEncurtar={(reserva) => {
-                setSelectedReserva(reserva);
-                setShowEncurtar(true);
-              }}
-              onQuebrar={(reserva) => {
-                setSelectedReserva(reserva);
-                setShowQuebrar(true);
-              }}
-              onSincronizar={(reserva) => {
-                setSelectedReserva(reserva);
-                setShowSincronizar(true);
-              }}
-              integracoesAtivas={integracoes.length > 0}
-            />
+              <ReservasTable
+                reservas={filteredReservas}
+                isLoading={loadingReservas}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                onDetalhes={(reserva) => {
+                  setSelectedReserva(reserva);
+                  setShowDetalhes(true);
+                }}
+                onHistorico={(reserva) => {
+                  setSelectedReserva(reserva);
+                  setShowHistorico(true);
+                }}
+                onBaixa={(reserva) => {
+                  setSelectedReserva(reserva);
+                  setShowBaixa(true);
+                }}
+                onCancelar={(reserva) => updateStatusMutation.mutate({
+                  id: reserva.id,
+                  status: 'CANCELADO',
+                  acao: 'RESERVA_CANCELADA'
+                })}
+                onLiberar={(reserva) => updateStatusMutation.mutate({
+                  id: reserva.id,
+                  status: 'LIBERADO',
+                  acao: 'RESERVA_LIBERADA'
+                })}
+                onEncurtar={(reserva) => {
+                  setSelectedReserva(reserva);
+                  setShowEncurtar(true);
+                }}
+                onQuebrar={(reserva) => {
+                  setSelectedReserva(reserva);
+                  setShowQuebrar(true);
+                }}
+                onSincronizar={(reserva) => {
+                  setSelectedReserva(reserva);
+                  setShowSincronizar(true);
+                }}
+                integracoesAtivas={integracoes.length > 0}
+              />
+            </PageTransition>
           </TabsContent>
 
           <TabsContent value="produtos">
-            <ProdutosTab />
+            <PageTransition>
+              <ProdutosTab />
+            </PageTransition>
           </TabsContent>
         </Tabs>
 
@@ -886,23 +940,34 @@ export default function Reservas() {
 
         {/* Baixa Dialog */}
         <Dialog open={showBaixa} onOpenChange={setShowBaixa}>
-          <DialogContent className="max-w-2xl dark:bg-slate-900/90 dark:border-white/10 rounded-[2.5rem] p-0 overflow-hidden backdrop-blur-3xl shadow-2xl border-0">
-            <div className="bg-gradient-to-br from-emerald-600 to-teal-800 p-8 text-white relative overflow-hidden">
+          <DialogContent className="max-w-[70rem] h-[90vh] md:h-[85vh] p-0 flex flex-col bg-white dark:bg-slate-900 border-0 rounded-[2.5rem] overflow-hidden shadow-2xl dark:shadow-emerald-900/20">
+            <div className="shrink-0 relative overflow-hidden bg-gradient-to-br from-emerald-600 to-teal-800 p-8 sm:p-10">
               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full -mr-32 -mt-32 blur-3xl" />
               <DialogHeader className="relative z-10">
-                <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter flex items-center gap-3">
-                  <span className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center shadow-lg shadow-emerald-900/20">
                     <ScanLine className="w-6 h-6 text-emerald-200" />
-                  </span>
-                  Registrar <span className="text-emerald-200">Baixa</span>
-                </DialogTitle>
-                <p className="text-[10px] font-black text-emerald-100/60 uppercase tracking-[0.2em] mt-2 italic">
-                  Entrada de Produção Realizada • {selectedReserva?.codigo_completo}
+                  </div>
+                  <DialogTitle className="text-3xl font-black text-white italic uppercase tracking-tighter leading-none">
+                    Registrar <span className="text-emerald-200">Baixa</span>
+                  </DialogTitle>
+                </div>
+                <p className="text-[10px] font-black text-emerald-100/60 uppercase tracking-[0.3em] flex items-center gap-2 italic">
+                  Entrada de Produção Realizada • Lote {selectedReserva?.codigo_completo}
                 </p>
               </DialogHeader>
+
+              <Button
+                variant="ghost"
+                onClick={() => setShowBaixa(false)}
+                className="absolute top-8 right-8 text-emerald-200/50 hover:text-white hover:bg-white/10 rounded-full w-12 h-12 p-0 transition-all"
+              >
+                <X className="w-8 h-8" />
+              </Button>
             </div>
-            <div className="p-0 overflow-y-auto max-h-[75vh]">
-              <div className="p-8">
+
+            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
+              <div className="p-6 sm:p-10">
                 {selectedReserva && (
                   <BaixaForm
                     reserva={selectedReserva}
@@ -915,6 +980,11 @@ export default function Reservas() {
                   />
                 )}
               </div>
+            </div>
+
+            <div className="px-10 py-4 shrink-0 bg-slate-50 dark:bg-black/40 border-t border-slate-100 dark:border-white/5 flex items-center justify-center gap-2 opacity-30">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Sistema de Rastreabilidade RDSN Ativo</span>
             </div>
           </DialogContent>
         </Dialog>

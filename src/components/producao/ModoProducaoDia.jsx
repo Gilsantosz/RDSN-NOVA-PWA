@@ -1,20 +1,17 @@
 // @ts-nocheck
 import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
 import { useSetor } from '@/components/context/SetorContext';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Clock, CheckCircle } from "lucide-react";
+import { Plus, Clock } from "lucide-react";
 import { toast } from "sonner";
-import { format } from 'date-fns';
 
-import { cn } from "@/lib/utils";
 import ProducaoDiaCard from './ProducaoDiaCard';
 import NovaProducaoDiaDialog from './NovaProducaoDiaDialog';
 
-export default function ModoProducaoDia({ reservas, produtos }) {
+export default function ModoProducaoDia({ reservas, produtos, setorInfo }) {
   const queryClient = useQueryClient();
   const { setorAtivo, isAdmin, currentUser } = useSetor();
   const [showNova, setShowNova] = useState(false);
@@ -42,11 +39,12 @@ export default function ModoProducaoDia({ reservas, produtos }) {
         : { status: { $in: ['ABERTA', 'EM_PRODUCAO', 'AGUARDANDO_BAIXA'] }, setor_id: setorAtivo };
       return await rdsn.entities.ProducaoDia.filter(filtro, '-created_at', 20);
     },
+    placeholderData: keepPreviousData,
     enabled: !!setorAtivo
   });
 
   // Buscar lotes das sessões abertas
-  const sessaoIds = sessoesAbertas.map(s => s.id);
+  const sessaoIds = useMemo(() => sessoesAbertas.map(s => s.id), [sessoesAbertas]);
   const { data: lotesAbertos = [], isLoading: loadingLotes } = useQuery({
     queryKey: ['producao-dia-lotes', sessaoIds],
     queryFn: async () => {
@@ -56,7 +54,8 @@ export default function ModoProducaoDia({ reservas, produtos }) {
       );
       return todosLotes.flat();
     },
-    enabled: sessaoIds.length > 0
+    enabled: sessaoIds.length > 0,
+    placeholderData: keepPreviousData
   });
 
   // Buscar baixas para sugestão de numeração
@@ -77,11 +76,6 @@ export default function ModoProducaoDia({ reservas, produtos }) {
   // IDs de lotes já em sessões abertas
   const lotesJaAbertosIds = useMemo(() => {
     return lotesAbertos.filter(l => l.status === 'ABERTO').map(l => l.reserva_id);
-  }, [lotesAbertos]);
-
-  // Sessões ativas (não fechadas/canceladas) com seus lotes abertos
-  const sessoesComLotes = useMemo(() => {
-    return lotesAbertos.filter(l => l.status === 'ABERTO' || l.status === 'FECHADO');
   }, [lotesAbertos]);
 
   const lotesAtivos = lotesAbertos.filter(l => l.status === 'ABERTO');
@@ -118,6 +112,7 @@ export default function ModoProducaoDia({ reservas, produtos }) {
           codigo_produto: l.reserva.codigo_produto,
           modelo: l.reserva.modelo,
           numeracao_inicial: l.numeracao_inicial,
+          sequencia_decrescente: l.sequencia_decrescente,
           status: 'ABERTO',
           setor_id: l.reserva.setor_id
         })
@@ -158,8 +153,8 @@ export default function ModoProducaoDia({ reservas, produtos }) {
       const reserva = reservasMap[lote.reserva_id];
       if (!reserva) throw new Error('Reserva não encontrada');
 
-      const ini = lote.numeracao_inicial;
-      const fim = numFinal;
+      const ini = Number(lote.numeracao_inicial) || 0;
+      const fim = Number(numFinal) || 0;
       const quantidade = Math.abs(fim - ini) + 1;
       const numInicialBaixa = Math.min(ini, fim);
       const numFinalBaixa = Math.max(ini, fim);
@@ -270,16 +265,16 @@ export default function ModoProducaoDia({ reservas, produtos }) {
     }
   });
 
-  // Cancelar lote (apenas supervisor)
+  // Fechar lote sem baixa (clicando no X) (apenas supervisor)
   const cancelarLoteMutation = useMutation({
     mutationFn: async (lote) => {
-      await rdsn.entities.ProducaoDiaLote.update(lote.id, { status: 'CANCELADO' });
+      await rdsn.entities.ProducaoDiaLote.update(lote.id, { status: 'FECHADO' });
       // Verificar se sessão deve fechar
       const todosLotesSessao = await rdsn.entities.ProducaoDiaLote.filter({ producao_dia_id: lote.producao_dia_id });
       const abertos = todosLotesSessao.filter(l => l.status === 'ABERTO' && l.id !== lote.id);
       if (abertos.length === 0) {
         await rdsn.entities.ProducaoDia.update(lote.producao_dia_id, {
-          status: 'CANCELADA',
+          status: 'FECHADA',
           closed_at: new Date().toISOString()
         });
       }
@@ -287,7 +282,7 @@ export default function ModoProducaoDia({ reservas, produtos }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['producao-dia'] });
       queryClient.invalidateQueries({ queryKey: ['producao-dia-lotes'] });
-      toast.success('Lote cancelado');
+      toast.success('Lote fechado');
     }
   });
 
@@ -301,7 +296,7 @@ export default function ModoProducaoDia({ reservas, produtos }) {
     }
   };
 
-  const isLoading = loadingSessoes || loadingLotes;
+  const isLoading = loadingSessoes || (sessaoIds.length > 0 && loadingLotes);
 
   return (
     <div className="space-y-8">
@@ -379,6 +374,7 @@ export default function ModoProducaoDia({ reservas, produtos }) {
                 isClosing={fecharLoteMutation.isPending}
                 isSupervisor={isSupervisor}
                 produtos={produtos}
+                setorInfo={setorInfo}
               />
             ))
           }
@@ -396,6 +392,7 @@ export default function ModoProducaoDia({ reservas, produtos }) {
         onIniciar={(lotes) => iniciarProducaoMutation.mutate(lotes)}
         isLoading={iniciarProducaoMutation.isPending}
         produtos={produtos}
+        setorInfo={setorInfo}
       />
     </div>
   );

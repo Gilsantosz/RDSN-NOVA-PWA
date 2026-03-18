@@ -8,12 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Zap, TrendingUp, TrendingDown, Calculator, Target, Activity, ShieldAlert, CheckCircle2, SlidersHorizontal } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
-export default function PCPSimulacaoPanel({ mes, ano, ops, producaoMap, dias, onClose, onResult }) {
+export default function PCPSimulacaoPanel({ _mes, _ano, ops, producaoMap, dias, onClose, onResult }) {
   const [params, setParams] = useState({
     percAumento: 0,
     opsExtra: 0,
     percReducao: 0,
-    percCapacidade: 0
+    percCapacidade: 0,
+    custoUnitario: 10,
+    vendaUnitario: 25
   });
   const [resultado, setResultado] = useState(null);
 
@@ -31,7 +33,7 @@ export default function PCPSimulacaoPanel({ mes, ano, ops, producaoMap, dias, on
   }, [ops, producaoMap, dias]);
 
   const calcular = () => {
-    const { percAumento, opsExtra, percReducao, percCapacidade } = params;
+    const { percAumento, opsExtra, percReducao, percCapacidade, custoUnitario, vendaUnitario } = params;
     const fatorDemanda = 1 + percAumento / 100;
     const fatorEficiencia = 1 - percReducao / 100;
     const fatorCapacidade = 1 + percCapacidade / 100;
@@ -41,9 +43,28 @@ export default function PCPSimulacaoPanel({ mes, ano, ops, producaoMap, dias, on
     const novoSaldo = novoRealizado - novoPrevisto;
     const percAtendimento = novoPrevisto > 0 ? ((novoRealizado / novoPrevisto) * 100).toFixed(1) : '0.0';
     const mediaDiaria = dias.length > 0 ? Math.round(novoRealizado / dias.length) : 0;
-    const gargalo = novoSaldo < 0 ? `${Math.abs(novoSaldo).toLocaleString()} un` : 'Sem gargalo';
+    
+    // Impacto Financeiro
+    const lucroPrevisto = novoRealizado * (vendaUnitario - custoUnitario);
+    const perdaOportunidade = novoSaldo < 0 ? Math.abs(novoSaldo) * (vendaUnitario - custoUnitario) : 0;
 
-    const res = { novoPrevisto, novoRealizado, novoSaldo, percAtendimento, mediaDiaria, gargalo, params };
+    const gargalo = novoSaldo < 0 
+      ? `CRÍTICO: ${Math.abs(novoSaldo).toLocaleString()} un em falta` 
+      : novoSaldo < (novoPrevisto * 0.1) 
+        ? 'ATENÇÃO: Cap. no limite' 
+        : 'SITUAÇÃO: Estável';
+
+    const res = { 
+      novoPrevisto, 
+      novoRealizado, 
+      novoSaldo, 
+      percAtendimento, 
+      mediaDiaria, 
+      gargalo, 
+      lucroEst: lucroPrevisto,
+      perdaEst: perdaOportunidade,
+      params 
+    };
     setResultado(res);
     return res;
   };
@@ -52,8 +73,6 @@ export default function PCPSimulacaoPanel({ mes, ano, ops, producaoMap, dias, on
     const res = calcular();
     if (onResult) onResult(res);
   };
-
-  const statColor = (val) => val >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
@@ -98,10 +117,12 @@ export default function PCPSimulacaoPanel({ mes, ano, ops, producaoMap, dias, on
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { key: 'percAumento', label: 'Crescimento Demanda', icon: Target, hint: 'Ajuste percentual da carga' },
+                { key: 'percAumento', label: 'Crescimento Demanda', icon: Target, hint: 'Ajuste percentual da carga (%)' },
                 { key: 'opsExtra', label: 'Ordens Adicionais', icon: Plus, hint: 'Unidades extras (milhar)' },
-                { key: 'percReducao', label: 'Perda de Eficiência', icon: TrendingDown, hint: 'Impacto negativo no fluxo' },
-                { key: 'percCapacidade', label: 'Ganho Capacidade', icon: TrendingUp, hint: 'Aumento de braço produtivo' },
+                { key: 'percReducao', label: 'Perda de Eficiência', icon: TrendingDown, hint: 'Impacto negativo no fluxo (%)' },
+                { key: 'percCapacidade', label: 'Ganho Capacidade', icon: TrendingUp, hint: 'Aumento produtivo (%)' },
+                { key: 'custoUnitario', label: 'Custo Unitário (R$)', icon: Calculator, hint: 'Custo médio por unidade' },
+                { key: 'vendaUnitario', label: 'Preço Venda (R$)', icon: Target, hint: 'Preço médio de venda' },
               ].map(({ key, label, icon: Icon, hint }) => (
                 <div key={key} className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5 ml-1">
@@ -114,9 +135,10 @@ export default function PCPSimulacaoPanel({ mes, ano, ops, producaoMap, dias, on
                       onChange={e => set(key, e.target.value)}
                       className="h-12 bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl font-black text-right pr-10"
                       min={0}
-                      max={200}
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400 opacity-40 group-focus-within:opacity-100 transition-opacity">%</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400 opacity-40 group-focus-within:opacity-100 transition-opacity">
+                      {key.startsWith('perc') ? '%' : key.includes('Unitario') ? 'R$' : 'un'}
+                    </span>
                   </div>
                   <p className="text-[9px] text-slate-400 italic px-1">{hint}</p>
                 </div>
@@ -144,22 +166,54 @@ export default function PCPSimulacaoPanel({ mes, ano, ops, producaoMap, dias, on
                 <Badge className="bg-amber-600 border-0 text-white font-black italic rounded-lg">SIMULADO</Badge>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 relative z-10">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10 pt-4">
                 {[
-                  { label: 'Demanda Projetada', value: resultado.novoPrevisto, icon: Target, color: 'text-blue-400' },
-                  { label: 'Entrega Projetada', value: resultado.novoRealizado, icon: CheckCircle2, color: 'text-emerald-400' },
-                  { label: 'Saldo de Produção', value: (resultado.novoSaldo >= 0 ? `+${resultado.novoSaldo}` : resultado.novoSaldo), icon: Activity, color: statColor(resultado.novoSaldo) },
-                  { label: 'Nível de Atendimento', value: `${resultado.percAtendimento}%`, icon: Zap, color: Number(resultado.percAtendimento) >= 90 ? 'text-emerald-400' : 'text-rose-400' },
-                  { label: 'Vazão Diária (Média)', value: resultado.mediaDiaria, icon: SlidersHorizontal, color: 'text-slate-400' },
-                  { label: 'Ponto Crítico / Gargalo', value: resultado.gargalo, icon: ShieldAlert, color: 'text-orange-400', special: true }
+                  { label: 'Projeção Demanda', value: resultado.novoPrevisto, icon: Target, color: 'text-blue-400' },
+                  { label: 'Capacidade Real', value: resultado.novoRealizado, icon: CheckCircle2, color: 'text-emerald-400' },
+                  { label: 'Lucro Est. (Margem)', value: `R$ ${resultado.lucroEst.toLocaleString()}`, icon: TrendingUp, color: 'text-emerald-400' },
+                  { label: 'Perda Oportunidade', value: `R$ ${resultado.perdaEst.toLocaleString()}`, icon: TrendingDown, color: 'text-rose-400' },
                 ].map((stat, i) => (
-                  <div key={i} className={cn("space-y-1", stat.special && "col-span-1 md:col-span-1")}>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</p>
-                    <p className={cn("text-base font-black italic tracking-tight", stat.color)}>
-                      {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
+                  <div key={i} className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                      <stat.icon className="w-2.5 h-2.5" /> {stat.label}
+                    </p>
+                    <p className={cn("text-sm font-black italic tracking-tight truncate", stat.color)}>
+                      {stat.value}
                     </p>
                   </div>
                 ))}
+              </div>
+
+              {/* Barra de Aproveitamento */}
+              <div className="mt-6 space-y-2">
+                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <span>Eficiência de Atendimento</span>
+                  <span className={Number(resultado.percAtendimento) >= 90 ? 'text-emerald-400' : 'text-rose-400'}>
+                    {resultado.percAtendimento}%
+                  </span>
+                </div>
+                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden border border-white/5">
+                  <div 
+                    className={cn(
+                      "h-full transition-all duration-1000 ease-out",
+                      Number(resultado.percAtendimento) >= 90 ? "bg-emerald-500" : "bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.5)]"
+                    )}
+                    style={{ width: `${Math.min(resultado.percAtendimento, 100)}%` }}
+                  />
+                </div>
+                <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-3">
+                     <ShieldAlert className={cn("w-5 h-5", resultado.novoSaldo < 0 ? "text-rose-500 animate-pulse" : "text-emerald-500")} />
+                     <div>
+                       <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Status do Sistema</p>
+                       <p className="text-xs font-black text-white italic">{resultado.gargalo}</p>
+                     </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">Vazão Média</p>
+                    <p className="text-xs font-black text-slate-300 italic">{resultado.mediaDiaria} un/dia</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}

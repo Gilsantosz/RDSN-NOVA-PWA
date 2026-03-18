@@ -24,7 +24,8 @@ export default function Setores() {
     responsavel: '',
     cor: '#3b82f6',
     ativo: true,
-    senha_troca: ''
+    senha_troca: '',
+    sequencia_decrescente: false
   });
 
   const { data: setores = [] } = useQuery({
@@ -68,7 +69,8 @@ export default function Setores() {
       descricao: '',
       responsavel: '',
       cor: '#3b82f6',
-      ativo: true
+      ativo: true,
+      sequencia_decrescente: false
     });
     setEditingSetor(null);
     setShowForm(false);
@@ -92,7 +94,8 @@ export default function Setores() {
       responsavel: setor.responsavel || '',
       cor: setor.cor || '#3b82f6',
       ativo: setor.ativo !== false,
-      senha_troca: setor.senha_troca || ''
+      senha_troca: setor.senha_troca || '',
+      sequencia_decrescente: setor.sequencia_decrescente || false
     });
     setShowForm(true);
   };
@@ -307,6 +310,23 @@ export default function Setores() {
                   checked={formData.ativo}
                   onChange={(e) => setFormData({ ...formData, ativo: e.target.checked })}
                   className="w-6 h-6 rounded-lg accent-emerald-600 dark:accent-emerald-500 cursor-pointer shadow-sm"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-5 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
+                <div className="space-y-0.5">
+                  <Label htmlFor="sequencia_decrescente" className="text-slate-900 dark:text-slate-100 font-black uppercase text-[11px] tracking-widest italic flex items-center gap-2">
+                    Sequência Decrescente
+                    <div className={cn("w-2 h-2 rounded-full", formData.sequencia_decrescente ? "bg-orange-500 animate-pulse" : "bg-emerald-500")} />
+                  </Label>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Baixar etiquetas em ordem decrescente (ex: sucata)</p>
+                </div>
+                <input
+                  type="checkbox"
+                  id="sequencia_decrescente"
+                  checked={formData.sequencia_decrescente}
+                  onChange={(e) => setFormData({ ...formData, sequencia_decrescente: e.target.checked })}
+                  className="w-6 h-6 rounded-lg accent-orange-600 dark:accent-orange-500 cursor-pointer shadow-sm"
                 />
               </div>
 

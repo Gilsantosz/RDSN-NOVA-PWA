@@ -110,9 +110,19 @@ export default function AlertasPrazos({ reservas, userId }) {
         iconColor="#10b981"
         headerClassName="bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800"
       >
-        <div className="flex items-center gap-3 text-emerald-800 dark:text-emerald-400 py-4">
-          <p className="text-sm font-medium">Nenhuma reserva com prazo crítico no horizonte.</p>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col items-center justify-center py-8 text-emerald-600/60 dark:text-emerald-400/60 space-y-4"
+        >
+          <div className="p-4 rounded-full bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-500/10">
+            <CheckCircle size={32} className="opacity-50" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Nenhum prazo crítico</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest mt-1 opacity-70">Todas as reservas estão no cronograma</p>
+          </div>
+        </motion.div>
       </PremiumCard>
     );
   }

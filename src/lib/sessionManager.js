@@ -40,7 +40,16 @@ class SessionManager {
         localStorage.removeItem(this.SESSION_KEY);
         localStorage.removeItem('internal_token');
         localStorage.removeItem('setorAtivo');
+        localStorage.removeItem('session_version');
         sessionStorage.clear();
+    }
+
+    static getVersion() {
+        return localStorage.getItem('session_version');
+    }
+
+    static setVersion(version) {
+        localStorage.setItem('session_version', version);
     }
 
     static isAuthenticated() {

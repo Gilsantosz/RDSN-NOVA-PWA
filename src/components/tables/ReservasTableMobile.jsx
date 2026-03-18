@@ -176,7 +176,9 @@ export default function ReservasTableMobile({
                 <div className="space-y-1.5">
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Intervalo Técnico</span>
                   <IntervaloBadge
-                    inicio={reserva.numero_inicial}
+                    inicio={(reserva.numero_inicial > reserva.numero_final) 
+                      ? reserva.numero_inicial - (reserva.quantidade_baixada || 0)
+                      : reserva.numero_inicial + (reserva.quantidade_baixada || 0)}
                     fim={reserva.numero_final}
                     variant="primary"
                     size="sm"

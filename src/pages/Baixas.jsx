@@ -39,7 +39,13 @@ export default function BaixasPage() {
     deSetores: [],
     paraSetores: [],
     dataInicio: '',
-    dataFim: ''
+    dataFim: '',
+    consultores: [],
+    setoresIndustriais: [],
+    requisicao: '',
+    pedido: '',
+    op: '',
+    chassi: ''
   });
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
@@ -148,6 +154,15 @@ export default function BaixasPage() {
       if (filtros.tipos?.length > 0 && !filtros.tipos.includes(baixa.tipo)) return false;
       if (filtros.deSetores?.length > 0 && !filtros.deSetores.includes(baixa.de_setor)) return false;
       if (filtros.paraSetores?.length > 0 && !filtros.paraSetores.includes(baixa.para_setor)) return false;
+      
+      // Novos filtros industriais
+      if (filtros.consultores?.length > 0 && !filtros.consultores.includes(baixa.consultor)) return false;
+      if (filtros.setoresIndustriais?.length > 0 && !filtros.setoresIndustriais.includes(baixa.setor)) return false;
+      if (filtros.requisicao && !baixa.requisicao?.toLowerCase().includes(filtros.requisicao.toLowerCase())) return false;
+      if (filtros.pedido && !baixa.pedido?.toLowerCase().includes(filtros.pedido.toLowerCase())) return false;
+      if (filtros.op && !baixa.op?.toLowerCase().includes(filtros.op.toLowerCase())) return false;
+      if (filtros.chassi && !baixa.chassi?.toLowerCase().includes(filtros.chassi.toLowerCase())) return false;
+
       if (filtros.dataInicio && new Date(baixa.created_at) < new Date(filtros.dataInicio)) return false;
       if (filtros.dataFim && new Date(baixa.created_at) > new Date(filtros.dataFim)) return false;
       return true;
@@ -209,6 +224,12 @@ export default function BaixasPage() {
         { header: 'Para Setor', key: 'para_setor', width: 12 },
         { header: 'Local Destino', key: 'local_destino', width: 12 },
         { header: 'Operador', key: 'operador', width: 20 },
+        { header: 'Consultor', key: 'consultor', width: 15 },
+        { header: 'Setor Industrial', key: 'setor', width: 15 },
+        { header: 'Requisição', key: 'requisicao', width: 15 },
+        { header: 'Pedido', key: 'pedido', width: 15 },
+        { header: 'OP', key: 'op', width: 12 },
+        { header: 'Chassi', key: 'chassi', width: 20 },
         { header: 'Descrição', key: 'descricao', width: 30 }
       ];
 
@@ -242,6 +263,12 @@ export default function BaixasPage() {
           para_setor: baixa.para_setor || '',
           local_destino: baixa.local_destino || '',
           operador: baixa.operador || '',
+          consultor: baixa.consultor || '',
+          setor: baixa.setor || '',
+          requisicao: baixa.requisicao || '',
+          pedido: baixa.pedido || '',
+          op: baixa.op || '',
+          chassi: baixa.chassi || '',
           descricao: baixa.descricao_item || ''
         });
       });

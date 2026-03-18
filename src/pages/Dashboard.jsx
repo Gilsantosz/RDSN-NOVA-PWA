@@ -235,41 +235,31 @@ export default function Dashboard() {
     <PageTransition>
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-3 sm:p-4 md:p-6 transition-colors duration-300">
         <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
-          {/* Header Premium */}
-          <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(37,99,235,0.1),transparent)] pointer-events-none" />
-            <div className="relative flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
-              <div className="flex items-center gap-6 sm:gap-8">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all hover:scale-105 active:scale-95 group border border-blue-400/20 cursor-pointer">
-                  <Activity className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:rotate-12 transition-transform duration-500" />
-                </div>
-                <div className="space-y-1">
-                  <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
-                    PCP<span className="text-blue-600 dark:text-blue-400">MATRIX</span>
-                  </h1>
-                  <p className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
-                    Industrial Intelligence Hub • 20{filtroAno}
-                  </p>
-                </div>
+          {/* Header Minimalista */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Activity className="w-6 h-6 text-blue-600 dark:text-blue-500" />
+                Dashboard PCP
+              </h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Visão geral da produção e indicadores</p>
+            </div>
+            
+            <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
+              <div className="px-3 py-1.5 border-r border-slate-200 dark:border-slate-800 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Ano Base</span>
               </div>
-
-              <div className="flex flex-wrap items-center gap-4 bg-slate-100/50 dark:bg-slate-950/40 p-2 rounded-[1.5rem] border border-slate-200 dark:border-white/10 backdrop-blur-xl">
-                <div className="flex items-center gap-2 px-4 border-r border-slate-200 dark:border-white/10 hidden sm:flex">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                  <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-widest italic leading-none">Status: Operacional</span>
-                </div>
-
-                <Select value={filtroAno?.toString()} onValueChange={(v) => setFiltroAno(Number(v))}>
-                  <SelectTrigger className="w-[140px] sm:w-[180px] bg-transparent border-0 text-slate-900 dark:text-white font-black uppercase text-[10px] tracking-widest focus:ring-0 h-10 italic">
-                    <SelectValue placeholder="Ano" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-slate-900 dark:border-slate-800 rounded-2xl">
-                    {anosDisponiveis.map(ano => (
-                      <SelectItem key={ano} value={ano.toString()} className="font-bold text-xs uppercase tracking-widest text-slate-900 dark:text-slate-100">Ciclo 20{ano}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={filtroAno?.toString()} onValueChange={(v) => setFiltroAno(Number(v))}>
+                <SelectTrigger className="w-[120px] h-8 bg-transparent border-0 text-slate-900 dark:text-white font-semibold text-sm focus:ring-0">
+                  <SelectValue placeholder="Ano" />
+                </SelectTrigger>
+                <SelectContent>
+                  {anosDisponiveis.map(ano => (
+                    <SelectItem key={ano} value={ano.toString()}>{ano}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

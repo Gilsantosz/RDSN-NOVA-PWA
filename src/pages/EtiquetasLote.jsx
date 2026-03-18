@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
@@ -32,6 +32,9 @@ export default function EtiquetasLotePage() {
   const [buscaPallets, setBuscaPallets] = useState('');
   const [numeroCaixaInicial, setNumeroCaixaInicial] = useState('');
   const [ordemDecrescente, setOrdemDecrescente] = useState(false);
+  const [ordemAutomatica, setOrdemAutomatica] = useState(false);
+
+
   const [lotesSelecionados, setLotesSelecionados] = useState({});
 
   // Buscar todas as reservas ativas (não canceladas) se não houver reservaId
@@ -73,7 +76,7 @@ export default function EtiquetasLotePage() {
         }
         return {
           ...r,
-          sequencia_decrescente: produto?.sequencia_decrescente ?? false
+          sequencia_decrescente: produto?.ordem_numeracao === 'DECRESCENTE'
         };
       });
 
@@ -255,7 +258,8 @@ export default function EtiquetasLotePage() {
             quantidade: reservasFlat.reduce((sum, r) => sum + r.quantidade, 0),
             prefixo: primeiraReserva.codigo_completo,
             isMultiple: true,
-            reservas: reservasFlat
+            reservas: reservasFlat,
+            sequenciaDecrescente: produto?.ordem_numeracao === 'DECRESCENTE'
           };
         } else {
           // Reserva única
@@ -281,7 +285,8 @@ export default function EtiquetasLotePage() {
             quantidade: reserva.quantidade,
             prefixo: reserva.codigo_completo,
             isMultiple: false,
-            reservas: [reserva]
+            reservas: [reserva],
+            sequenciaDecrescente: produto?.ordem_numeracao === 'DECRESCENTE'
           };
         }
       } catch (err) {
@@ -319,6 +324,14 @@ export default function EtiquetasLotePage() {
     },
     enabled: !!reservaId
   });
+
+  // Sincronizar ordem decrescente com o produto
+  useEffect(() => {
+    if (contexto?.sequenciaDecrescente !== undefined) {
+      setOrdemDecrescente(contexto.sequenciaDecrescente);
+      setOrdemAutomatica(true);
+    }
+  }, [contexto?.sequenciaDecrescente]);
 
   // Mutation para registrar etiqueta
   const registrarMutation = useMutation({
@@ -369,7 +382,7 @@ export default function EtiquetasLotePage() {
     if (qtdPallet && qtdPallet > 0) {
       const caixasPorPallet = Math.ceil(qtdPallet / qtdCaixa);
       let serieAtual = ordemDecrescente ? contexto.numeroLoteFinal : contexto.numeroLoteInicial;
-      let numeroCaixa = ordemDecrescente ? totalCaixas + caixaOffset : 1 + caixaOffset;
+      let numeroCaixa = 1 + caixaOffset;
 
       for (let p = 1; p <= Math.ceil(totalCaixas / caixasPorPallet); p++) {
         const caixasNestePallet = Math.min(caixasPorPallet, totalCaixas - ((p - 1) * caixasPorPallet));
@@ -396,7 +409,7 @@ export default function EtiquetasLotePage() {
           });
 
           serieAtual = ordemDecrescente ? serieInicial - 1 : serieFinal + 1;
-          numeroCaixa = ordemDecrescente ? numeroCaixa - 1 : numeroCaixa + 1;
+          numeroCaixa = numeroCaixa + 1;
 
           if (ordemDecrescente ? serieAtual < contexto.numeroLoteInicial : serieAtual > contexto.numeroLoteFinal) break;
         }
@@ -416,7 +429,7 @@ export default function EtiquetasLotePage() {
       // Sem pallet, mostrar apenas distribuição por caixa
       let serieAtual = ordemDecrescente ? contexto.numeroLoteFinal : contexto.numeroLoteInicial;
       const caixas = [];
-      let numeroCaixa = ordemDecrescente ? totalCaixas + caixaOffset : 1 + caixaOffset;
+      let numeroCaixa = 1 + caixaOffset;
 
       for (let c = 1; c <= totalCaixas; c++) {
         let serieInicial, serieFinal, qtdAtual;
@@ -439,7 +452,7 @@ export default function EtiquetasLotePage() {
         });
 
         serieAtual = ordemDecrescente ? serieInicial - 1 : serieFinal + 1;
-        numeroCaixa = ordemDecrescente ? numeroCaixa - 1 : numeroCaixa + 1;
+        numeroCaixa = numeroCaixa + 1;
 
         if (ordemDecrescente ? serieAtual < contexto.numeroLoteInicial : serieAtual > contexto.numeroLoteFinal) break;
       }
@@ -890,13 +903,23 @@ export default function EtiquetasLotePage() {
                   </div>
 
                   <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
-                    <Label htmlFor="ordem" className="text-sm font-medium text-slate-700 dark:text-slate-400 cursor-pointer">
-                      Ordem Decrescente
-                    </Label>
+                    <div className="space-y-0.5">
+                      <Label htmlFor="ordem" className="text-sm font-medium text-slate-700 dark:text-slate-400 cursor-pointer flex items-center gap-2">
+                        Ordem Decrescente
+                        {ordemAutomatica && (
+                          <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] px-1.5 py-0 border-0 h-4">
+                            Automático
+                          </Badge>
+                        )}
+                      </Label>
+                    </div>
                     <Switch
                       id="ordem"
                       checked={ordemDecrescente}
-                      onCheckedChange={setOrdemDecrescente}
+                      onCheckedChange={(val) => {
+                        setOrdemDecrescente(val);
+                        setOrdemAutomatica(false);
+                      }}
                     />
                   </div>
                 </div>

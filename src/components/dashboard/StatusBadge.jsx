@@ -1,47 +1,73 @@
 import React from 'react';
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
-const statusConfig = {
-  RESERVADO: {
-    label: 'Reservado',
-    className: 'bg-blue-500/10 text-blue-400 border-blue-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(59,130,246,0.1)]'
-  },
-  EM_PRODUCAO: {
-    label: 'Em Produção',
-    className: 'bg-amber-500/10 text-amber-400 border-amber-500/40 backdrop-blur-md shadow-[0_0_20px_rgba(245,158,11,0.15)] animate-pulse-gentle'
-  },
-  BAIXADO: {
-    label: 'Baixado',
-    className: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(99,102,241,0.1)]'
-  },
-  PRODUZIDO: {
-    label: 'Produzido',
-    className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(16,185,129,0.1)]'
-  },
-  CANCELADO: {
-    label: 'Cancelado',
-    className: 'bg-rose-500/10 text-rose-400 border-rose-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(244,63,94,0.1)]'
-  },
-  LIBERADO: {
-    label: 'Liberado',
-    className: 'bg-slate-500/10 text-slate-400 border-slate-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(100,116,139,0.1)]'
-  },
+const STATUS_LABELS = {
+  1: 'Ativo',
+  2: 'Pendente',
+  3: 'Concluído',
+  4: 'Cancelado',
+  'ativo': 'Ativo',
+  'pendente': 'Pendente',
+  'concluido': 'Concluído',
+  'cancelado': 'Cancelado',
+  'concluído': 'Concluído'
 };
 
-export default function StatusBadge({ status }) {
+const getThemeClasses = (status) => {
+  const s = String(status).toLowerCase();
+  
+  switch(s) {
+    case '1':
+    case 'ativo':
+      return {
+        badge: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/40',
+        dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]',
+      };
+    case '2':
+    case 'pendente':
+      return {
+        badge: 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/40',
+        dot: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]',
+      };
+    case '3':
+    case 'concluido':
+    case 'concluído':
+      return {
+        badge: 'bg-blue-500/15 border-blue-500/30 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40',
+        dot: 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]',
+      };
+    case '4':
+    case 'cancelado':
+      return {
+        badge: 'bg-red-500/15 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-500/20 hover:border-red-500/40',
+        dot: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]',
+      };
+    default:
+      return {
+        badge: 'bg-gray-500/15 border-gray-500/30 text-gray-700 dark:text-gray-400 hover:bg-gray-500/20 hover:border-gray-500/40',
+        dot: 'bg-gray-500 shadow-[0_0_8px_rgba(107,114,128,0.8)]',
+      };
+  }
+};
+
+const StatusBadge = ({ status, className = '' }) => {
   if (!status) return null;
-  const config = statusConfig[status] || statusConfig.RESERVADO;
+  
+  const rawStatus = typeof status === 'string' ? status.toLowerCase() : String(status);
+  
+  const label = STATUS_LABELS[rawStatus] || 
+                (typeof status === 'string' ? status.charAt(0).toUpperCase() + status.slice(1) : status);
+
+  const theme = getThemeClasses(rawStatus);
 
   return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "font-black uppercase text-[9px] tracking-[0.15em] px-2.5 py-0.5 transition-all duration-300",
-        config.className
-      )}
+    <div 
+      className={`group relative inline-flex items-center px-2.5 py-1 rounded-full border text-[0.75rem] font-semibold tracking-wide uppercase overflow-hidden backdrop-blur-sm shadow-sm transition-all duration-300 hover:-translate-y-[1px] hover:shadow-md ${theme.badge} ${className}`}
     >
-      <span className="relative z-10">{config.label}</span>
-    </Badge>
+      <div className="absolute -left-full top-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 dark:via-white/10 to-transparent -skew-x-[20deg] transition-all duration-700 ease-in-out group-hover:left-[200%] z-0 pointer-events-none" />
+      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 inline-block shrink-0 animate-pulse z-10 ${theme.dot}`} />
+      <span className="z-10 relative drop-shadow-[0_1px_1px_rgba(255,255,255,0.2)] dark:drop-shadow-none">{label}</span>
+    </div>
   );
-}
+};
+
+export default StatusBadge;

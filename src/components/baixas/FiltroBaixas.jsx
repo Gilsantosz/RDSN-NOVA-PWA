@@ -36,6 +36,12 @@ export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
   const [selectedTipos, setSelectedTipos] = useState([]);
   const [selectedDeSetores, setSelectedDeSetores] = useState([]);
   const [selectedParaSetores, setSelectedParaSetores] = useState([]);
+  const [selectedConsultores, setSelectedConsultores] = useState([]);
+  const [selectedSetoresIndustriais, setSelectedSetoresIndustriais] = useState([]);
+  const [searchRequisicao, setSearchRequisicao] = useState('');
+  const [searchPedido, setSearchPedido] = useState('');
+  const [searchOP, setSearchOP] = useState('');
+  const [searchChassi, setSearchChassi] = useState('');
   const [dataInicio, setDataInicio] = useState(null);
   const [dataFim, setDataFim] = useState(null);
 
@@ -54,6 +60,8 @@ export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
     const operadores = new Set();
     const deSetores = new Set();
     const paraSetores = new Set();
+    const consultores = new Set();
+    const setoresIndustriais = new Set();
 
     baixas.forEach(baixa => {
       if (baixa.reserva?.cliente) clientes.add(baixa.reserva.cliente);
@@ -61,6 +69,8 @@ export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
       if (baixa.operador) operadores.add(baixa.operador);
       if (baixa.de_setor) deSetores.add(baixa.de_setor);
       if (baixa.para_setor) paraSetores.add(baixa.para_setor);
+      if (baixa.consultor) consultores.add(baixa.consultor);
+      if (baixa.setor) setoresIndustriais.add(baixa.setor);
     });
 
     return {
@@ -68,7 +78,9 @@ export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
       codigos: Array.from(codigos).sort(),
       operadores: Array.from(operadores).sort(),
       deSetores: Array.from(deSetores).sort(),
-      paraSetores: Array.from(paraSetores).sort()
+      paraSetores: Array.from(paraSetores).sort(),
+      consultores: Array.from(consultores).sort(),
+      setoresIndustriais: Array.from(setoresIndustriais).sort()
     };
   }, [baixas]);
 
@@ -81,6 +93,12 @@ export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
       tipos: selectedTipos,
       deSetores: selectedDeSetores,
       paraSetores: selectedParaSetores,
+      consultores: selectedConsultores,
+      setoresIndustriais: selectedSetoresIndustriais,
+      requisicao: searchRequisicao,
+      pedido: searchPedido,
+      op: searchOP,
+      chassi: searchChassi,
       dataInicio: dataInicio ? format(dataInicio, 'yyyy-MM-dd') : '',
       dataFim: dataFim ? format(dataFim, 'yyyy-MM-dd') : ''
     });
@@ -88,7 +106,7 @@ export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
 
   useEffect(() => {
     aplicarFiltros();
-  }, [selectedClientes, selectedCodigos, selectedOperadores, selectedTipos, selectedDeSetores, selectedParaSetores, dataInicio, dataFim]);
+  }, [selectedClientes, selectedCodigos, selectedOperadores, selectedTipos, selectedDeSetores, selectedParaSetores, selectedConsultores, selectedSetoresIndustriais, searchRequisicao, searchPedido, searchOP, searchChassi, dataInicio, dataFim]);
 
   const handleLimpar = () => {
     setSelectedClientes([]);
@@ -97,6 +115,12 @@ export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
     setSelectedTipos([]);
     setSelectedDeSetores([]);
     setSelectedParaSetores([]);
+    setSelectedConsultores([]);
+    setSelectedSetoresIndustriais([]);
+    setSearchRequisicao('');
+    setSearchPedido('');
+    setSearchOP('');
+    setSearchChassi('');
     setDataInicio(null);
     setDataFim(null);
   };
@@ -114,6 +138,12 @@ export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
         tipos: selectedTipos,
         deSetores: selectedDeSetores,
         paraSetores: selectedParaSetores,
+        consultores: selectedConsultores,
+        setoresIndustriais: selectedSetoresIndustriais,
+        requisicao: searchRequisicao,
+        pedido: searchPedido,
+        op: searchOP,
+        chassi: searchChassi,
         dataInicio,
         dataFim
       }
@@ -133,6 +163,12 @@ export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
     setSelectedTipos(filtro.filtros.tipos || []);
     setSelectedDeSetores(filtro.filtros.deSetores || []);
     setSelectedParaSetores(filtro.filtros.paraSetores || []);
+    setSelectedConsultores(filtro.filtros.consultores || []);
+    setSelectedSetoresIndustriais(filtro.filtros.setoresIndustriais || []);
+    setSearchRequisicao(filtro.filtros.requisicao || '');
+    setSearchPedido(filtro.filtros.pedido || '');
+    setSearchOP(filtro.filtros.op || '');
+    setSearchChassi(filtro.filtros.chassi || '');
     setDataInicio(filtro.filtros.dataInicio || null);
     setDataFim(filtro.filtros.dataFim || null);
     setShowLoadDialog(false);
@@ -184,6 +220,12 @@ export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
     selectedTipos.length +
     selectedDeSetores.length +
     selectedParaSetores.length +
+    selectedConsultores.length +
+    selectedSetoresIndustriais.length +
+    (searchRequisicao ? 1 : 0) +
+    (searchPedido ? 1 : 0) +
+    (searchOP ? 1 : 0) +
+    (searchChassi ? 1 : 0) +
     (dataInicio ? 1 : 0) +
     (dataFim ? 1 : 0);
 
@@ -264,6 +306,58 @@ export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
                 onChange={setSelectedParaSetores}
                 placeholder="Selecione setores destino..."
               />
+            </div>
+
+            {/* Linha 3: Novos Filtros Industriais */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <MultiSelectField
+                label="Consultores"
+                options={sugestoes.consultores}
+                selected={selectedConsultores}
+                onChange={setSelectedConsultores}
+                placeholder="Filtrar por consultor..."
+              />
+              <MultiSelectField
+                label="Setor Industrial"
+                options={sugestoes.setoresIndustriais}
+                selected={selectedSetoresIndustriais}
+                onChange={setSelectedSetoresIndustriais}
+                placeholder="Filtrar por setor..."
+              />
+              <div className="space-y-2">
+                <Label className="text-slate-700 dark:text-slate-300 font-medium">Requisição / Pedido</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Req..." 
+                    value={searchRequisicao} 
+                    onChange={(e) => setSearchRequisicao(e.target.value)}
+                    className="bg-white dark:bg-slate-900 dark:border-slate-800"
+                  />
+                  <Input 
+                    placeholder="Ped..." 
+                    value={searchPedido} 
+                    onChange={(e) => setSearchPedido(e.target.value)}
+                    className="bg-white dark:bg-slate-900 dark:border-slate-800"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-700 dark:text-slate-300 font-medium">OP / Chassi</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="OP..." 
+                    value={searchOP} 
+                    onChange={(e) => setSearchOP(e.target.value)}
+                    className="bg-white dark:bg-slate-900 dark:border-slate-800"
+                  />
+                  <Input 
+                    placeholder="Chassi..." 
+                    value={searchChassi} 
+                    onChange={(e) => setSearchChassi(e.target.value)}
+                    className="bg-white dark:bg-slate-900 dark:border-slate-800"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Linha 3: Date Pickers */}

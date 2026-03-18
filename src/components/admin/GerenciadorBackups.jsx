@@ -51,11 +51,21 @@ export default function GerenciadorBackups() {
     mutationFn: () => rdsn.functions.invoke('backupDados', {}),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['backup-historico'] });
-      // response.data from shim is { success, total_registros, tamanho_bytes, ... }
+      // response.data from shim is { success, total_registros, tamanho_mb, ... }
       const resData = response.data || response;
-      const mb = ((resData.total_registros || 0) / (1024 * 1024)).toFixed(2);
-      toast.success(`Backup realizado: ${resData.total_registros} registros, ~${mb} MB aproximado`);
+      toast.success(`Backup processado com sucesso!`, {
+        description: `${resData.total_registros || 0} registros salvos. O download iniciará em instantes.`
+      });
       setExecutando(false);
+
+      if (resData.arquivo_url) {
+        const a = document.createElement('a');
+        a.href = resData.arquivo_url;
+        a.download = `backup_rdsn_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
     },
     onError: (error) => {
       toast.error('Erro ao executar backup: ' + error.message);
@@ -104,9 +114,29 @@ export default function GerenciadorBackups() {
   const ultimoBackup = historico[0];
   const backupsSucesso = historico.filter(b => b.status === 'SUCESSO').length;
 
+  const handleDownloadJson = async (backup) => {
+    try {
+      toast.info('Baixando arquivo JSON do backup...');
+      const response = await fetch(backup.arquivo_url);
+      if (!response.ok && !backup.arquivo_url.startsWith('blob:')) {
+         throw new Error('Falha HTTP: ' + response.status);
+      }
+      const a = document.createElement('a');
+      a.href = backup.arquivo_url;
+      a.download = `backup_rdsn_${format(new Date(backup.created_at), 'yyyy-MM-dd_HH-mm')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success('Download em andamento...');
+    } catch (err) {
+      console.error(err);
+      toast.error('Este backup expirou ou foi excluído. Configure o Storage do Supabase para retenção permanente.', { duration: 6000 });
+    }
+  };
+
   const exportarBackupExcel = async (backup) => {
     try {
-      toast.info('Baixando dados do backup...');
+      toast.info('Baixando e convertendo dados do backup...');
       const response = await fetch(backup.arquivo_url);
       const data = await response.json();
 
@@ -121,7 +151,7 @@ export default function GerenciadorBackups() {
         const allKeys = [...new Set(registros.flatMap(r => Object.keys(r)))];
 
         const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet(entidade);
+        const sheet = workbook.addWorksheet(entidade.substring(0, 31)); // Excel limitions: title up to 31 chars
 
         sheet.columns = allKeys.map(k => ({ header: k, key: k, width: 18 }));
 
@@ -155,7 +185,12 @@ export default function GerenciadorBackups() {
 
       toast.success('Backup exportado com sucesso!');
     } catch (err) {
-      toast.error('Erro ao exportar backup: ' + err.message);
+      console.error(err);
+      if (err instanceof TypeError || err.message.includes('fetch')) {
+         toast.error('Backup local expirado. Configure o Storage do Supabase para guardar os arquivos permanentemente.', { duration: 6000 });
+      } else {
+         toast.error('Erro ao exportar backup: ' + err.message);
+      }
     }
   };
 
@@ -383,13 +418,11 @@ export default function GerenciadorBackups() {
                       <Button
                         size="sm"
                         variant="outline"
-                        asChild
+                        onClick={() => handleDownloadJson(backup)}
                         className="h-full rounded-xl border-slate-200 dark:border-white/10 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest px-4"
                       >
-                        <a href={backup.arquivo_url} download>
-                          <Download className="w-3.5 h-3.5 mr-2 text-blue-500" />
-                          JSON
-                        </a>
+                        <Download className="w-3.5 h-3.5 mr-2 text-blue-500" />
+                        JSON
                       </Button>
                       <Button
                         size="sm"

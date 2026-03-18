@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
+import SessionManager from '@/lib/sessionManager';
 
 // Definição centralizada de todos os módulos e ações granulares
 export const MODULOS_PERMISSOES = [
@@ -181,8 +182,11 @@ export function usePermissoes() {
   const { data: currentUser } = useQuery({
     queryKey: ['internalUser'],
     queryFn: () => {
-      const user = localStorage.getItem('internalUser');
-      return user ? JSON.parse(user) : null;
+      try {
+        return SessionManager.getUser();
+      } catch {
+        return null;
+      }
     },
     staleTime: 0,
     gcTime: 0,

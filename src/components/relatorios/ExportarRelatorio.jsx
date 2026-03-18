@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Loader2 } from 'lucide-react';
+import { Download, FileText, Loader2, ArrowDownToLine } from 'lucide-react';
 import { toast } from "sonner";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 
@@ -336,32 +337,27 @@ export default function ExportarRelatorio({ dados, colunas, titulo, resumo, filt
   };
 
   return (
-    <div className="flex gap-2">
-      <Button
-        onClick={exportarExcel}
-        disabled={!!exportando}
-        className="bg-green-600 hover:bg-green-700"
-      >
-        {exportando === 'excel' ? (
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-        ) : (
-          <Download className="w-4 h-4 mr-2" />
-        )}
-        Excel
-      </Button>
-      <Button
-        onClick={exportarPDF}
-        disabled={!!exportando}
-        variant="outline"
-        className="border-red-300 text-red-700 hover:bg-red-50"
-      >
-        {exportando === 'pdf' ? (
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-        ) : (
-          <FileText className="w-4 h-4 mr-2" />
-        )}
-        PDF
-      </Button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          variant="outline" 
+          className="h-12 px-5 rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200/50 dark:border-slate-800/50 text-slate-700 dark:text-slate-300 font-bold uppercase text-[11px] tracking-wider gap-2 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm"
+          disabled={!!exportando}
+        >
+          {exportando ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowDownToLine className="w-4 h-4" />}
+          Exportar
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56 rounded-2xl border-slate-200/50 dark:border-slate-800/50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-2 shadow-xl shadow-slate-200/20 dark:shadow-black/40">
+        <DropdownMenuItem onClick={exportarExcel} disabled={!!exportando} className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 font-semibold text-sm text-slate-700 dark:text-slate-200 focus:bg-slate-100 dark:focus:bg-slate-800">
+          <Download className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          Planilha (Excel)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={exportarPDF} disabled={!!exportando} className="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800/80 font-semibold text-sm text-slate-700 dark:text-slate-200 mt-1 focus:bg-slate-100 dark:focus:bg-slate-800">
+          <FileText className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+          Documento (PDF)
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -7,15 +7,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { AlertCircle, Check, ScanLine, Camera, RefreshCw, Save } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle, Check, ScanLine, Camera, RefreshCw, Save, History, ShieldCheck } from "lucide-react";
 import { formatarNumeracao, extrairPrefixo } from '../formatacao/FormatacaoNumeracao';
 import BarcodeScanner from '@/components/scanner/BarcodeScanner';
 import { AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function BaixaForm({
   reserva,
+  setorInfo,
   onSubmit,
   isLoading,
   onCancel
@@ -57,7 +66,13 @@ export default function BaixaForm({
     descricao_item: '',
     operador: '',
     cliente: '',
-    codigo_lido: ''
+    codigo_lido: '',
+    consultor: '',
+    setor: '',
+    requisicao: '',
+    pedido: '',
+    op: '',
+    chassi: ''
   });
 
   const [calculatedQty, setCalculatedQty] = useState(0);
@@ -66,14 +81,15 @@ export default function BaixaForm({
   const [ordemDecrescente, setOrdemDecrescente] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scannerTarget, setScannerTarget] = useState(null);
+  const [automaticScanCount, setAutomaticScanCount] = useState(0);
 
   useEffect(() => {
     if (produtoInfo && !ordemIniciada) {
-      const ordemProduto = produtoInfo.ordem_baixa === 'decrescente';
-      setOrdemDecrescente(ordemProduto);
+      const isDecrescente = produtoInfo.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente;
+      setOrdemDecrescente(!!isDecrescente);
       setOrdemIniciada(true);
     }
-  }, [produtoInfo, ordemIniciada]);
+  }, [produtoInfo, ordemIniciada, setorInfo]);
 
   useEffect(() => {
     if (reserva || usuarioLogado || produtoInfo) {
@@ -92,7 +108,13 @@ export default function BaixaForm({
         setor_producao: setorProd,
         operador: operadorNome,
         descricao_item: descricaoAutomatica,
-        cliente: clienteNome
+        cliente: clienteNome,
+        consultor: reserva.consultor || '',
+        setor: reserva.setor || '',
+        requisicao: reserva.requisicao || '',
+        pedido: reserva.pedido || '',
+        op: reserva.op || '',
+        chassi: reserva.chassi || ''
       }));
     }
   }, [reserva, usuarioLogado, setores, produtoInfo, ordemDecrescente, setorAtivo]);
@@ -102,25 +124,33 @@ export default function BaixaForm({
       const ini = Number(formData.numero_inicial);
       const fim = Number(formData.numero_final);
 
+      if (isNaN(ini) || isNaN(fim)) {
+        setCalculatedQty(0);
+        setError('Valores inválidos.');
+        return;
+      }
+
       if (ordemDecrescente) {
-        if (fim > ini) {
+        if (ini < fim) {
           setCalculatedQty(0);
-          setError('Em ordem decrescente, o inicial deve ser MAIOR que o final');
+          setError('Ordem decrescente: O número inicial não pode ser menor que o final.');
           return;
         }
         setCalculatedQty(ini - fim + 1);
+
         if (ini > reserva.numero_final || fim < reserva.numero_inicial) {
-          setError(`Intervalo fora da reserva (${reserva.numero_inicial} - ${reserva.numero_final})`);
+          setError(`Intervalo fora da reserva (${reserva.numero_final} - ${reserva.numero_inicial})`);
         } else {
           setError('');
         }
       } else {
-        if (fim < ini) {
+        if (ini > fim) {
           setCalculatedQty(0);
-          setError('Número final deve ser maior ou igual ao inicial');
+          setError('Ordem crescente: O número inicial não pode ser maior que o final.');
           return;
         }
         setCalculatedQty(fim - ini + 1);
+
         if (ini < reserva.numero_inicial || fim > reserva.numero_final) {
           setError(`Intervalo fora da reserva (${reserva.numero_inicial} - ${reserva.numero_final})`);
         } else {
@@ -138,14 +168,12 @@ export default function BaixaForm({
 
     const ini = Number(formData.numero_inicial);
     const fim = Number(formData.numero_final);
-    const numMin = Math.min(ini, fim);
-    const numMax = Math.max(ini, fim);
 
     onSubmit({
       reserva_id: reserva.id,
-      numero_inicial: numMin,
-      numero_final: numMax,
-      quantidade: numMax - numMin + 1,
+      numero_inicial: ini,
+      numero_final: fim,
+      quantidade: ordemDecrescente ? (ini - fim + 1) : (fim - ini + 1),
       tipo: formData.tipo,
       de_setor: formData.de_setor,
       para_setor: formData.para_setor,
@@ -154,7 +182,13 @@ export default function BaixaForm({
       local_destino: formData.local_destino,
       descricao_item: formData.descricao_item,
       operador: formData.operador,
-      cliente: formData.cliente
+      cliente: formData.cliente,
+      consultor: formData.consultor,
+      setor: formData.setor,
+      requisicao: formData.requisicao,
+      pedido: formData.pedido,
+      op: formData.op,
+      chassi: formData.chassi
     });
   };
 
@@ -188,6 +222,22 @@ export default function BaixaForm({
       } else if (scannerTarget === 'final') {
         setFormData(prev => ({ ...prev, numero_final: numero.toString() }));
         toast.success(`Fim definido: ${numero}`);
+      } else if (scannerTarget === 'automatic') {
+        if (automaticScanCount === 0 || automaticScanCount === 2) {
+          // Iniciar novo ciclo ou reiniciar
+          setFormData(prev => ({ 
+            ...prev, 
+            numero_inicial: numero.toString(),
+            numero_final: '' 
+          }));
+          setAutomaticScanCount(1);
+          toast.success(`[Automatic] Início: ${numero}`);
+        } else {
+          // Fechar ciclo (segunda leitura)
+          setFormData(prev => ({ ...prev, numero_final: numero.toString() }));
+          setAutomaticScanCount(2);
+          toast.success(`[Automatic] Fim: ${numero}`);
+        }
       } else if (scannerTarget === 'codigo') {
         setFormData(prev => ({ ...prev, codigo_lido: codeStr }));
         if (formData.numero_inicial) {
@@ -206,6 +256,34 @@ export default function BaixaForm({
         toast.error('Código inválido para este campo');
       }
     }
+  };
+
+  const handleInputChange = (field, val) => {
+    const codeStr = val.toUpperCase().trim();
+    if (!codeStr) {
+      setFormData(p => ({ ...p, [field]: '' }));
+      return;
+    }
+
+    const prefixoReserva = extrairPrefixo(reserva?.codigo_completo || '');
+    const matchComPrefixo = codeStr.match(/^([A-Z]\d{2}[A-Z]{0,5})(\d+)$/);
+
+    if (matchComPrefixo) {
+      const prefixObj = matchComPrefixo[1];
+      const numObj = parseInt(matchComPrefixo[2], 10);
+      
+      if (prefixoReserva && prefixObj !== prefixoReserva) {
+        toast.warning(`Atenção: Prefixo lido (${prefixObj}) é diferente do lote (${prefixoReserva})`);
+      }
+      setFormData(p => ({ ...p, [field]: numObj.toString() }));
+      return;
+    }
+
+    const digitsOnly = codeStr.replace(/\D/g, '');
+    setFormData(p => ({ 
+      ...p, 
+      [field]: digitsOnly ? parseInt(digitsOnly, 10).toString() : '' 
+    }));
   };
 
   return (
@@ -277,11 +355,88 @@ export default function BaixaForm({
               </div>
             </div>
           </div>
+
+          <div className="bg-amber-500/5 dark:bg-amber-500/10 rounded-[2rem] p-6 border border-amber-500/20 shadow-xl transition-all">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-500">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-500 italic">Condições de Uso</h3>
+            </div>
+            <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
+              "O operador declara sob as penas da lei que o consumo aqui registrado é verdadeiro e confere com os itens em posse e de uso do setor. Qualquer divergência deve ser comunicada e registrada na aba de ocorrências imediatamente."
+            </p>
+          </div>
         </div>
 
         {/* Lado Direito: Formulário de Coleta */}
         <div className="md:col-span-8 space-y-6">
           <form onSubmit={handleSubmit} className="space-y-6 bg-slate-50 dark:bg-white/5 p-8 rounded-[2.5rem] border border-slate-200 dark:border-white/5 shadow-inner">
+            
+            {/* Leitura Industrial Automática */}
+            <div className="relative group overflow-hidden bg-slate-900 rounded-3xl p-6 border-2 border-blue-500/20 hover:border-blue-500/40 transition-all">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <ScanLine className="w-24 h-24 text-white" />
+              </div>
+              
+              <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div>
+                  <h3 className="text-white font-black italic uppercase tracking-wider text-lg flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    Leitura Industrial Automática
+                  </h3>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                    {automaticScanCount === 0 ? "Aguardando leitura inicial..." : 
+                     automaticScanCount === 1 ? "Pronto para leitura terminal..." : 
+                     "Ciclo completo. Reinicie para nova sequência."}
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  {automaticScanCount > 0 && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setAutomaticScanCount(0);
+                        setFormData(p => ({ ...p, numero_inicial: '', numero_final: '' }));
+                      }}
+                      className="rounded-2xl border-white/10 text-white hover:bg-white/10"
+                    >
+                      Reset
+                    </Button>
+                  )}
+                  <Button 
+                    type="button"
+                    onClick={() => { setScannerTarget('automatic'); setShowScanner(true); }}
+                    className="h-14 px-8 bg-blue-600 hover:bg-blue-50 text-white hover:text-blue-900 rounded-2xl font-black uppercase italic tracking-widest shadow-lg shadow-blue-500/20 transition-all flex items-center gap-3"
+                  >
+                    <Camera className="w-6 h-6" />
+                    Acionar Scanner
+                  </Button>
+                </div>
+              </div>
+
+              {/* Progress Indicator */}
+              <div className="mt-6 grid grid-cols-2 gap-2">
+                <div className={cn(
+                  "h-1.5 rounded-full transition-all duration-500",
+                  automaticScanCount >= 1 ? "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" : "bg-white/10"
+                )} />
+                <div className={cn(
+                  "h-1.5 rounded-full transition-all duration-500",
+                  automaticScanCount >= 2 ? "bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" : "bg-white/10"
+                )} />
+              </div>
+
+              <div className="mt-4 flex items-center justify-between text-[10px] text-slate-500 font-bold uppercase tracking-widest px-1 italic">
+                <div className="flex items-center gap-2">
+                  <History className="w-3 h-3 text-blue-500" />
+                  <span>Log: {formData.numero_final ? `Fim ${formData.numero_final}` : formData.numero_inicial ? `Início ${formData.numero_inicial}` : 'Nenhuma leitura detectada'}</span>
+                </div>
+                <span>{automaticScanCount}/2 Coletas</span>
+              </div>
+            </div>
 
             {/* Intervalo de Numeração */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
@@ -292,7 +447,7 @@ export default function BaixaForm({
                 </div>
                 <Input
                   value={formData.numero_inicial}
-                  onChange={(e) => setFormData(p => ({ ...p, numero_inicial: e.target.value }))}
+                  onChange={(e) => handleInputChange('numero_inicial', e.target.value)}
                   className="h-20 bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-white/5 rounded-3xl px-8 text-4xl font-black italic tracking-tighter text-blue-600 dark:text-blue-400 focus:border-blue-500 transition-all shadow-sm"
                 />
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 italic">
@@ -304,11 +459,21 @@ export default function BaixaForm({
                   <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest italic">{ordemDecrescente ? 'Terminal Final' : 'Terminal Encerramento'}</Label>
                   <button type="button" onClick={() => { setScannerTarget('final'); setShowScanner(true); }} className="text-blue-600 hover:scale-110 transition-transform"><Camera className="w-4 h-4" /></button>
                 </div>
-                <Input
-                  value={formData.numero_final}
-                  onChange={(e) => setFormData(p => ({ ...p, numero_final: e.target.value }))}
-                  className="h-20 bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-white/5 rounded-3xl px-8 text-4xl font-black italic tracking-tighter text-blue-600 dark:text-blue-400 focus:border-blue-500 transition-all shadow-sm"
-                />
+                <div className="relative">
+                  <Input
+                    value={formData.numero_final}
+                    onChange={(e) => handleInputChange('numero_final', e.target.value)}
+                    className="h-20 bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-white/5 rounded-3xl px-8 text-4xl font-black italic tracking-tighter text-blue-600 dark:text-blue-400 focus:border-blue-500 transition-all shadow-sm pr-20"
+                  />
+                  {formData.numero_final && (!error || calculatedQty > 0) && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-end pointer-events-none">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5 leading-none">Qtd</span>
+                      <Badge className={cn("text-white font-black text-sm px-2 py-0.5 rounded-lg shadow-md", error ? "bg-rose-500" : "bg-emerald-500")}>
+                        {error ? "—" : calculatedQty}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2 italic">
                   Offset: {reserva.codigo_completo}{formatarNumeracao(Number(formData.numero_final), extrairPrefixo(reserva.codigo_completo), setores.find(s => s.id === reserva.setor_id)?.nome)}
                 </p>
@@ -342,8 +507,76 @@ export default function BaixaForm({
                 value={formData.operador}
                 onChange={e => setFormData(p => ({ ...p, operador: e.target.value.toUpperCase() }))}
                 placeholder="CERTIFICAÇÃO DO AGENTE"
-                className="h-14 bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-white/5 rounded-2xl px-6 font-black italic uppercase tracking-tighter"
+                disabled={true}
+                className="h-14 bg-slate-100 dark:bg-slate-900 border-2 border-slate-200 dark:border-white/5 rounded-2xl px-6 font-black italic uppercase tracking-tighter opacity-70 cursor-not-allowed"
               />
+            </div>
+
+            {/* Campos Adicionais Solicitados */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-6 bg-white dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-white/5 shadow-sm">
+              <div className="space-y-2">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 italic">Consultor</Label>
+                <Input 
+                  value={formData.consultor} 
+                  onChange={e => setFormData(p => ({ ...p, consultor: e.target.value.toUpperCase() }))} 
+                  className="h-12 bg-slate-50 dark:bg-black font-black text-lg italic border-0" 
+                  placeholder="NOME DO CONSULTOR"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 italic">Setor Destino</Label>
+                <Select 
+                  value={formData.setor} 
+                  onValueChange={value => setFormData(p => ({ ...p, setor: value }))}
+                >
+                  <SelectTrigger className="h-12 bg-slate-50 dark:bg-black font-black text-lg italic border-0">
+                    <SelectValue placeholder="SELECIONE O SETOR" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {setores.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 italic">Requisição</Label>
+                <Input 
+                  value={formData.requisicao} 
+                  onChange={e => setFormData(p => ({ ...p, requisicao: e.target.value.toUpperCase() }))} 
+                  className="h-12 bg-slate-50 dark:bg-black font-black text-lg italic border-0" 
+                  placeholder="Nº REQUISIÇÃO"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 italic">Pedido</Label>
+                <Input 
+                  value={formData.pedido} 
+                  onChange={e => setFormData(p => ({ ...p, pedido: e.target.value.toUpperCase() }))} 
+                  className="h-12 bg-slate-50 dark:bg-black font-black text-lg italic border-0" 
+                  placeholder="Nº PEDIDO"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 italic">OP (Ordem de Produção)</Label>
+                <Input 
+                  value={formData.op} 
+                  onChange={e => setFormData(p => ({ ...p, op: e.target.value.toUpperCase() }))} 
+                  className="h-12 bg-slate-50 dark:bg-black font-black text-lg italic border-0" 
+                  placeholder="Nº OP"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 italic">Chassi</Label>
+                <Input 
+                  value={formData.chassi} 
+                  onChange={e => setFormData(p => ({ ...p, chassi: e.target.value.toUpperCase() }))} 
+                  className="h-12 bg-slate-50 dark:bg-black font-black text-lg italic border-0" 
+                  placeholder="IDENTIFICAÇÃO CHASSI"
+                />
+              </div>
             </div>
 
             {/* Validação de Carga */}

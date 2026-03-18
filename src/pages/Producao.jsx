@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
 import { useSetor } from '@/components/context/SetorContext';
 import { ScanLine, Package, CalendarDays, Activity, X } from 'lucide-react';
@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 // Label removed (unused)
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import StatusBadge from '../components/dashboard/StatusBadge';
 import BaixaForm from '../components/baixas/BaixaForm';
@@ -24,6 +23,16 @@ import SetorReadonlyBanner, { useSetorReadonly } from '@/components/pcp/SetorRea
 export default function Producao() {
   const queryClient = useQueryClient();
   const { setorAtivo, isAdmin } = useSetor();
+  const { data: setores = [] } = useQuery({
+    queryKey: ['setores'],
+    queryFn: async () => await rdsn.entities.Setor.list()
+  });
+
+  const setorInfo = useMemo(() => {
+    if (!setorAtivo || setorAtivo === 'ALL') return null;
+    return setores.find(s => s.id === setorAtivo);
+  }, [setores, setorAtivo]);
+
   const isReadonly = useSetorReadonly();
   const navigate = useNavigate();
   const [modoProducaoDia, setModoProducaoDia] = useState(() => {
@@ -57,6 +66,7 @@ export default function Producao() {
         100
       );
     },
+    placeholderData: keepPreviousData,
     enabled: !!setorAtivo
   });
 
@@ -321,7 +331,7 @@ export default function Producao() {
 
         {modoProducaoDia ? (
           /* === MODO PRODUÇÃO DO DIA === */
-          <ModoProducaoDia reservas={reservas} produtos={produtos} />
+          <ModoProducaoDia reservas={reservas} produtos={produtos} setorInfo={setorInfo} />
         ) : (
           /* === MODO NORMAL === */
           <>
@@ -455,7 +465,7 @@ export default function Producao() {
                                     <div className="flex flex-col gap-3 min-w-[140px]">
                                       {(() => {
                                         const prod = produtos.find(p => p.codigo_produto === reserva.codigo_produto);
-                                        const isInvertida = prod?.ordem_baixa === 'decrescente';
+                                        const isInvertida = prod?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente;
                                         return (
                                           <>
                                             {isInvertida && (
@@ -491,10 +501,10 @@ export default function Producao() {
 
             {/* Baixa Dialog Premium Industrial */}
             <Dialog open={showBaixa} onOpenChange={setShowBaixa}>
-              <DialogContent className="max-w-2xl h-[92vh] sm:h-auto sm:max-h-[90vh] flex flex-col p-0 overflow-hidden border-0 bg-white dark:bg-slate-950 rounded-none sm:rounded-[3rem] shadow-[0_0_80px_rgba(0,0,0,0.5)]">
+              <DialogContent className="max-w-5xl h-[95vh] flex flex-col p-0 overflow-hidden border-0 bg-white dark:bg-slate-950 rounded-none sm:rounded-[3rem] shadow-[0_0_80px_rgba(0,0,0,0.5)]">
 
                 {/* Header Industrial */}
-                <div className="relative bg-slate-950 px-10 py-12 shrink-0 overflow-hidden">
+                <div className="relative bg-slate-950 px-10 py-8 shrink-0 overflow-hidden">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-[80px] -mr-32 -mt-32" />
 
                   <DialogHeader className="relative z-10">
@@ -520,11 +530,12 @@ export default function Producao() {
                   </Button>
                 </div>
 
-                <ScrollArea className="flex-1">
-                  <div className="p-10">
+                <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
+                  <div className="p-6 sm:p-10">
                     {selectedReserva && (
                       <BaixaForm
                         reserva={selectedReserva}
+                        setorInfo={setorInfo}
                         onSubmit={(data) => createBaixaMutation.mutate(data)}
                         isLoading={createBaixaMutation.isPending}
                         onCancel={() => {
@@ -534,9 +545,9 @@ export default function Producao() {
                       />
                     )}
                   </div>
-                </ScrollArea>
+                </div>
 
-                <div className="px-10 py-4 bg-slate-50 dark:bg-black/40 border-t border-slate-100 dark:border-white/5 flex items-center justify-center gap-2 opacity-30">
+                <div className="px-10 py-4 shrink-0 bg-slate-50 dark:bg-black/40 border-t border-slate-100 dark:border-white/5 flex items-center justify-center gap-2 opacity-30">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                   <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Sistema de Rastreabilidade RDSN Ativo</span>
                 </div>

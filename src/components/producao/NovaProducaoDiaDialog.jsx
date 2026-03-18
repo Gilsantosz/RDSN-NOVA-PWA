@@ -22,7 +22,8 @@ import {
   Circle,
   Filter,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Hash
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -38,7 +39,8 @@ export default function NovaProducaoDiaDialog({
   setorNome,
   onIniciar,
   isLoading,
-  produtos = []
+  produtos = [],
+  setorInfo
 }) {
   const [search, setSearch] = useState('');
   const [selecionados, setSelecionados] = useState([]);
@@ -72,22 +74,31 @@ export default function NovaProducaoDiaDialog({
       setSelecionados(selecionados.filter(s => s.reserva_id !== reserva.id));
     } else {
       const baixas = baixasPorReserva[reserva.id] || [];
-      const prodInfo = produtos.find(p => p.letra_produto === reserva.letra_produto);
-      const isDecrescente = prodInfo?.ordem_baixa === 'decrescente';
+      const prodInfo = produtos.find(p => p.codigo_produto === reserva.codigo_produto) ||
+        produtos.find(p => p.letra_produto === reserva.letra_produto && !p.codigo_produto);
+      const isDecrescente = prodInfo?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente;
 
       let sugereNum;
+      const minLote = Math.min(reserva.numero_inicial, reserva.numero_final);
+      const maxLote = Math.max(reserva.numero_inicial, reserva.numero_final);
+
       if (baixas.length > 0) {
-        const sortedBaixas = [...baixas].sort((a, b) => b.numero_final - a.numero_final);
-        const ultimaBaixa = sortedBaixas[0];
-        sugereNum = isDecrescente ? ultimaBaixa.numero_final - 1 : ultimaBaixa.numero_final + 1;
+        if (isDecrescente) {
+          const menorNum = Math.min(...baixas.map(b => Math.min(b.numero_inicial || Infinity, b.numero_final || Infinity)));
+          sugereNum = menorNum > minLote ? menorNum - 1 : minLote;
+        } else {
+          const maiorNum = Math.max(...baixas.map(b => Math.max(b.numero_inicial || 0, b.numero_final || 0)));
+          sugereNum = maiorNum < maxLote ? maiorNum + 1 : maxLote;
+        }
       } else {
-        sugereNum = isDecrescente ? reserva.numero_final : reserva.numero_inicial;
+        sugereNum = isDecrescente ? maxLote : minLote;
       }
 
       setSelecionados([...selecionados, {
         reserva_id: reserva.id,
         reserva,
-        numeracao_inicial: sugereNum
+        numeracao_inicial: sugereNum,
+        sequencia_decrescente: isDecrescente
       }]);
     }
   };
@@ -118,7 +129,7 @@ export default function NovaProducaoDiaDialog({
           <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-blue-600/10 rounded-full blur-[120px] -mr-64 -mt-64" />
           <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-600/5 rounded-full blur-[100px] -ml-48 -mb-48" />
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-8 pr-12 md:pr-0">
             <div className="space-y-2">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-[1rem] bg-blue-600 flex items-center justify-center shadow-[0_0_20px_rgba(37,99,235,0.4)]">
@@ -176,7 +187,7 @@ export default function NovaProducaoDiaDialog({
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="absolute top-8 right-8 text-slate-500 hover:text-white hover:bg-white/10 rounded-full w-12 h-12 p-0 transition-all"
+            className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50 text-slate-400 hover:text-white hover:bg-white/10 rounded-full w-12 h-12 p-0 transition-all"
           >
             <X className="w-8 h-8" />
           </Button>
@@ -236,6 +247,16 @@ export default function NovaProducaoDiaDialog({
                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-black/50 border border-slate-200 dark:border-white/5">
                               <Plus className="w-3 h-3 text-blue-500" />
                               <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase italic tracking-widest">{reserva.modelo}</span>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-black/50 border border-slate-200 dark:border-white/5">
+                              <Hash className="w-3 h-3 text-blue-500" />
+                              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 font-mono tracking-tighter">
+                                {(() => {
+                                  const prodInfo = produtos.find(p => p.letra_produto === reserva.letra_produto);
+                                  const isDecrescente = prodInfo?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente;
+                                  return `${isDecrescente ? Math.max(reserva.numero_inicial, reserva.numero_final) : Math.min(reserva.numero_inicial, reserva.numero_final)} — ${isDecrescente ? Math.min(reserva.numero_inicial, reserva.numero_final) : Math.max(reserva.numero_inicial, reserva.numero_final)}`;
+                                })()}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -337,7 +358,9 @@ export default function NovaProducaoDiaDialog({
                           <ChevronRight className="w-4 h-4 text-slate-300" />
                           <div className="text-right flex flex-col">
                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Cota Reservada</span>
-                            <span className="text-[10px] font-black text-slate-500 font-mono italic">{sel.reserva.numero_inicial} → {sel.reserva.numero_final}</span>
+                            <span className="text-[10px] font-black text-slate-500 font-mono italic">
+                              {sel.sequencia_decrescente ? Math.max(sel.reserva.numero_inicial, sel.reserva.numero_final) : Math.min(sel.reserva.numero_inicial, sel.reserva.numero_final)} → {sel.sequencia_decrescente ? Math.min(sel.reserva.numero_inicial, sel.reserva.numero_final) : Math.max(sel.reserva.numero_inicial, sel.reserva.numero_final)}
+                            </span>
                           </div>
                         </div>
                       </div>

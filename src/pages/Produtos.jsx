@@ -37,7 +37,7 @@ export default function Produtos() {
     prefixo_padrao: '',
     estoque_minimo: 0,
     ativo: true,
-    sequencia_decrescente: false
+    ordem_numeracao: 'CRESCENTE'
   });
 
   const { data: produtos = [], isLoading } = useQuery({
@@ -104,7 +104,7 @@ export default function Produtos() {
         prefixo_padrao: produto.prefixo_padrao || '',
         estoque_minimo: produto.estoque_minimo || 0,
         ativo: produto.ativo ?? true,
-        sequencia_decrescente: produto.sequencia_decrescente ?? false
+        ordem_numeracao: produto.ordem_numeracao || 'CRESCENTE'
       });
     } else {
       setEditingProduto(null);
@@ -136,7 +136,7 @@ export default function Produtos() {
       prefixo_padrao: '',
       estoque_minimo: 0,
       ativo: true,
-      sequencia_decrescente: false
+      ordem_numeracao: 'CRESCENTE'
     });
   };
 
@@ -408,22 +408,28 @@ export default function Produtos() {
               {/* Sentido da Sequência de Numeração */}
               <div className="flex items-center justify-between p-5 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
                 <div className="space-y-0.5">
-                  <Label htmlFor="seq-dec-prod" className="text-slate-900 dark:text-slate-100 font-black uppercase text-[11px] tracking-widest italic flex items-center gap-2">
-                    Sequência Decrescente
-                    <div className={cn("w-2 h-2 rounded-full", formData.sequencia_decrescente ? "bg-orange-500 animate-pulse" : "bg-emerald-500")} />
+                  <Label htmlFor="ordem-prod" className="text-slate-900 dark:text-slate-100 font-black uppercase text-[11px] tracking-widest italic flex items-center gap-2">
+                    Ordem de Numeração
+                    <div className={cn("w-2 h-2 rounded-full", formData.ordem_numeracao === 'DECRESCENTE' ? "bg-orange-500 animate-pulse" : "bg-emerald-500")} />
                   </Label>
                   <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                    {formData.sequencia_decrescente
+                    {formData.ordem_numeracao === 'DECRESCENTE'
                       ? 'Emissão do maior para o menor número (↓ Decrescente)'
                       : 'Emissão do menor para o maior número (↑ Crescente)'}
                   </p>
                 </div>
-                <Switch
-                  id="seq-dec-prod"
-                  checked={formData.sequencia_decrescente}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, sequencia_decrescente: checked }))}
-                  className="data-[state=checked]:bg-orange-500"
-                />
+                <Select
+                  value={formData.ordem_numeracao}
+                  onValueChange={(v) => setFormData(prev => ({ ...prev, ordem_numeracao: v }))}
+                >
+                  <SelectTrigger id="ordem-prod" className="w-[180px] h-10 bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 dark:text-slate-100 rounded-xl font-bold text-xs uppercase">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-white/10 backdrop-blur-xl">
+                    <SelectItem value="CRESCENTE" className="font-bold text-xs uppercase">↑ Crescente</SelectItem>
+                    <SelectItem value="DECRESCENTE" className="font-bold text-xs uppercase">↓ Decrescente</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex gap-4 pt-4 border-t dark:border-white/5 mt-4">

@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, BarChart3, TrendingUp, TrendingDown, CircleCheck, Activity, Target, Layers, Factory, Download, Filter, AlertTriangle, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, CircleCheck, Activity, Target, Layers, Download, Filter, AlertTriangle, Clock, Zap, Cpu, Sparkles } from 'lucide-react';
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { motion } from 'framer-motion';
 import BotaoImprimir from '@/components/relatorios/BotaoImprimir';
 import PCPSetorGuard, { usePCPSetor } from '@/components/pcp/PCPSetorGuard';
 import {
@@ -194,19 +195,24 @@ export default function PCPDashboard() {
     <PCPSetorGuard action="visualizar o Dashboard PCP">
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-6 transition-colors duration-300 space-y-6 flex flex-col">
         {/* Header Premium */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(245,158,11,0.1),transparent)] pointer-events-none" />
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-slate-200 dark:border-white/5 mb-6"
+        >
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(37,99,235,0.1),transparent)] pointer-events-none" />
           <div className="relative flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
             <div className="flex items-center gap-6 sm:gap-8">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-amber-500 to-orange-400 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.3)] transition-all hover:scale-105 active:scale-95 group border border-amber-400/20">
-                <BarChart3 className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:rotate-12 transition-transform duration-500" />
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all hover:scale-110 active:scale-95 group border border-blue-400/20 cursor-pointer">
+                <Cpu className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:rotate-12 transition-transform duration-500" />
               </div>
               <div className="space-y-1">
                 <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
-                  Dashboard <span className="text-amber-600 dark:text-amber-400">PCP</span>
+                  PCP<span className="text-blue-600 dark:text-blue-400">MATRIX</span>
                 </h1>
-                <p className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
-                  Visão Geral • <span className="text-amber-600 dark:text-amber-500 flex items-center gap-1"><Factory className="w-3.5 h-3.5" />{nomeSetor}</span>
+                <p className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
+                  Módulo de Operações • <span className="text-blue-600 dark:text-blue-500 flex items-center gap-1 font-black">{nomeSetor}</span>
                 </p>
               </div>
             </div>
@@ -236,7 +242,7 @@ export default function PCPDashboard() {
                 onClick={() => {
                   /* ... (mantém lógica de impressão) */
                 }}
-                className="h-12 px-6 rounded-2xl bg-slate-900 dark:bg-amber-600 text-white font-bold uppercase text-[10px] tracking-widest gap-2 shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
+                className="h-12 px-6 rounded-2xl bg-slate-900 dark:bg-blue-600 text-white font-bold uppercase text-[10px] tracking-widest gap-2 shadow-xl hover:shadow-blue-500/20 hover:scale-[1.02] active:scale-95 transition-all"
               />
 
               <Button
@@ -267,7 +273,7 @@ export default function PCPDashboard() {
               </Button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Filtros */}
         <div className="flex flex-wrap items-center gap-3 p-4 bg-white dark:bg-slate-900/40 backdrop-blur-xl rounded-[2rem] border border-slate-200 dark:border-white/5 shadow-xl">
@@ -310,12 +316,12 @@ export default function PCPDashboard() {
 
         {/* KPIs Grid Premium */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          <PremiumCard title="Total Previsto" icon={Target} className="bg-blue-600/5">
+          <PremiumCard title="Total Previsto" icon={Target} className="bg-blue-600/5" iconColor="#3b82f6">
             <h3 className="text-2xl font-black italic tracking-tighter text-slate-900 dark:text-white leading-none">{resumo.totalPrev.toLocaleString()}</h3>
             <p className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest italic opacity-60 mt-1">unidades planejadas</p>
           </PremiumCard>
 
-          <PremiumCard title="Total Realizado" icon={CircleCheck} className="bg-emerald-600/5">
+          <PremiumCard title="Total Realizado" icon={Zap} className="bg-emerald-600/5" iconColor="#10b981">
             <h3 className="text-2xl font-black italic tracking-tighter text-slate-900 dark:text-white leading-none">{resumo.totalReal.toLocaleString()}</h3>
             <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest italic opacity-60 mt-1">unidades coletadas</p>
           </PremiumCard>
@@ -324,6 +330,7 @@ export default function PCPDashboard() {
             title="Saldo Absoluto"
             icon={resumo.saldo >= 0 ? TrendingUp : TrendingDown}
             className={resumo.saldo >= 0 ? "bg-emerald-600/5" : "bg-rose-600/5"}
+            iconColor={resumo.saldo >= 0 ? "#10b981" : "#f43f5e"}
           >
             <h3 className={cn(
               "text-2xl font-black italic tracking-tighter leading-none",
@@ -336,26 +343,27 @@ export default function PCPDashboard() {
             </p>
           </PremiumCard>
 
-          <PremiumCard title="Média Diária" icon={Activity} className="bg-slate-600/5">
+          <PremiumCard title="Média Diária" icon={Activity} className="bg-slate-600/5" iconColor="#64748b">
             <h3 className="text-2xl font-black italic tracking-tighter text-slate-900 dark:text-white leading-none">{resumo.media.toLocaleString()}</h3>
             <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest italic opacity-60 mt-1">produção/dia</p>
           </PremiumCard>
 
           <PremiumCard
             title="Atendimento %"
-            icon={CircleCheck}
-            className={Number(resumo.perc) >= 90 ? "bg-emerald-600/5" : Number(resumo.perc) >= 70 ? "bg-amber-600/5" : "bg-rose-600/5"}
+            icon={Sparkles}
+            className={Number(resumo.perc) >= 90 ? "bg-emerald-600/5" : Number(resumo.perc) >= 70 ? "bg-blue-600/5" : "bg-rose-600/5"}
+            iconColor={Number(resumo.perc) >= 90 ? "#10b981" : Number(resumo.perc) >= 70 ? "#3b82f6" : "#f43f5e"}
           >
             <h3 className={cn(
               "text-2xl font-black italic tracking-tighter leading-none",
-              Number(resumo.perc) >= 90 ? "text-emerald-600 dark:text-emerald-400" : Number(resumo.perc) >= 70 ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"
+              Number(resumo.perc) >= 90 ? "text-emerald-600 dark:text-emerald-400" : Number(resumo.perc) >= 70 ? "text-blue-600 dark:text-blue-400" : "text-rose-600 dark:text-rose-400"
             )}>
               {resumo.perc}%
             </h3>
             <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest italic opacity-60 mt-1">eficiência global</p>
           </PremiumCard>
 
-          <PremiumCard title="OPs Ativas" icon={Layers} className="bg-purple-600/5">
+          <PremiumCard title="OPs Ativas" icon={Layers} className="bg-indigo-600/5" iconColor="#6366f1">
             <h3 className="text-2xl font-black italic tracking-tighter text-slate-900 dark:text-white leading-none">{resumo.opsAtivas}</h3>
             <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest italic opacity-60 mt-1">ordens em aberto</p>
           </PremiumCard>
@@ -493,7 +501,7 @@ export default function PCPDashboard() {
               <Button
                 size="sm"
                 variant="outline"
-                className="gap-1.5 h-7 text-xs dark:border-slate-800 dark:hover:bg-slate-800"
+                className="gap-1.5 h-7 text-[10px] font-black uppercase tracking-tighter dark:border-white/10 dark:bg-white/5 backdrop-blur-xl hover:bg-white/10"
                 onClick={() => {
                   const dados = dadosPorOP.map((d, i) => {
                     const op = opsFiltradas[i];
@@ -517,26 +525,26 @@ export default function PCPDashboard() {
                   exportarCSV(dados, `PCP_OPs_${MESES[mes - 1]}_20${ano}.csv`);
                 }}
               >
-                <Download className="w-3 h-3" /> Exportar CSV
+                <Download className="w-3 h-3 text-blue-500" /> Exportar CSV
               </Button>
             }
           >
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
-                  <tr>
-                    <th className="px-4 py-2.5 text-left text-slate-600 dark:text-slate-400 font-semibold">OP</th>
-                    <th className="px-4 py-2.5 text-left text-slate-600 dark:text-slate-400 font-semibold">Descrição</th>
-                    <th className="px-4 py-2.5 text-left text-slate-600 dark:text-slate-400 font-semibold">Cliente</th>
-                    <th className="px-4 py-2.5 text-left text-slate-600 dark:text-slate-400 font-semibold">Tipo</th>
-                    <th className="px-4 py-2.5 text-right text-slate-600 dark:text-slate-400 font-semibold">Previsto</th>
-                    <th className="px-4 py-2.5 text-right text-slate-600 dark:text-slate-400 font-semibold">Realizado</th>
-                    <th className="px-4 py-2.5 text-right text-slate-600 dark:text-slate-400 font-semibold">Saldo</th>
-                    <th className="px-4 py-2.5 text-right text-slate-600 dark:text-slate-400 font-semibold">% Aten.</th>
-                    <th className="px-4 py-2.5 text-center text-slate-600 dark:text-slate-400 font-semibold">Alerta</th>
+                <thead>
+                  <tr className="bg-slate-500/5 border-b border-slate-200 dark:border-white/5">
+                    <th className="px-6 py-4 text-left text-[10px] uppercase font-black tracking-widest text-slate-500">OP</th>
+                    <th className="px-6 py-4 text-left text-[10px] uppercase font-black tracking-widest text-slate-500">Descrição</th>
+                    <th className="px-6 py-4 text-left text-[10px] uppercase font-black tracking-widest text-slate-500">Cliente</th>
+                    <th className="px-6 py-4 text-left text-[10px] uppercase font-black tracking-widest text-slate-500">Tipo</th>
+                    <th className="px-6 py-4 text-right text-[10px] uppercase font-black tracking-widest text-slate-500">Previsto</th>
+                    <th className="px-6 py-4 text-right text-[10px] uppercase font-black tracking-widest text-slate-500">Realizado</th>
+                    <th className="px-6 py-4 text-right text-[10px] uppercase font-black tracking-widest text-slate-500">Saldo</th>
+                    <th className="px-6 py-4 text-right text-[10px] uppercase font-black tracking-widest text-slate-500">% Aten.</th>
+                    <th className="px-6 py-4 text-center text-[10px] uppercase font-black tracking-widest text-slate-500">Status</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                   {dadosPorOP.map((d, i) => {
                     const op = opsNaoCanceladas[i];
                     const saldo = d.realizado - d.previsto;
@@ -552,49 +560,84 @@ export default function PCPDashboard() {
                     const isAviso = !isCritico && op.status === 'Ativo' && (diasAtivo > 15 || Number(perc) < 70);
 
                     return (
-                      <tr key={op.id} className={`border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isCritico ? 'bg-red-50 dark:bg-red-900/20' : isAviso ? 'bg-amber-50 dark:bg-amber-900/20' : ''}`}>
-                        <td className="px-4 py-2.5 font-mono font-bold text-slate-800 dark:text-slate-200">{op.codigo_op}</td>
-                        <td className="px-4 py-2.5 text-slate-600 dark:text-slate-400 max-w-[200px] truncate">{op.descricao || '-'}</td>
-                        <td className="px-4 py-2.5 text-slate-600 dark:text-slate-400">{op.cliente_nome || '-'}</td>
-                        <td className="px-4 py-2.5">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${op.tipo === 'Atraso' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                      <tr key={op.id} className={cn(
+                        "group transition-all hover:bg-slate-50 dark:hover:bg-white/5",
+                        isCritico && "bg-rose-500/5",
+                        isAviso && "bg-amber-500/5"
+                      )}>
+                        <td className="px-6 py-4 items-center gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 font-black text-[10px]">
+                              {op.codigo_op.substring(0, 1)}
+                            </div>
+                            <span className="font-bold text-slate-900 dark:text-white tracking-widest">{op.codigo_op}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-medium max-w-[200px] truncate">{op.descricao || '-'}</td>
+                        <td className="px-6 py-4 text-slate-900 dark:text-slate-300 font-bold text-[10px] uppercase tracking-tighter">{op.cliente_nome || '-'}</td>
+                        <td className="px-6 py-4">
+                          <span className={cn(
+                            "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border",
+                            op.tipo === 'Atraso' ? "bg-rose-500/10 text-rose-600 border-rose-500/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                          )}>
                             {op.tipo}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-right text-blue-700 dark:text-blue-400 font-medium">{(op.quantidade_total || d.previsto).toLocaleString()}</td>
-                        <td className="px-4 py-2.5 text-right text-green-700 dark:text-green-400 font-medium">{d.realizado.toLocaleString()}</td>
-                        <td className={`px-4 py-2.5 text-right font-bold ${saldo >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        <td className="px-6 py-4 text-right text-blue-600 dark:text-blue-400 font-black italic tracking-tighter text-sm">{(op.quantidade_total || d.previsto).toLocaleString()}</td>
+                        <td className="px-6 py-4 text-right text-emerald-600 dark:text-emerald-400 font-black italic tracking-tighter text-sm">{d.realizado.toLocaleString()}</td>
+                        <td className={cn(
+                          "px-6 py-4 text-right font-black italic tracking-tighter text-sm",
+                          saldo >= 0 ? "text-emerald-500" : "text-rose-500"
+                        )}>
                           {saldo >= 0 ? `+${saldo.toLocaleString()}` : saldo.toLocaleString()}
                         </td>
-                        <td className={`px-4 py-2.5 text-right font-bold ${Number(perc) >= 90 ? 'text-green-600' : Number(perc) >= 70 ? 'text-amber-600' : 'text-red-500'}`}>
-                          {perc}%
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={cn(
+                              "font-black italic tracking-tighter text-base",
+                              Number(perc) >= 90 ? "text-emerald-500" : Number(perc) >= 70 ? "text-blue-500" : "text-rose-500"
+                            )}>
+                              {perc}%
+                            </span>
+                            <div className="w-20 h-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
+                              <div
+                                className={cn(
+                                  "h-full transition-all duration-1000",
+                                  Number(perc) >= 90 ? "bg-emerald-500" : Number(perc) >= 70 ? "bg-blue-500" : "bg-rose-500"
+                                )}
+                                style={{ width: `${Math.min(100, Number(perc))}%` }}
+                              />
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-4 py-2.5 text-center">
+                        <td className="px-6 py-4 text-center">
                           <TooltipProvider>
                             {isCritico ? (
                               <UITooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center justify-center">
-                                    <AlertTriangle className="w-4 h-4 text-red-500" />
-                                  </span>
+                                  <div className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/20 text-rose-500 animate-pulse cursor-help">
+                                    <AlertTriangle className="w-4 h-4" />
+                                  </div>
                                 </TooltipTrigger>
-                                <TooltipContent side="left" className="text-xs max-w-[180px]">
-                                  OP crítica: ativa há {diasAtivo} dias{Number(perc) < 50 ? ` e apenas ${perc}% atendido` : ''}
+                                <TooltipContent side="left" className="bg-slate-900 border-slate-800 text-white text-[10px] uppercase font-bold tracking-widest">
+                                  OP crítica ({diasAtivo} dias)
                                 </TooltipContent>
                               </UITooltip>
                             ) : isAviso ? (
                               <UITooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center justify-center">
-                                    <Clock className="w-4 h-4 text-amber-500" />
-                                  </span>
+                                  <div className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/20 text-amber-500 cursor-help">
+                                    <Clock className="w-4 h-4" />
+                                  </div>
                                 </TooltipTrigger>
-                                <TooltipContent side="left" className="text-xs max-w-[180px]">
-                                  Atenção: ativa há {diasAtivo} dias{Number(perc) < 70 ? ` com ${perc}% atendido` : ''}
+                                <TooltipContent side="left" className="bg-slate-900 border-slate-800 text-white text-[10px] uppercase font-bold tracking-widest">
+                                  Atenção ({diasAtivo} dias)
                                 </TooltipContent>
                               </UITooltip>
                             ) : (
-                              <span className="text-slate-300">—</span>
+                              <div className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500/40">
+                                <CircleCheck className="w-4 h-4" />
+                              </div>
                             )}
                           </TooltipProvider>
                         </td>

@@ -1,11 +1,10 @@
 // @ts-nocheck
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { CheckCircle, XCircle, Clock, Play, Loader2 } from "lucide-react";
 import { formatarNumeracao, extrairPrefixo } from '../formatacao/FormatacaoNumeracao';
 
@@ -29,7 +28,8 @@ export default function ProducaoDiaCard({
   onCancelar,
   isClosing,
   isSupervisor,
-  produtos = []
+  produtos = [],
+  setorInfo
 }) {
   const [numFinal, setNumFinal] = useState('');
   const [erro, setErro] = useState('');
@@ -42,12 +42,21 @@ export default function ProducaoDiaCard({
       || produtos.find(p => p.letra_produto === reserva.letra_produto && !p.codigo_produto);
   }, [produtos, reserva?.codigo_produto, reserva?.letra_produto]);
 
+  const ordemPadrao = useMemo(() => {
+    return lote?.sequencia_decrescente ?? (produtoInfo?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente) ?? false;
+  }, [lote?.sequencia_decrescente, produtoInfo, setorInfo]);
+  
+  const [ordemDecrescente, setOrdemDecrescente] = useState(ordemPadrao);
+
+  useEffect(() => {
+    setOrdemDecrescente(ordemPadrao);
+  }, [ordemPadrao]);
+
   if (!reserva) return null;
 
   const prefixo = extrairPrefixo(reserva.codigo_completo);
   const numInicialFormatado = formatarNumeracao(lote.numeracao_inicial, prefixo, setorNome);
   const restanteLote = (reserva.quantidade || 0) - (reserva.quantidade_baixada || 0);
-  const ordemDecrescente = produtoInfo?.ordem_baixa === 'decrescente';
 
   // Progresso geral do lote (real, baseado em baixas)
   const totalBaixado = reserva.quantidade_baixada || 0;
@@ -85,7 +94,7 @@ export default function ProducaoDiaCard({
     setErro('');
     if (!valor) return;
 
-    const ini = lote.numeracao_inicial;
+    const ini = Number(lote.numeracao_inicial) || 0;
     const { num: fim, prefixoErrado } = extrairNumeroPuro(valor);
 
     if (prefixoErrado) {
@@ -96,27 +105,40 @@ export default function ProducaoDiaCard({
       setErro('Informe um número válido');
       return;
     }
-    if (fim < reserva.numero_inicial || fim > reserva.numero_final) {
-      setErro(`Fora do intervalo (${reserva.numero_inicial.toLocaleString()} - ${reserva.numero_final.toLocaleString()})`);
+    const minVal = Math.min(reserva.numero_inicial, reserva.numero_final);
+    const maxVal = Math.max(reserva.numero_inicial, reserva.numero_final);
+    
+    if (fim < minVal || fim > maxVal) {
+      const showIni = ordemDecrescente ? maxVal : minVal;
+      const showFim = ordemDecrescente ? minVal : maxVal;
+      setErro(`Fora do intervalo (${showIni.toLocaleString()} - ${showFim.toLocaleString()})`);
       return;
     }
-    if (ordemDecrescente && fim > ini) {
-      setErro(`Ordem decrescente: numeração final deve ser menor que a inicial (${ini.toLocaleString()})`);
-      return;
-    }
-    if (!ordemDecrescente && fim < ini) {
-      setErro(`Ordem crescente: numeração final deve ser maior que a inicial (${ini.toLocaleString()})`);
-      return;
-    }
-    const qty = Math.abs(fim - ini) + 1;
-    if (qty > restanteLote) {
-      setErro(`Quantidade (${qty.toLocaleString()}) excede restante (${restanteLote.toLocaleString()})`);
+    if (ordemDecrescente) {
+      if (fim > ini) {
+        setErro('O número final não pode ser maior que o inicial em ordem decrescente.');
+        return;
+      }
+      const qty = (ini - fim) + 1;
+      if (qty > restanteLote) {
+        setErro(`Quantidade (${qty.toLocaleString()}) excede restante (${restanteLote.toLocaleString()})`);
+      }
+    } else {
+      if (fim < ini) {
+        setErro('O número inicial não pode ser maior que o final. Verifique os dados inseridos.');
+        return;
+      }
+      const qty = (fim - ini) + 1;
+      if (qty > restanteLote) {
+        setErro(`Quantidade (${qty.toLocaleString()}) excede restante (${restanteLote.toLocaleString()})`);
+      }
     }
   };
 
   const numFinalPuro = numFinal && !erro ? extrairNumeroPuro(numFinal).num : NaN;
+  const iniSafe = Number(lote.numeracao_inicial) || 0;
   const quantidadeCalculada = numFinal && !erro && !isNaN(numFinalPuro)
-    ? Math.abs(numFinalPuro - lote.numeracao_inicial) + 1
+    ? (ordemDecrescente ? (iniSafe - numFinalPuro) + 1 : (numFinalPuro - iniSafe) + 1)
     : 0;
 
   const isFechado = lote.status === 'FECHADO';
@@ -170,7 +192,7 @@ export default function ProducaoDiaCard({
           </div>
           <div className="bg-white/40 dark:bg-slate-950/40 p-4 space-y-1">
             <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest italic leading-none">
-              {ordemDecrescente ? 'Numeração de Partida (↓)' : 'Numeração de Partida (↑)'}
+              {ordemDecrescente ? 'Numeração de Partida (↑)' : 'Numeração de Partida (↓)'}
             </span>
             <p className="text-sm font-black text-blue-500 dark:text-blue-400 tracking-tight">
               {reserva.codigo_completo}{numInicialFormatado}
@@ -247,12 +269,32 @@ export default function ProducaoDiaCard({
             ) : (
               <div className="space-y-6 bg-blue-500/5 dark:bg-blue-600/5 p-6 rounded-3xl border border-blue-200/50 dark:border-blue-500/10 animate-in fade-in zoom-in slide-in-from-top-4 duration-300">
                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest italic">Coleta de Numeração Final</Label>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest italic">Coleta de Numeração Final</Label>
+                    <div className="flex bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-lg">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setOrdemDecrescente(false); setNumFinal(''); setErro(''); }}
+                        className={`h-6 px-2 text-[10px] font-bold rounded-md transition-all ${!ordemDecrescente ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                      >
+                        CRESCENTE
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setOrdemDecrescente(true); setNumFinal(''); setErro(''); }}
+                        className={`h-6 px-2 text-[10px] font-bold rounded-md transition-all ${ordemDecrescente ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                      >
+                        DECRESCENTE
+                      </Button>
+                    </div>
+                  </div>
                   <div className="relative">
                     <Input
                       value={numFinal}
                       onChange={(e) => handleValidarFinal(e.target.value)}
-                      placeholder={ordemDecrescente ? `Terminal Min: ${reserva.numero_inicial}` : `Terminal Max: ${reserva.numero_final}`}
+                      placeholder={ordemDecrescente ? `Terminal Min: ${Math.min(reserva.numero_inicial, reserva.numero_final)}` : `Terminal Max: ${Math.max(reserva.numero_inicial, reserva.numero_final)}`}
                       className="h-16 bg-white dark:bg-slate-950/80 border-slate-200 dark:border-white/10 rounded-2xl text-2xl font-black text-center text-slate-900 dark:text-white tracking-widest placeholder:text-slate-300 dark:placeholder:text-slate-700 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                       autoFocus
                     />

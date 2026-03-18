@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
+import SessionManager from '@/lib/sessionManager';
 import { useSetor } from '@/components/context/SetorContext';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { Button } from '@/components/ui/button';
@@ -198,9 +199,7 @@ function NovoAlertaDialog({ ops, clientes, onClose, onSalvar }) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function PCPAlertasPanel() {
   const { setorAtivo, nomeSetor, isAdmin } = useSetor();
-  const userLocal = useMemo(() => {
-    try { return JSON.parse(localStorage.getItem('internalUser') || 'null'); } catch { return null; }
-  }, []);
+  const userLocal = SessionManager.getUser();
   const isAdminUser = isAdmin || userLocal?.role_custom === 'Admin';
 
   const [mes, setMes] = useState(hoje.getMonth() + 1);

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,8 @@ import IntervaloBadge from '../ui/intervalo-badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PremiumCard } from '@/components/ui/PremiumCard';
 
 const FormatPrefixo = ({ codigo, letra, sufixo: sufixoProp }) => {
   const renderBadge = (l, s) => (
@@ -125,12 +126,13 @@ export default function ReservasTable({
       {/* Desktop View Premium */}
       <div className="hidden lg:block relative group">
         <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 rounded-[2.5rem] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-        <div className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl">
+        <PremiumCard noPadding className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 shadow-2xl">
           <div className="overflow-x-auto custom-scrollbar">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/80 dark:bg-slate-800/40 border-slate-200 dark:border-white/5 backdrop-blur-md hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                   <TableHead className="py-6 px-6"><SortButton field="cliente">Cliente</SortButton></TableHead>
+                  <TableHead className="py-6 px-3"><SortButton field="unidade">Unid.</SortButton></TableHead>
                   <TableHead className="py-6 px-3"><SortButton field="codigo_completo">Prefixo</SortButton></TableHead>
                   <TableHead className="py-6 px-3 text-center"><SortButton field="ano">Ano</SortButton></TableHead>
                   <TableHead className="py-6 px-3 text-[10px] font-black uppercase tracking-widest text-slate-400">Código</TableHead>
@@ -143,29 +145,48 @@ export default function ReservasTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
+                <AnimatePresence mode="popLayout">
                 {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-20">
+                  <motion.tr
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <TableCell colSpan={11} className="text-center py-20">
                       <div className="flex flex-col items-center gap-4">
                         <RefreshCw className="w-10 h-10 text-blue-500 animate-spin opacity-20" />
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] animate-pulse">Sincronizando Banco de Dados...</p>
                       </div>
                     </TableCell>
-                  </TableRow>
+                  </motion.tr>
                 ) : reservas.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-20">
+                  <motion.tr
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <TableCell colSpan={11} className="text-center py-20">
                       <div className="flex flex-col items-center gap-4">
                         <FileText className="w-12 h-12 text-slate-300 dark:text-slate-700 italic" />
                         <p className="text-sm font-black text-slate-400 uppercase italic tracking-widest">Nenhuma reserva encontrada no sistema</p>
                       </div>
                     </TableCell>
-                  </TableRow>
+                  </motion.tr>
                 ) : (
-                  reservas.map((reserva) => (
-                    <TableRow key={reserva.id} className="group/row hover:bg-blue-500/5 dark:hover:bg-blue-500/10 transition-all border-slate-100 dark:border-white/5">
+                  reservas.map((reserva, index) => (
+                    <motion.tr
+                      key={reserva.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className="group/row hover:bg-blue-500/5 dark:hover:bg-blue-500/10 transition-all border-b border-slate-100 dark:border-white/5"
+                    >
                       <TableCell className="py-5 px-6">
                         <p className="font-black text-sm text-slate-900 dark:text-white uppercase italic tracking-tighter truncate max-w-[15rem] leading-none">{reserva.cliente}</p>
+                      </TableCell>
+                      <TableCell className="py-5 px-3">
+                        <p className="font-black text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-tighter">{reserva.unidade || '-'}</p>
                       </TableCell>
                       <TableCell className="py-5 px-3">
                         <FormatPrefixo
@@ -184,7 +205,9 @@ export default function ReservasTable({
                       </TableCell>
                       <TableCell className="py-5 px-3">
                         <IntervaloBadge
-                          inicio={reserva.numero_inicial}
+                          inicio={(reserva.numero_inicial > reserva.numero_final) 
+                            ? reserva.numero_inicial - (reserva.quantidade_baixada || 0)
+                            : reserva.numero_inicial + (reserva.quantidade_baixada || 0)}
                           fim={reserva.numero_final}
                           size="sm"
                           variant="secondary"
@@ -296,13 +319,14 @@ export default function ReservasTable({
                           </DropdownMenu>
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </motion.tr>
                   ))
                 )}
+                </AnimatePresence>
               </TableBody>
             </Table>
           </div>
-        </div>
+        </PremiumCard>
       </div>
     </div>
   );

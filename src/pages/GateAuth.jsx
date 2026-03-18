@@ -12,17 +12,17 @@ export default function GateAuth() {
       try {
         const me = await rdsn.auth.me();
         if (me) {
-          navigate(createPageUrl('Home'));
+          navigate(createPageUrl('Dashboard'));
           return;
         }
-      } catch (e) {
+      } catch {
         // Continua para próximo método
       }
 
       // 2️⃣ Tenta login interno
       const internalUser = localStorage.getItem('internalUser');
       if (internalUser) {
-        navigate(createPageUrl('Home'));
+        navigate(createPageUrl('Dashboard'));
         return;
       }
 

@@ -53,9 +53,9 @@ export default function NotificacoesReserva({ userId }) {
 
   const getUrgentColor = (prioridade) => {
     switch (prioridade) {
-      case 'ALTA': return 'border-red-500 bg-red-50 dark:bg-red-950/20';
-      case 'MEDIA': return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20';
-      default: return 'border-blue-500 bg-blue-50 dark:bg-blue-950/20';
+      case 'ALTA': return 'border-red-500/50 bg-red-50/80 dark:bg-red-500/10 shadow-red-500/10';
+      case 'MEDIA': return 'border-yellow-500/50 bg-yellow-50/80 dark:bg-yellow-500/10 shadow-yellow-500/10';
+      default: return 'border-blue-500/50 bg-blue-50/80 dark:bg-blue-500/10 shadow-blue-500/10';
     }
   };
 
@@ -128,8 +128,8 @@ export default function NotificacoesReserva({ userId }) {
                   className={cn(
                     "p-4 rounded-3xl border transition-all duration-300 group",
                     notif.lida
-                      ? "bg-slate-50/50 dark:bg-slate-900/40 border-slate-100 dark:border-white/5 opacity-70 hover:opacity-100"
-                      : cn("border-l-4 shadow-lg", getUrgentColor(notif.prioridade))
+                      ? "bg-slate-50/50 dark:bg-slate-900/40 border-slate-100 dark:border-white/5 opacity-60 hover:opacity-100"
+                      : cn("border-l-4 shadow-md backdrop-blur-sm", getUrgentColor(notif.prioridade))
                   )}
                 >
                   <div className="flex items-start justify-between gap-4">

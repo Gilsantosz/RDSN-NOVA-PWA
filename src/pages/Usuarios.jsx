@@ -1,8 +1,10 @@
 // @ts-nocheck
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/lib/AuthContext';
+
 import { rdsn } from '@/api/supabaseClient';
-import { Plus, Edit2, UserX, UserCheck, Shield, Users as UsersIcon, Key } from 'lucide-react';
+import { Plus, Edit2, UserX, UserCheck, Shield, Users as UsersIcon, Key, Trash } from 'lucide-react';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import AuditoriaLog from '@/components/usuarios/AuditoriaLog';
-import PermissoesManager from '@/components/usuarios/PermissaoesManager';
+import PermissoesManager from '@/components/usuarios/PermissoesManager';
 import PermissoesUsuario from '@/components/usuarios/PermissoesUsuario';
 import LimparDadosProducao from '@/components/admin/LimparDadosProducao';
 
@@ -57,13 +59,7 @@ export default function Usuarios() {
     ativo: true
   });
 
-  const { data: currentUser } = useQuery({
-    queryKey: ['internalUser'],
-    queryFn: () => {
-      const user = localStorage.getItem('internalUser');
-      return user ? JSON.parse(user) : null;
-    }
-  });
+  const { user: currentUser } = useAuth();
 
   const { data: setores = [] } = useQuery({
     queryKey: ['setores'],
@@ -303,15 +299,15 @@ export default function Usuarios() {
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Tabs Navigation */}
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-100 dark:bg-slate-900 border dark:border-slate-800 rounded-xl p-1">
-            <TabsTrigger value="usuarios" className="rounded-lg transition-all dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">Usuários</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 bg-slate-100/50 dark:bg-white/[0.02] border dark:border-white/5 rounded-[1.5rem] p-1.5 backdrop-blur-xl mb-6">
+            <TabsTrigger value="usuarios" className="rounded-xl transition-all dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100 font-black uppercase text-[10px] tracking-widest italic">Usuários</TabsTrigger>
             {isAdmin && <TabsTrigger value="permissoes" className="rounded-lg transition-all dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">Permissões</TabsTrigger>}
             {isAdmin && <TabsTrigger value="auditoria" className="rounded-lg transition-all dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">Auditoria</TabsTrigger>}
             {isAdmin && <TabsTrigger value="limpeza" className="rounded-lg transition-all dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:text-slate-100">Limpeza</TabsTrigger>}
           </TabsList>
           <TabsContent value="usuarios" className="space-y-6">
             {/* Header Premium */}
-            <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
+            <div className="relative overflow-hidden rounded-[3rem] bg-white dark:bg-slate-950/40 backdrop-blur-3xl p-8 sm:p-12 shadow-2xl border border-slate-200 dark:border-white/5 mb-8">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(147,51,234,0.1),transparent)] pointer-events-none" />
               <div className="relative flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
                 <div className="flex items-center gap-6 sm:gap-8">
@@ -387,69 +383,91 @@ export default function Usuarios() {
                       const RoleIcon = roleInfo.icon;
 
                       return (
-                        <TableRow key={usuario.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 border-b dark:border-slate-800">
-                          <TableCell className="font-medium text-slate-900 dark:text-slate-100">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-slate-900 dark:bg-slate-700 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                                {usuario.full_name?.charAt(0).toUpperCase() || 'U'}
+                        <TableRow key={usuario.id} className="group hover:bg-slate-50/50 dark:hover:bg-white/[0.02] border-b border-slate-100 dark:border-white/5 transition-colors">
+                          <TableCell className="py-4">
+                            <div className="flex items-center gap-4">
+                              <div className="relative">
+                                <div className="w-10 h-10 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-700 dark:to-slate-900 text-white rounded-2xl flex items-center justify-center text-xs font-black shadow-lg shadow-black/10 transition-transform group-hover:scale-105">
+                                  {usuario.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                                </div>
+                                {usuario.ativo !== false && (
+                                  <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-slate-950 rounded-full shadow-sm" />
+                                )}
                               </div>
-                              {usuario.full_name || 'Sem nome'}
+                              <div className="flex flex-col">
+                                <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight">{usuario.full_name || 'Usuário Sem Nome'}</span>
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">{usuario.username}</span>
+                              </div>
                             </div>
                           </TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-400 font-mono">{usuario.username}</TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-400">{usuario.email || '-'}</TableCell>
+                          <TableCell className="text-slate-600 dark:text-slate-400 font-mono text-xs">{usuario.email || '-'}</TableCell>
                           <TableCell>
-                            <Badge className={`${roleInfo.color} border-0`}>
-                              <RoleIcon className="w-3 h-3 mr-1" />
+                            <Badge className={`${roleInfo.color} border-0 text-[10px] font-black uppercase tracking-wider py-1 px-3 shadow-none rounded-full`}>
+                              <RoleIcon className="w-3 h-3 mr-1.5 opacity-70" />
                               {usuario.role_custom || 'Operador'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-400">
+                          <TableCell>
                             {usuario.setores_permitidos && usuario.setores_permitidos.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
+                              <div className="flex flex-wrap gap-1.5">
                                 {usuario.setores_permitidos.slice(0, 2).map(setorId => {
                                   const setor = setores.find(s => s.id === setorId);
                                   return setor ? (
-                                    <Badge key={setorId} variant="outline" className="text-xs dark:border-slate-700 dark:text-slate-300">
+                                    <div key={setorId} className="px-2 py-0.5 bg-slate-100 dark:bg-white/[0.05] border border-slate-200 dark:border-white/10 rounded-md text-[9px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-tight">
                                       {setor.codigo}
-                                    </Badge>
+                                    </div>
                                   ) : null;
                                 })}
                                 {usuario.setores_permitidos.length > 2 && (
-                                  <Badge variant="outline" className="text-xs dark:border-slate-700 dark:text-slate-300">+{usuario.setores_permitidos.length - 2}</Badge>
+                                  <div className="px-2 py-0.5 bg-slate-200 dark:bg-white/[0.1] rounded-md text-[9px] font-black text-slate-700 dark:text-slate-300">
+                                    +{usuario.setores_permitidos.length - 2}
+                                  </div>
                                 )}
                               </div>
-                            ) : '-'}
+                            ) : (
+                               <span className="text-[10px] text-slate-300 dark:text-slate-700 font-black italic">SEM ACESSO</span>
+                            )}
                           </TableCell>
                           <TableCell>
-                            <Badge className={usuario.ativo !== false ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}>
-                              {usuario.ativo !== false ? 'Ativo' : 'Inativo'}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                               <div className={cn(
+                                 "w-1.5 h-1.5 rounded-full shadow-[0_0_8px]",
+                                 usuario.ativo !== false ? "bg-green-500 shadow-green-500/50" : "bg-red-500 shadow-red-500/50"
+                               )} />
+                               <span className={cn(
+                                 "text-[10px] font-black uppercase tracking-widest",
+                                 usuario.ativo !== false ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                               )}>
+                                 {usuario.ativo !== false ? 'Ativo' : 'Inativo'}
+                               </span>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-400 text-sm">
+                          <TableCell className="text-slate-400 dark:text-slate-600 text-[10px] font-bold uppercase">
                             {usuario.ultimo_acesso
                               ? format(new Date(usuario.ultimo_acesso), 'dd/MM/yy HH:mm', { locale: ptBR })
-                              : '-'}
+                              : 'Nunca'}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end gap-1 opacity-20 group-hover:opacity-100 transition-all duration-300 -translate-x-2 group-hover:translate-x-0">
                               {isAdmin && (
                                 <>
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => handleOpenEdit(usuario)}
+                                    className="w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-blue-500/10 hover:text-blue-500 dark:hover:text-blue-400 transition-all"
                                     title="Editar usuário"
                                   >
-                                    <Edit2 className="w-4 h-4" />
+                                    <Edit2 className="w-3.5 h-3.5" />
                                   </Button>
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => handleResetPassword(usuario)}
+                                    className="w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-amber-500/10 hover:text-amber-500 dark:hover:text-amber-400 transition-all"
                                     title="Redefinir senha"
                                   >
-                                    <Key className="w-4 h-4 text-amber-500" />
+                                    <Key className="w-3.5 h-3.5" />
                                   </Button>
                                   <Button
                                     variant="ghost"
@@ -458,12 +476,13 @@ export default function Usuarios() {
                                       id: usuario.id,
                                       ativo: !(usuario.ativo !== false)
                                     })}
+                                    className="w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-500/10 transition-all"
                                     title={usuario.ativo !== false ? "Desativar" : "Ativar"}
                                   >
                                     {usuario.ativo !== false ? (
-                                      <UserX className="w-4 h-4 text-red-500" />
+                                      <UserX className="w-3.5 h-3.5 text-red-500" />
                                     ) : (
-                                      <UserCheck className="w-4 h-4 text-green-500" />
+                                      <UserCheck className="w-3.5 h-3.5 text-green-500" />
                                     )}
                                   </Button>
                                 </>
@@ -474,9 +493,9 @@ export default function Usuarios() {
                                   size="icon"
                                   onClick={() => handleDeleteUser(usuario)}
                                   title="Excluir usuário"
-                                  className="hover:bg-red-50"
+                                  className="w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-red-500/10 hover:text-red-500 dark:hover:text-red-400 transition-all"
                                 >
-                                  <UserX className="w-4 h-4 text-red-600" />
+                                  <Trash className="w-3.5 h-3.5" />
                                 </Button>
                               )}
                             </div>
@@ -491,20 +510,31 @@ export default function Usuarios() {
 
             {/* Create User Dialog */}
             <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
-              <DialogContent className="max-w-3xl dark:bg-slate-900/90 dark:border-white/10 rounded-[2rem] p-0 overflow-hidden backdrop-blur-3xl shadow-2xl border-0">
-                <div className="bg-gradient-to-br from-purple-900 to-indigo-900 p-8 text-white relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
-                  <DialogHeader className="relative z-10">
-                    <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter flex items-center gap-3">
-                      <span className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
-                        <Plus className="w-6 h-6 text-purple-300" />
-                      </span>
-                      Novo <span className="text-purple-300">Usuário</span>
-                    </DialogTitle>
-                    <p className="text-xs font-bold text-purple-200/60 uppercase tracking-widest mt-1">
-                      Credenciamento Operacional • Gestão de Identidade
-                    </p>
-                  </DialogHeader>
+              <DialogContent className="max-w-3xl dark:bg-slate-950/90 dark:border-white/5 rounded-[2.5rem] p-0 overflow-hidden backdrop-blur-3xl shadow-2xl border-0">
+                <div className="relative overflow-hidden">
+                  {/* Premium Mesh Gradient Header */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-indigo-700 to-slate-900 opacity-95" />
+                  <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/20 rounded-full -mr-40 -mt-40 blur-[80px] animate-pulse" />
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full -ml-32 -mb-32 blur-[60px]" />
+                  
+                  <div className="relative z-10 p-10 text-white">
+                    <DialogHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter flex items-center gap-3">
+                            Novo <span className="text-purple-300">Usuário</span>
+                          </DialogTitle>
+                          <p className="text-[10px] font-black text-purple-200/50 uppercase tracking-[0.3em] mt-2 flex items-center gap-2">
+                             Credenciamento Operacional <span className="w-1 h-1 rounded-full bg-purple-400/30" /> Gestão de Identidade
+                          </p>
+                        </div>
+                        <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/20 flex items-center justify-center shadow-2xl rotate-3">
+                          <Plus className="w-8 h-8 text-purple-200" />
+                        </div>
+                      </div>
+                    </DialogHeader>
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                 </div>
 
                 <form onSubmit={handleCreateSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
@@ -572,32 +602,42 @@ export default function Usuarios() {
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Zonas de Operação Permitidas *</Label>
-                    <div className="border border-slate-200 dark:border-white/5 rounded-2xl p-4 bg-slate-50 dark:bg-white/5 grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto custom-scrollbar shadow-inner">
+                  <div className="space-y-4">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 ml-1 flex items-center gap-2">
+                      Zonas de Operação Permitidas
+                      <div className="h-[1px] flex-1 bg-slate-100 dark:bg-white/5" />
+                    </Label>
+                    <div className="border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-5 bg-slate-50 dark:bg-white/[0.02] grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-64 overflow-y-auto custom-scrollbar shadow-inner">
                       {setores.filter(s => s.ativo).map(setor => (
-                        <label key={setor.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-white/5 cursor-pointer group hover:border-purple-500/30 transition-all">
-                          <input
-                            type="checkbox"
-                            checked={createData.setores_permitidos.includes(setor.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setCreateData(prev => ({
-                                  ...prev,
-                                  setores_permitidos: [...prev.setores_permitidos, setor.id]
-                                }));
-                              } else {
-                                setCreateData(prev => ({
-                                  ...prev,
-                                  setores_permitidos: prev.setores_permitidos.filter(id => id !== setor.id)
-                                }));
-                              }
-                            }}
-                            className="w-5 h-5 rounded-lg accent-purple-600 dark:accent-purple-500 cursor-pointer"
-                          />
+                        <label key={setor.id} className="flex items-center gap-4 p-4 bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-white/5 cursor-pointer group hover:border-purple-500/30 transition-all shadow-sm dark:shadow-none backdrop-blur-sm">
+                          <div className="relative">
+                            <input
+                              type="checkbox"
+                              checked={createData.setores_permitidos.includes(setor.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setCreateData(prev => ({
+                                    ...prev,
+                                    setores_permitidos: [...prev.setores_permitidos, setor.id]
+                                  }));
+                                } else {
+                                  setCreateData(prev => ({
+                                    ...prev,
+                                    setores_permitidos: prev.setores_permitidos.filter(id => id !== setor.id)
+                                  }));
+                                }
+                              }}
+                              className="w-6 h-6 rounded-lg accent-purple-600 dark:accent-purple-500 cursor-pointer border-2 border-slate-200 dark:border-slate-700"
+                            />
+                          </div>
                           <div className="flex flex-1 items-center justify-between">
-                            <span className="text-xs font-black dark:text-slate-200 group-hover:text-purple-500 transition-colors uppercase tracking-tight">{setor.nome}</span>
-                            <Badge variant="outline" className="text-[9px] font-mono border-slate-200 dark:border-white/10 dark:text-slate-400">{setor.codigo}</Badge>
+                            <div className="flex flex-col">
+                              <span className="text-[11px] font-black dark:text-slate-200 group-hover:text-purple-400 transition-colors uppercase tracking-tight">{setor.nome}</span>
+                              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{setor.codigo}</span>
+                            </div>
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center opacity-40 group-hover:opacity-100 transition-opacity">
+                              <Shield className="w-3 h-3 text-slate-400" />
+                            </div>
                           </div>
                         </label>
                       ))}
@@ -633,20 +673,31 @@ export default function Usuarios() {
 
             {/* Edit User Dialog */}
             <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
-              <DialogContent className="max-w-3xl dark:bg-slate-900/90 dark:border-white/10 rounded-[2rem] p-0 overflow-hidden backdrop-blur-3xl shadow-2xl border-0">
-                <div className="bg-gradient-to-br from-blue-900 to-indigo-900 p-8 text-white relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
-                  <DialogHeader className="relative z-10">
-                    <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter flex items-center gap-3">
-                      <span className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
-                        <Edit2 className="w-6 h-6 text-blue-300" />
-                      </span>
-                      Editar <span className="text-blue-300">Usuário</span>
-                    </DialogTitle>
-                    <p className="text-xs font-bold text-blue-200/60 uppercase tracking-widest mt-1">
-                      Refinamento de Credencial • {editData.full_name}
-                    </p>
-                  </DialogHeader>
+              <DialogContent className="max-w-3xl dark:bg-slate-950/90 dark:border-white/5 rounded-[2.5rem] p-0 overflow-hidden backdrop-blur-3xl shadow-2xl border-0">
+                <div className="relative overflow-hidden">
+                  {/* Premium Mesh Gradient Header */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-700 to-slate-900 opacity-95" />
+                  <div className="absolute top-0 right-0 w-80 h-80 bg-blue-500/20 rounded-full -mr-40 -mt-40 blur-[80px] animate-pulse" />
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full -ml-32 -mb-32 blur-[60px]" />
+                  
+                  <div className="relative z-10 p-10 text-white">
+                    <DialogHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <DialogTitle className="text-3xl font-black uppercase italic tracking-tighter flex items-center gap-3">
+                            Editar <span className="text-blue-300">Usuário</span>
+                          </DialogTitle>
+                          <p className="text-[10px] font-black text-blue-200/50 uppercase tracking-[0.3em] mt-2 flex items-center gap-2">
+                             Refinamento de Credencial <span className="w-1 h-1 rounded-full bg-blue-400/30" /> {editData.full_name}
+                          </p>
+                        </div>
+                        <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/20 flex items-center justify-center shadow-2xl -rotate-3">
+                          <Edit2 className="w-8 h-8 text-blue-200" />
+                        </div>
+                      </div>
+                    </DialogHeader>
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                 </div>
 
                 <form onSubmit={handleEditSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
@@ -686,32 +737,42 @@ export default function Usuarios() {
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Privilégios de Acesso por Setor</Label>
-                    <div className="border border-slate-200 dark:border-white/5 rounded-2xl p-4 bg-slate-50 dark:bg-white/5 grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto custom-scrollbar shadow-inner">
+                  <div className="space-y-4">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 ml-1 flex items-center gap-2">
+                      Privilégios de Acesso por Setor
+                      <div className="h-[1px] flex-1 bg-slate-100 dark:bg-white/5" />
+                    </Label>
+                    <div className="border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-5 bg-slate-50 dark:bg-white/[0.02] grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-64 overflow-y-auto custom-scrollbar shadow-inner text-white">
                       {setores.filter(s => s.ativo).map(setor => (
-                        <label key={setor.id} className="flex items-center gap-3 p-3 bg-white dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-white/5 cursor-pointer group hover:border-blue-500/30 transition-all">
-                          <input
-                            type="checkbox"
-                            checked={editData.setores_permitidos?.includes(setor.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setEditData(prev => ({
-                                  ...prev,
-                                  setores_permitidos: [...(prev.setores_permitidos || []), setor.id]
-                                }));
-                              } else {
-                                setEditData(prev => ({
-                                  ...prev,
-                                  setores_permitidos: (prev.setores_permitidos || []).filter(id => id !== setor.id)
-                                }));
-                              }
-                            }}
-                            className="w-5 h-5 rounded-lg accent-blue-600 dark:accent-blue-500 cursor-pointer"
-                          />
+                        <label key={setor.id} className="flex items-center gap-4 p-4 bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-white/5 cursor-pointer group hover:border-blue-500/30 transition-all shadow-sm dark:shadow-none backdrop-blur-sm">
+                          <div className="relative text-white">
+                            <input
+                              type="checkbox"
+                              checked={editData.setores_permitidos?.includes(setor.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setEditData(prev => ({
+                                    ...prev,
+                                    setores_permitidos: [...(prev.setores_permitidos || []), setor.id]
+                                  }));
+                                } else {
+                                  setEditData(prev => ({
+                                    ...prev,
+                                    setores_permitidos: (prev.setores_permitidos || []).filter(id => id !== setor.id)
+                                  }));
+                                }
+                              }}
+                              className="w-6 h-6 rounded-lg accent-blue-600 dark:accent-blue-500 cursor-pointer border-2 border-slate-200 dark:border-slate-700"
+                            />
+                          </div>
                           <div className="flex flex-1 items-center justify-between">
-                            <span className="text-xs font-black dark:text-slate-200 group-hover:text-blue-500 transition-colors uppercase tracking-tight">{setor.nome}</span>
-                            <Badge variant="outline" className="text-[9px] font-mono border-slate-200 dark:border-white/10 dark:text-slate-400">{setor.codigo}</Badge>
+                            <div className="flex flex-col">
+                              <span className="text-[11px] font-black dark:text-slate-200 group-hover:text-blue-400 transition-colors uppercase tracking-tight">{setor.nome}</span>
+                              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{setor.codigo}</span>
+                            </div>
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center opacity-40 group-hover:opacity-100 transition-opacity">
+                              <Shield className="w-3 h-3 text-slate-400" />
+                            </div>
                           </div>
                         </label>
                       ))}
