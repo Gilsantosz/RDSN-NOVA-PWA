@@ -1,4 +1,5 @@
 import { rdsn } from './supabaseClient.js';
+import { checarSobreposicao } from '../core/numeracaoService.js';
 
 export async function validarIntervalosNumeracao(payload) {
   try {
@@ -23,7 +24,7 @@ export async function validarIntervalosNumeracao(payload) {
     for (const reserva of reservas) {
       if (reserva_id_ignorar && reserva.id === reserva_id_ignorar) continue;
 
-      const sobrepoe = !(numero_final < reserva.numero_inicial || numero_inicial > reserva.numero_final);
+      const sobrepoe = checarSobreposicao(numero_inicial, numero_final, reserva.numero_inicial, reserva.numero_final);
 
       if (sobrepoe) {
         conflitos.push({

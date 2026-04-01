@@ -25,6 +25,7 @@ import {
   ChevronRight,
   Hash
 } from "lucide-react";
+import { proximoNumero } from '@/core/numeracaoService';
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { extrairPrefixo, formatarNumeracao } from '../formatacao/FormatacaoNumeracao';
@@ -76,22 +77,22 @@ export default function NovaProducaoDiaDialog({
       const baixas = baixasPorReserva[reserva.id] || [];
       const prodInfo = produtos.find(p => p.codigo_produto === reserva.codigo_produto) ||
         produtos.find(p => p.letra_produto === reserva.letra_produto && !p.codigo_produto);
-      const isDecrescente = prodInfo?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente;
+      const isDecrescente = reserva.sequencia_decrescente ?? (prodInfo?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente);
 
       let sugereNum;
-      const minLote = Math.min(reserva.numero_inicial, reserva.numero_final);
-      const maxLote = Math.max(reserva.numero_inicial, reserva.numero_final);
 
       if (baixas.length > 0) {
         if (isDecrescente) {
           const menorNum = Math.min(...baixas.map(b => Math.min(b.numero_inicial || Infinity, b.numero_final || Infinity)));
-          sugereNum = menorNum > minLote ? menorNum - 1 : minLote;
+          const ultimoProduzido = menorNum;
+          sugereNum = proximoNumero(ultimoProduzido, true);
         } else {
-          const maiorNum = Math.max(...baixas.map(b => Math.max(b.numero_inicial || 0, b.numero_final || 0)));
-          sugereNum = maiorNum < maxLote ? maiorNum + 1 : maxLote;
+          const maiorNum = Math.max(...baixas.map(b => Math.max(b.numero_inicial || -Infinity, b.numero_final || -Infinity)));
+          const ultimoProduzido = maiorNum;
+          sugereNum = proximoNumero(ultimoProduzido, false);
         }
       } else {
-        sugereNum = isDecrescente ? maxLote : minLote;
+        sugereNum = reserva.numero_inicial;
       }
 
       setSelecionados([...selecionados, {
@@ -253,7 +254,7 @@ export default function NovaProducaoDiaDialog({
                               <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 font-mono tracking-tighter">
                                 {(() => {
                                   const prodInfo = produtos.find(p => p.letra_produto === reserva.letra_produto);
-                                  const isDecrescente = prodInfo?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente;
+                                  const isDecrescente = reserva.sequencia_decrescente ?? (prodInfo?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente);
                                   return `${isDecrescente ? Math.max(reserva.numero_inicial, reserva.numero_final) : Math.min(reserva.numero_inicial, reserva.numero_final)} — ${isDecrescente ? Math.min(reserva.numero_inicial, reserva.numero_final) : Math.max(reserva.numero_inicial, reserva.numero_final)}`;
                                 })()}
                               </span>

@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSetor } from '@/components/context/SetorContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { proximoNumero, anteriorNumero, calcularQuantidade, calcularFim, estaContido } from '../core/numeracaoService';
 
 export default function EtiquetasLotePage() {
   const [searchParams] = useSearchParams();
@@ -96,48 +97,15 @@ export default function EtiquetasLotePage() {
           return false;
         }
 
-        // Agrupar todas as reservas do mesmo cliente+código para verificar se o range total foi baixado
-        const mesmoCliente = todasReservas.filter(x =>
-          x.cliente === r.cliente &&
-          x.codigo_completo === r.codigo_completo &&
-          x.status !== 'CANCELADO' &&
-          x.status !== 'LIBERADO'
-        );
+        // Validar progresso de baixas reais no banco (redundância de segurança)
+        const baixasDele = todasBaixas.filter(b => b.reserva_id === r.id);
+        if (baixasDele.length === 0) return true;
 
-        // Ordenar por número inicial para encontrar o range total
-        const ordenado = [...mesmoCliente].sort((a, b) => a.numero_inicial - b.numero_inicial);
-        const primeiroNumero = ordenado[0].numero_inicial;
-        const ultimoNumero = ordenado[ordenado.length - 1].numero_final;
+        const sumBaixadoCircular = baixasDele.reduce((sum, b) => {
+          return sum + calcularQuantidade(b.numero_inicial, b.numero_final, r.sequencia_decrescente);
+        }, 0);
 
-        // Buscar todas as baixas deste cliente+código
-        const baixasGrupo = todasBaixas.filter(b => {
-          const reservasBaixa = todasReservas.filter(x => x.id === b.reserva_id);
-          return reservasBaixa.some(x => x.cliente === r.cliente && x.codigo_completo === r.codigo_completo);
-        });
-
-        if (baixasGrupo.length === 0) {
-          // Nenhuma baixa registrada, mantém visível
-          return true;
-        }
-
-        // Encontrar o maior (crescente) ou menor (decrescente) número baixado
-        let maiorNumeroBaixado = -Infinity;
-        let menorNumeroBaixado = Infinity;
-
-        baixasGrupo.forEach(b => {
-          maiorNumeroBaixado = Math.max(maiorNumeroBaixado, b.numero_final);
-          menorNumeroBaixado = Math.min(menorNumeroBaixado, b.numero_inicial);
-        });
-
-        // Se crescente: mantém enquanto maiorNumeroBaixado < ultimoNumero
-        // Se decrescente: mantém enquanto menorNumeroBaixado > primeiroNumero
-        const ehCrescente = primeiroNumero < ultimoNumero;
-
-        if (ehCrescente) {
-          return maiorNumeroBaixado < ultimoNumero;
-        } else {
-          return menorNumeroBaixado > primeiroNumero;
-        }
+        return sumBaixadoCircular < r.quantidade;
       });
     },
     enabled: !reservaId && !!setorAtivo
@@ -153,7 +121,7 @@ export default function EtiquetasLotePage() {
       // Busca por número dentro do intervalo
       if (termoNum) {
         const n = parseInt(termoNum);
-        if (!isNaN(n) && n >= r.numero_inicial && n <= r.numero_final) return true;
+        if (!isNaN(n) && estaContido(n, r.numero_inicial, r.numero_final, r.sequencia_decrescente)) return true;
         // Busca por início/fim do intervalo
         if (String(r.numero_inicial).includes(termoNum)) return true;
         if (String(r.numero_final).includes(termoNum)) return true;
@@ -177,7 +145,19 @@ export default function EtiquetasLotePage() {
 
     Object.entries(baseGrupos).forEach(([chaveBase, itens]) => {
       // Ordena por número inicial
-      const ordenados = [...itens].sort((a, b) => a.numero_inicial - b.numero_inicial);
+      // Encontrar a "Cabeça" (item que não tem predecessor no grupo)
+      const itemInicial = itens.find(x => 
+        !itens.some(y => proximoNumero(y.numero_final, x.sequencia_decrescente) === x.numero_inicial)
+      ) || itens[0];
+
+      const baseNum = itemInicial.numero_inicial;
+      const isDec = itemInicial.sequencia_decrescente;
+
+      const ordenados = [...itens].sort((a, b) => {
+        const distA = calcularQuantidade(baseNum, a.numero_inicial, isDec);
+        const distB = calcularQuantidade(baseNum, b.numero_inicial, isDec);
+        return distA - distB;
+      });
 
       let blocoAtual = [ordenados[0]];
       let indexBloco = 0;
@@ -187,7 +167,7 @@ export default function EtiquetasLotePage() {
         const atual = ordenados[i];
 
         // Se for sequencial (fim do anterior + 1 = início do atual), continua o bloco
-        if (anterior.numero_final + 1 === atual.numero_inicial) {
+        if (proximoNumero(anterior.numero_final) === atual.numero_inicial) {
           blocoAtual.push(atual);
         } else {
           // Senão, fecha o bloco atual e começa um novo
@@ -237,8 +217,19 @@ export default function EtiquetasLotePage() {
             throw new Error('As reservas devem ser do mesmo cliente e letra/ano');
           }
 
-          // Ordenar por numero_inicial
-          reservasFlat.sort((a, b) => a.numero_inicial - b.numero_inicial);
+          // Ordenar de forma circular a partir da cabeça da corrente
+          const itemInicial = reservasFlat.find(x => 
+            !reservasFlat.some(y => proximoNumero(y.numero_final, x.sequencia_decrescente) === x.numero_inicial)
+          ) || reservasFlat[0];
+
+          const baseNum = itemInicial.numero_inicial;
+          const isDec = itemInicial.sequencia_decrescente;
+
+          reservasFlat.sort((a, b) => {
+            const distA = calcularQuantidade(baseNum, a.numero_inicial, isDec);
+            const distB = calcularQuantidade(baseNum, b.numero_inicial, isDec);
+            return distA - distB;
+          });
 
           // Buscar produto para obter descrição e sufixo
           const produtos = await rdsn.entities.Produto.filter({
@@ -364,7 +355,7 @@ export default function EtiquetasLotePage() {
     const qtdCaixa = parseInt(quantidadePorCaixa);
     const qtdPallet = quantidadePorPallet ? parseInt(quantidadePorPallet) : null;
     const totalQuantidade = contexto.quantidade ||
-      (contexto.numeroLoteFinal - contexto.numeroLoteInicial + 1);
+      calcularQuantidade(contexto.numeroLoteInicial, contexto.numeroLoteFinal);
 
     if (isNaN(qtdCaixa) || qtdCaixa <= 0) {
       toast.error('❌ Quantidade por caixa inválida');
@@ -393,12 +384,18 @@ export default function EtiquetasLotePage() {
 
           if (ordemDecrescente) {
             serieFinal = serieAtual;
-            serieInicial = Math.max(serieAtual - qtdCaixa + 1, contexto.numeroLoteInicial);
-            qtdAtual = serieFinal - serieInicial + 1;
+            serieInicial = calcularFim(serieAtual, qtdCaixa, true);
+            if (!estaContido(serieInicial, contexto.numeroLoteInicial, contexto.numeroLoteFinal)) {
+              serieInicial = contexto.numeroLoteInicial;
+            }
+            qtdAtual = calcularQuantidade(serieInicial, serieFinal);
           } else {
             serieInicial = serieAtual;
-            serieFinal = Math.min(serieAtual + qtdCaixa - 1, contexto.numeroLoteFinal);
-            qtdAtual = serieFinal - serieInicial + 1;
+            serieFinal = calcularFim(serieAtual, qtdCaixa);
+            if (!estaContido(serieFinal, contexto.numeroLoteInicial, contexto.numeroLoteFinal)) {
+              serieFinal = contexto.numeroLoteFinal;
+            }
+            qtdAtual = calcularQuantidade(serieInicial, serieFinal);
           }
 
           caixas.push({
@@ -408,7 +405,7 @@ export default function EtiquetasLotePage() {
             quantidade: qtdAtual
           });
 
-          serieAtual = ordemDecrescente ? serieInicial - 1 : serieFinal + 1;
+          serieAtual = ordemDecrescente ? anteriorNumero(caixas[caixas.length - 1].serieInicial) : proximoNumero(serieFinal);
           numeroCaixa = numeroCaixa + 1;
 
           if (ordemDecrescente ? serieAtual < contexto.numeroLoteInicial : serieAtual > contexto.numeroLoteFinal) break;
@@ -436,12 +433,18 @@ export default function EtiquetasLotePage() {
 
         if (ordemDecrescente) {
           serieFinal = serieAtual;
-          serieInicial = Math.max(serieAtual - qtdCaixa + 1, contexto.numeroLoteInicial);
-          qtdAtual = serieFinal - serieInicial + 1;
+          serieInicial = calcularFim(serieAtual, qtdCaixa, true);
+          if (!estaContido(serieInicial, contexto.numeroLoteInicial, contexto.numeroLoteFinal)) {
+            serieInicial = contexto.numeroLoteInicial;
+          }
+          qtdAtual = calcularQuantidade(serieInicial, serieFinal);
         } else {
           serieInicial = serieAtual;
-          serieFinal = Math.min(serieAtual + qtdCaixa - 1, contexto.numeroLoteFinal);
-          qtdAtual = serieFinal - serieInicial + 1;
+          serieFinal = calcularFim(serieAtual, qtdCaixa);
+          if (!estaContido(serieFinal, contexto.numeroLoteInicial, contexto.numeroLoteFinal)) {
+            serieFinal = contexto.numeroLoteFinal;
+          }
+          qtdAtual = calcularQuantidade(serieInicial, serieFinal);
         }
 
         caixas.push({
@@ -451,7 +454,7 @@ export default function EtiquetasLotePage() {
           quantidade: qtdAtual
         });
 
-        serieAtual = ordemDecrescente ? serieInicial - 1 : serieFinal + 1;
+        serieAtual = ordemDecrescente ? anteriorNumero(caixas[caixas.length - 1].serieInicial) : proximoNumero(serieFinal);
         numeroCaixa = numeroCaixa + 1;
 
         if (ordemDecrescente ? serieAtual < contexto.numeroLoteInicial : serieAtual > contexto.numeroLoteFinal) break;
@@ -601,7 +604,7 @@ export default function EtiquetasLotePage() {
                     })
                     .map(([chaveGrupo, grupo]) => {
                     const ehSequencial = grupo.length > 1 && saoSequenciais(grupo);
-                    const totalGrupo = grupo.reduce((sum, r) => sum + (r.numero_final - r.numero_inicial + 1), 0);
+                    const totalGrupo = grupo.reduce((sum, r) => sum + calcularQuantidade(r.numero_inicial, r.numero_final), 0);
                     const numSelecionados = contarSelecionadosGrupo(chaveGrupo);
                     const ehDecrescenteGrupo = grupo[0]?.sequencia_decrescente === true;
 

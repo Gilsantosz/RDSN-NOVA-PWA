@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       if (intervalo.origem === 'numeracao_livre_combinada') score += 80; // Favorece reutilização parcial
 
       // Preferir continuação sequencial (menos disrupção)
-      if (intervalo.origem === 'sequencia_nova') score += 40;
+      if (intervalo.origem === 'sequencia_nova') score += 120;
 
       // Penalizar grandes lacunas que deixam espaço desperdiçado (EXCETO para numerações livres parciais)
       if (intervalo.origem !== 'numeracao_livre_parcial' && intervalo.quantidadeDisponivel > intervalo.quantidade) {
@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
           quantidadeDisponivel: espacoInicial,
           motivo: `Usa espaço disponível no início (1 a ${espacoInicial})`
         };
-        intervalo.score = calcularScoreQualidade(intervalo) + 50; // Bonus por ser início
+        intervalo.score = calcularScoreQualidade(intervalo); // Removido bônus de início para evitar saltos para trás
         intervalosDisponiveis.push(intervalo);
       }
     }

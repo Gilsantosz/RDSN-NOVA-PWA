@@ -2,7 +2,7 @@ import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowDown, ArrowUp, MoreHorizontal, ScanLine, XCircle, Unlock, Eye, History, Scissors, Split, RefreshCw, FileText } from "lucide-react";
+import { ArrowDown, ArrowUp, MoreHorizontal, ScanLine, XCircle, Unlock, Eye, History, Scissors, Split, RefreshCw, FileText, ArrowDownNarrowWide } from "lucide-react";
 import StatusBadge from '../dashboard/StatusBadge';
 import ReservasTableMobile from './ReservasTableMobile';
 import IntervaloBadge from '../ui/intervalo-badge';
@@ -186,7 +186,15 @@ export default function ReservasTable({
                         <p className="font-black text-sm text-slate-900 dark:text-white uppercase italic tracking-tighter truncate max-w-[15rem] leading-none">{reserva.cliente}</p>
                       </TableCell>
                       <TableCell className="py-5 px-3">
-                        <p className="font-black text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-tighter">{reserva.unidade || '-'}</p>
+                        <div className="flex flex-col gap-1">
+                          <p className="font-black text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-tighter">{reserva.unidade || '-'}</p>
+                          {reserva.sequencia_decrescente && (
+                            <div className="flex items-center gap-1 text-[8px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 px-1.5 py-0.5 rounded-md border border-amber-500/20 w-fit">
+                              <ArrowDownNarrowWide className="w-2.5 h-2.5" />
+                              Decrescente
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="py-5 px-3">
                         <FormatPrefixo
@@ -205,7 +213,7 @@ export default function ReservasTable({
                       </TableCell>
                       <TableCell className="py-5 px-3">
                         <IntervaloBadge
-                          inicio={(reserva.numero_inicial > reserva.numero_final) 
+                          inicio={(reserva.numero_inicial > reserva.numero_final || reserva.sequencia_decrescente) 
                             ? reserva.numero_inicial - (reserva.quantidade_baixada || 0)
                             : reserva.numero_inicial + (reserva.quantidade_baixada || 0)}
                           fim={reserva.numero_final}
@@ -270,13 +278,15 @@ export default function ReservasTable({
 
                               {reserva.status !== 'CANCELADO' && reserva.status !== 'PRODUZIDO' && (
                                 <>
-                                  <DropdownMenuItem
-                                    onClick={() => onEncurtar(reserva)}
-                                    className="h-11 rounded-xl focus:bg-slate-100 dark:focus:bg-white/5 group cursor-pointer"
-                                  >
-                                    <Scissors className="w-4 h-4 mr-3 text-slate-400" />
-                                    <span className="font-black uppercase text-[9px] tracking-widest text-slate-600 dark:text-slate-400">Encurtar Lote</span>
-                                  </DropdownMenuItem>
+                                  {(reserva.quantidade_baixada || 0) > 0 && (
+                                    <DropdownMenuItem
+                                      onClick={() => onEncurtar(reserva)}
+                                      className="h-11 rounded-xl focus:bg-slate-100 dark:focus:bg-white/5 group cursor-pointer"
+                                    >
+                                      <Scissors className="w-4 h-4 mr-3 text-slate-400" />
+                                      <span className="font-black uppercase text-[9px] tracking-widest text-slate-600 dark:text-slate-400">Encurtar Lote</span>
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem
                                     onClick={() => onQuebrar(reserva)}
                                     className="h-11 rounded-xl focus:bg-slate-100 dark:focus:bg-white/5 group cursor-pointer"

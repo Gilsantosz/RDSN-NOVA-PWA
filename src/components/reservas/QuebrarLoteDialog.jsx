@@ -8,27 +8,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Split, AlertTriangle, Package, Loader2 } from 'lucide-react';
-import { cn } from "@/lib/utils";
+import { calcularFim, proximoNumero } from '@/core/numeracaoService';
 
 export default function QuebrarLoteDialog({ reserva, open, onOpenChange, onConfirm, isLoading }) {
   const [quantidadePorLote, setQuantidadePorLote] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const [error, setError] = useState('');
 
-  // Calcular lotes baseado na quantidade
   const calcularLotes = () => {
     const qtdNum = Number(quantidadePorLote);
     if (!quantidadePorLote || qtdNum <= 0) return [];
 
+    const decrescente = reserva.sequencia_decrescente;
     const totalQuantidade = reserva.quantidade;
     const resultLotes = [];
-
     let numeroAtual = reserva.numero_inicial;
     let quantidadeRestante = totalQuantidade;
 
     while (quantidadeRestante > 0) {
       const quantidadeLote = Math.min(qtdNum, quantidadeRestante);
-      const numeroFinal = numeroAtual + quantidadeLote - 1;
+      const numeroFinal = calcularFim(numeroAtual, quantidadeLote, decrescente);
 
       resultLotes.push({
         numero_inicial: numeroAtual,
@@ -36,7 +35,7 @@ export default function QuebrarLoteDialog({ reserva, open, onOpenChange, onConfi
         quantidade: quantidadeLote
       });
 
-      numeroAtual = numeroFinal + 1;
+      numeroAtual = proximoNumero(numeroFinal, decrescente);
       quantidadeRestante -= quantidadeLote;
     }
 
@@ -99,102 +98,67 @@ export default function QuebrarLoteDialog({ reserva, open, onOpenChange, onConfi
               </div>
               <div className="space-y-1 text-right">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 italic opacity-70">Volume Original</span>
-                <p className="font-black text-slate-900 dark:text-white leading-none text-lg italic">{reserva?.quantidade?.toLocaleString()} UN</p>
-              </div>
-              <div className="col-span-2 space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 italic opacity-70">Intervalo de Controle</span>
-                <p className="font-mono font-bold text-slate-700 dark:text-slate-300 leading-none">
-                  {reserva?.numero_inicial?.toLocaleString()} → {reserva?.numero_final?.toLocaleString()}
-                </p>
+                <p className="font-black text-slate-900 dark:text-white text-lg leading-none tracking-tighter">{reserva?.quantidade} Unid.</p>
               </div>
             </div>
 
-            {/* Quantidade por Lote */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-end px-1">
-                <Label className="text-slate-700 dark:text-slate-300 font-black uppercase text-[10px] tracking-[0.2em]">Tamanho Máximo por Fragmento</Label>
-                <span className="text-[9px] font-black text-slate-400 uppercase italic">Limite: {reserva?.quantidade - 1}</span>
+            {/* Input de Quantidade */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 italic">Dividir a cada X etiquetas:</Label>
+                <Badge variant="outline" className="rounded-full border-purple-500/30 text-purple-600 dark:text-purple-400 font-bold bg-purple-500/5">
+                  Recomendado: 50
+                </Badge>
               </div>
-              <Input
-                type="number"
-                value={quantidadePorLote}
-                onChange={(e) => setQuantidadePorLote(e.target.value)}
-                min={1}
-                max={reserva?.quantidade - 1}
-                className="font-mono text-3xl h-20 text-center dark:bg-slate-950 dark:border-white/10 rounded-2xl border-2 transition-all focus:border-purple-500/50"
-                placeholder="Ex: 1000"
-              />
+              <div className="relative group">
+                <Input
+                  type="number"
+                  value={quantidadePorLote}
+                  onChange={(e) => setQuantidadePorLote(e.target.value)}
+                  placeholder="Ex: 50"
+                  className="h-20 text-3xl font-black tracking-tighter bg-white dark:bg-slate-950 border-2 border-slate-200 dark:border-white/10 rounded-[1.5rem] px-8 focus:ring-4 focus:ring-purple-500/20 transition-all group-hover:border-purple-500/40"
+                />
+                <Package className="absolute right-6 top-1/2 -translate-y-1/2 w-8 h-8 text-slate-300 dark:text-slate-700 pointer-events-none group-focus-within:text-purple-500 transition-colors" />
+              </div>
             </div>
 
-            {/* Preview dos Lotes */}
+            {/* Preview dos Novos Lotes */}
             {lotes.length > 0 && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
-                <div className="bg-purple-600/10 border border-purple-500/20 p-5 rounded-2xl flex justify-between items-center shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-purple-600/20 flex items-center justify-center border border-purple-500/20">
-                      <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-purple-900 dark:text-purple-400 italic">Estratégia de Fragmentação</p>
-                      <p className="text-xs font-bold text-slate-600 dark:text-slate-400">Distribuição automática em sub-entidades</p>
-                    </div>
-                  </div>
-                  <Badge className="bg-purple-600 hover:bg-purple-600 text-white font-black italic px-4 py-1.5 rounded-full text-xs shadow-lg shadow-purple-600/30">
-                    {lotes.length} FRAGMENTOS
-                  </Badge>
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-purple-500 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 italic">Estrutura Resultante ({lotes.length} lotes)</h3>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-56 overflow-y-auto pr-2 custom-scrollbar p-1">
-                  {lotes.map((lote, idx) => (
-                    <div
-                      key={idx}
-                      className={cn(
-                        "p-5 rounded-2xl border-2 transition-all relative overflow-hidden group",
-                        idx === 0
-                          ? 'bg-emerald-500/10 border-emerald-500/20 shadow-sm'
-                          : idx === lotes.length - 1 && lote.quantidade < Number(quantidadePorLote)
-                            ? 'bg-amber-500/10 border-amber-500/20'
-                            : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/5'
-                      )}
-                    >
-                      <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
-                        <Package className="w-8 h-8 rotate-12" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {lotes.slice(0, 4).map((lote, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-white/5 group hover:border-purple-500/30 transition-colors">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase">Lote {String(index + 1).padStart(2, '0')}</span>
+                        <span className="font-mono text-xs font-black dark:text-purple-300 tabular-nums">{String(lote.numero_inicial).padStart(3, '0')} a {String(lote.numero_final).padStart(3, '0')}</span>
                       </div>
-                      <div className="flex justify-between items-center relative z-10">
-                        <div>
-                          <p className={cn(
-                            "text-[9px] font-black uppercase tracking-widest mb-1.5 italic",
-                            idx === 0 ? "text-emerald-700 dark:text-emerald-400" : "text-slate-500"
-                          )}>
-                            {idx === 0 ? 'MATRIZ ORIGINAL' : `FRAGMENTO ${idx + 1}`}
-                          </p>
-                          <p className="font-mono text-xs font-black dark:text-slate-200 tracking-tight leading-none bg-black/5 dark:bg-white/5 px-2 py-1 rounded-lg border border-black/5 dark:border-white/5 inline-block">
-                            {lote.numero_inicial.toLocaleString()} <span className="text-slate-400">...</span> {lote.numero_final.toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-black text-slate-900 dark:text-white leading-none italic tracking-tighter">{lote.quantidade.toLocaleString()}</p>
-                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1">UNIDADES</p>
-                        </div>
-                      </div>
+                      <Badge variant="secondary" className="bg-slate-200 dark:bg-white/5 text-[9px] font-black tracking-tighter">{lote.quantidade} UN</Badge>
                     </div>
                   ))}
+                  {lotes.length > 4 && (
+                    <div className="col-span-1 sm:col-span-2 text-center p-2 rounded-xl border border-dashed border-slate-200 dark:border-white/10">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase italic">+ {lotes.length - 4} outros lotes com a mesma estrutura</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
             {/* Observações */}
-            <div className="space-y-2">
-              <Label className="text-slate-700 dark:text-slate-300 font-black uppercase text-[10px] tracking-[0.2em] ml-1">Justificativa Operacional</Label>
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic px-1">Justificativa da Divisão</Label>
               <Textarea
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}
-                placeholder="Descreva o motivo desta quebra e o destino dos lotes fragmentados..."
-                className="dark:bg-slate-950 dark:border-white/10 rounded-2xl min-h-[100px] resize-none italic leading-relaxed text-sm p-4"
+                placeholder="Ex: Lote muito grande para os gabinetes atuais..."
+                className="min-h-[100px] resize-none rounded-[1.5rem] bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-white/5 focus:ring-4 focus:ring-purple-500/20 italic font-medium p-4"
               />
             </div>
 
-            {/* Alertas */}
             {error && (
               <Alert variant="destructive" className="rounded-2xl border-red-500/30 bg-red-500/10 py-4 animate-in fade-in slide-in-from-top-1">
                 <AlertTriangle className="h-4 w-4" />

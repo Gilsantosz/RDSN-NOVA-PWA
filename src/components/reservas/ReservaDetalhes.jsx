@@ -5,6 +5,7 @@ import IntervaloBadge from '../ui/intervalo-badge';
 import WorkflowVisualReserva from './WorkflowVisualReserva';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { calcularFim, proximoNumero } from '@/core/numeracaoService';
 
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { Button } from '@/components/ui/button';
@@ -212,9 +213,9 @@ export default function ReservaDetalhes({ reserva, baixas, onBaixa }) {
           <PremiumCard title="Intervalo Técnico" icon={ScanLine} iconColor="#3b82f6" className="dark:bg-slate-900/80">
             <div className="space-y-4">
               <IntervaloBadge
-                inicio={(reserva.numero_inicial > reserva.numero_final) 
-                  ? reserva.numero_inicial - (reserva.quantidade_baixada || 0)
-                  : reserva.numero_inicial + (reserva.quantidade_baixada || 0)}
+                inicio={reserva.quantidade_baixada > 0 
+                  ? proximoNumero(calcularFim(reserva.numero_inicial, reserva.quantidade_baixada, reserva.sequencia_decrescente), reserva.sequencia_decrescente)
+                  : reserva.numero_inicial}
                 fim={reserva.numero_final}
                 variant="primary"
                 size="lg"

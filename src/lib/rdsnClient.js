@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
+import { getEnvConfig } from '../utils/hybridContext';
 
-const supabaseUrl = import.meta.env.VITE_RDSN_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_RDSN_SUPABASE_ANON_KEY;
+const { supabaseUrl, supabaseAnonKey } = getEnvConfig();
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.log('Ambiente local detectado - usando mocks ou aguardando configuração');

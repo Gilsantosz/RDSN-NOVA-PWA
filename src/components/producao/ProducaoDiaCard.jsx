@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Clock, Play, Loader2 } from "lucide-react";
 import { formatarNumeracao, extrairPrefixo } from '../formatacao/FormatacaoNumeracao';
+import { estaContido, calcularQuantidade } from '../../core/numeracaoService';
 
 const statusColors = {
   ABERTO: 'bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-[0_0_15px_rgba(56,189,248,0.1)]',
@@ -43,8 +44,8 @@ export default function ProducaoDiaCard({
   }, [produtos, reserva?.codigo_produto, reserva?.letra_produto]);
 
   const ordemPadrao = useMemo(() => {
-    return lote?.sequencia_decrescente ?? (produtoInfo?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente) ?? false;
-  }, [lote?.sequencia_decrescente, produtoInfo, setorInfo]);
+    return lote?.sequencia_decrescente ?? lote?.reserva_original?.sequencia_decrescente ?? reserva?.sequencia_decrescente ?? (produtoInfo?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente) ?? false;
+  }, [lote?.sequencia_decrescente, lote?.reserva_original?.sequencia_decrescente, reserva?.sequencia_decrescente, produtoInfo, setorInfo]);
   
   const [ordemDecrescente, setOrdemDecrescente] = useState(ordemPadrao);
 
@@ -105,40 +106,25 @@ export default function ProducaoDiaCard({
       setErro('Informe um número válido');
       return;
     }
-    const minVal = Math.min(reserva.numero_inicial, reserva.numero_final);
-    const maxVal = Math.max(reserva.numero_inicial, reserva.numero_final);
-    
-    if (fim < minVal || fim > maxVal) {
-      const showIni = ordemDecrescente ? maxVal : minVal;
-      const showFim = ordemDecrescente ? minVal : maxVal;
-      setErro(`Fora do intervalo (${showIni.toLocaleString()} - ${showFim.toLocaleString()})`);
+    // Validação circular do intervalo (conforme regras RDSN)
+    if (!estaContido(fim, reserva.numero_inicial, reserva.numero_final, ordemDecrescente)) {
+      setErro(`Fora do intervalo (${reserva.numero_inicial.toLocaleString()} - ${reserva.numero_final.toLocaleString()})`);
       return;
     }
-    if (ordemDecrescente) {
-      if (fim > ini) {
-        setErro('O número final não pode ser maior que o inicial em ordem decrescente.');
-        return;
-      }
-      const qty = (ini - fim) + 1;
-      if (qty > restanteLote) {
-        setErro(`Quantidade (${qty.toLocaleString()}) excede restante (${restanteLote.toLocaleString()})`);
-      }
-    } else {
-      if (fim < ini) {
-        setErro('O número inicial não pode ser maior que o final. Verifique os dados inseridos.');
-        return;
-      }
-      const qty = (fim - ini) + 1;
-      if (qty > restanteLote) {
-        setErro(`Quantidade (${qty.toLocaleString()}) excede restante (${restanteLote.toLocaleString()})`);
-      }
+
+    // Calcula a quantidade de forma circular (conforme regras RDSN)
+    const qty = calcularQuantidade(ini, fim, ordemDecrescente);
+
+    if (qty > restanteLote) {
+      setErro(`Quantidade (${qty.toLocaleString()}) excede restante (${restanteLote.toLocaleString()})`);
+      return;
     }
   };
 
   const numFinalPuro = numFinal && !erro ? extrairNumeroPuro(numFinal).num : NaN;
   const iniSafe = Number(lote.numeracao_inicial) || 0;
   const quantidadeCalculada = numFinal && !erro && !isNaN(numFinalPuro)
-    ? (ordemDecrescente ? (iniSafe - numFinalPuro) + 1 : (numFinalPuro - iniSafe) + 1)
+    ? calcularQuantidade(iniSafe, numFinalPuro, ordemDecrescente)
     : 0;
 
   const isFechado = lote.status === 'FECHADO';
@@ -192,7 +178,7 @@ export default function ProducaoDiaCard({
           </div>
           <div className="bg-white/40 dark:bg-slate-950/40 p-4 space-y-1">
             <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest italic leading-none">
-              {ordemDecrescente ? 'Numeração de Partida (↑)' : 'Numeração de Partida (↓)'}
+              {ordemDecrescente ? 'Numeração de Partida (↓)' : 'Numeração de Partida (↑)'}
             </span>
             <p className="text-sm font-black text-blue-500 dark:text-blue-400 tracking-tight">
               {reserva.codigo_completo}{numInicialFormatado}

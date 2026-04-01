@@ -14,7 +14,9 @@ import {
   Save,
   RefreshCw,
   Fingerprint,
-  ShieldCheck
+  ShieldCheck,
+  Play,
+  Square
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -146,7 +148,35 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
   }, [formData.quantidade, formData.letra_produto, formData.ano, formData.manual, setorAtivo, formData.setor_id]); // handleAlocarAutomatico omitido intencionalmente (ref estável)
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Cálculo automático no Modo Manual: Final = Início + Quantidade - 1
+      const isManual = field === 'manual' ? value : prev.manual;
+      if (isManual && (field === 'numero_inicial' || field === 'quantidade' || field === 'manual')) {
+        const inicio = Number(field === 'numero_inicial' ? value : prev.numero_inicial);
+        const qtd = Number(field === 'quantidade' ? value : prev.quantidade);
+        
+        if (inicio > 0 && qtd > 0) {
+          newData.numero_final = String(inicio + qtd - 1);
+        }
+      }
+
+      // Ao ATIVAR modo manual, sugerir próximo número disponível como ponto de partida
+      if (field === 'manual' && value === true) {
+        const letra = prev.letra_produto;
+        const qtd = Number(prev.quantidade);
+        const ano = Number(prev.ano);
+        const s_id = prev.setor_id || (setorAtivo !== 'ALL' ? setorAtivo : null) || setores[0]?.id;
+        if (letra && qtd > 0 && ano && s_id) {
+          // Dispara de forma async sem bloquear o setState
+          setTimeout(() => handleAlocarAutomatico(letra, qtd, s_id), 0);
+        }
+      }
+      
+      return newData;
+    });
+    
     setError('');
 
     if (['letra_produto', 'sufixo', 'ano', 'quantidade', 'codigo_produto'].includes(field)) {
@@ -315,10 +345,7 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
       return;
     }
 
-    if (Number(formData.numero_inicial) > Number(formData.numero_final)) {
-      toast.error("O número inicial não pode ser maior que o final. Verifique os dados inseridos.");
-      return;
-    }
+    // Validação de número inicial > final removida para permitir wrap-around RDSN (ex: 900-100)
 
     if (Number(formData.quantidade) <= 0) {
       toast.error("A quantidade deve ser maior que zero.");
@@ -669,23 +696,40 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
 
           {formData.manual ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-blue-300/60 ml-1">Offset Inicial (Manual)</Label>
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center border border-green-500/30">
+                    <Play className="w-4 h-4 text-green-400 fill-current" />
+                  </div>
+                  <Label className="text-xs font-black uppercase tracking-tighter text-white/40">Início da Faixa</Label>
+                </div>
                 <Input
+                  id="reserva-inicio-manual"
                   type="number"
+                  placeholder="0"
                   value={formData.numero_inicial}
                   onChange={(e) => handleChange('numero_inicial', e.target.value)}
-                  className="h-20 bg-white/5 border-2 border-white/10 rounded-3xl px-8 text-3xl font-black text-white italic tracking-tighter focus:border-blue-500 focus:bg-white/10 transition-all shadow-inner"
+                  className="h-24 bg-white/10 border-2 border-white/20 rounded-[2rem] px-10 text-4xl font-black text-white italic tracking-tighter focus:border-blue-500 focus:bg-white/20 transition-all shadow-2xl"
                 />
+                <span className="text-[10px] font-bold text-blue-400/60 ml-4 uppercase tracking-widest">Definição Manual</span>
               </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-blue-300/60 ml-1">Offset Final (Manual)</Label>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center border border-red-500/30">
+                    <Square className="w-4 h-4 text-red-500 fill-current" />
+                  </div>
+                  <Label className="text-xs font-black uppercase tracking-tighter text-white/40">Final da Faixa</Label>
+                </div>
                 <Input
+                  id="reserva-fim-manual"
                   type="number"
+                  placeholder="0"
                   value={formData.numero_final}
                   onChange={(e) => handleChange('numero_final', e.target.value)}
-                  className="h-20 bg-white/5 border-2 border-white/10 rounded-3xl px-8 text-3xl font-black text-white italic tracking-tighter focus:border-blue-500 focus:bg-white/10 transition-all shadow-inner"
+                  className="h-24 bg-red-950/20 border-2 border-red-500/20 rounded-[2rem] px-10 text-4xl font-black text-red-100 italic tracking-tighter focus:border-red-500 focus:bg-red-900/40 transition-all shadow-2xl"
                 />
+                <span className="text-[10px] font-bold text-red-400/60 ml-4 uppercase tracking-widest">Encerramento da Reserva</span>
               </div>
             </div>
           ) : (
@@ -764,8 +808,10 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
                         </div>
                       </div>
                       <div className="pt-8 border-t border-white/5 mt-6">
-                        <Badge className="bg-white/10 text-white font-black uppercase text-xs px-5 py-2 border-white/10 backdrop-blur-xl rounded-xl">
-                          LOTE: {preview.codigo_completo}
+                        <Badge className="bg-white/10 text-white font-black uppercase text-xs px-5 py-2 border-white/10 backdrop-blur-xl rounded-xl flex items-center gap-3">
+                          <span>LOTE: {preview.codigo_completo}</span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                          <span>VOL: {formData.quantidade?.toLocaleString()} UN</span>
                         </Badge>
                       </div>
                     </div>

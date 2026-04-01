@@ -1,9 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-
+import { getEnvConfig } from '../utils/hybridContext';
 import SessionManager from '../lib/sessionManager';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const { supabaseUrl, supabaseAnonKey } = getEnvConfig();
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 

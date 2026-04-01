@@ -102,21 +102,30 @@ export default function ModoProducaoDia({ reservas, produtos, setorInfo }) {
       });
 
       // Criar lotes na sessão
-      await Promise.all(lotes.map(l =>
-        rdsn.entities.ProducaoDiaLote.create({
+      await Promise.all(lotes.map(l => {
+        // l.sequencia_decrescente é definido no handleToggle do NovaProducaoDiaDialog
+        // Fallback para reserva e produto caso não esteja presente
+        const reservaObj = l.reserva || l.reserva_original;
+        const prod = produtos.find(p => p.codigo_produto === reservaObj?.codigo_produto)
+          || produtos.find(p => p.letra_produto === reservaObj?.letra_produto && !p.codigo_produto);
+        const isDecrescente = l.sequencia_decrescente
+          ?? reservaObj?.sequencia_decrescente
+          ?? (prod?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente)
+          ?? false;
+        return rdsn.entities.ProducaoDiaLote.create({
           producao_dia_id: sessao.id,
           reserva_id: l.reserva_id,
-          letra_produto: l.reserva.letra_produto,
-          codigo_completo: l.reserva.codigo_completo,
-          cliente: l.reserva.cliente,
-          codigo_produto: l.reserva.codigo_produto,
-          modelo: l.reserva.modelo,
+          letra_produto: reservaObj?.letra_produto,
+          codigo_completo: reservaObj?.codigo_completo,
+          cliente: reservaObj?.cliente,
+          codigo_produto: reservaObj?.codigo_produto,
+          modelo: reservaObj?.modelo,
           numeracao_inicial: l.numeracao_inicial,
-          sequencia_decrescente: l.sequencia_decrescente,
+          sequencia_decrescente: isDecrescente,
           status: 'ABERTO',
-          setor_id: l.reserva.setor_id
-        })
-      ));
+          setor_id: reservaObj?.setor_id
+        });
+      }));
 
       // Log de auditoria
       await rdsn.entities.Auditoria.create({

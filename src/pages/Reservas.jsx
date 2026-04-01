@@ -18,6 +18,7 @@ import BaixaForm from '../components/baixas/BaixaForm';
 import ReservasTable from '../components/tables/ReservasTable';
 import AdvancedFilterBar from '../components/filters/AdvancedFilterBar';
 import ExportarRelatorio from '../components/relatorios/ExportarRelatorio';
+import { proximoNumero, anteriorNumero, calcularQuantidade, checarSobreposicao, estaContido, eApos } from '../core/numeracaoService';
 import ProdutosTab from '../components/reservas/ProdutosTab';
 import ReservaDetalhes from '../components/reservas/ReservaDetalhes';
 import HistoricoBaixas from '../components/reservas/HistoricoBaixas';
@@ -236,52 +237,58 @@ export default function Reservas() {
       });
 
       for (const livre of numeracoesLivres) {
-        const numeroInicialReserva = parseInt(data.numero_inicial);
-        const numeroFinalReserva = parseInt(data.numero_final);
-        const numeroInicialLivre = parseInt(livre.numero_inicial);
-        const numeroFinalLivre = parseInt(livre.numero_final);
-
-        // Verifica se os intervalos se sobrepõem
-        const temSobreposicao = !(numeroFinalReserva < numeroInicialLivre || numeroInicialReserva > numeroFinalLivre);
+        const temSobreposicao = checarSobreposicao(
+          data.numero_inicial, 
+          data.numero_final, 
+          livre.numero_inicial, 
+          livre.numero_final
+        );
 
         if (temSobreposicao) {
-          // CASO 1: Reserva usa EXATAMENTE toda a numeração livre - MARCAR COMO INDISPONÍVEL
-          if (numeroInicialReserva === numeroInicialLivre && numeroFinalReserva === numeroFinalLivre) {
+          const iniRes = Number(data.numero_inicial);
+          const fimRes = Number(data.numero_final);
+          const iniLiv = Number(livre.numero_inicial);
+          const fimLiv = Number(livre.numero_final);
+
+          // CASO 1: Reserva usa EXATAMENTE toda a numeração livre ou a ENGLOBA
+          const reservaContemLivre = estaContido(iniLiv, iniRes, fimRes) && estaContido(fimLiv, iniRes, fimRes);
+          
+          if (reservaContemLivre) {
             await rdsn.entities.NumeracaoLivre.update(livre.id, { disponivel: false });
           }
-          // CASO 2: Reserva ENGLOBA completamente a numeração livre - MARCAR COMO INDISPONÍVEL
-          else if (numeroInicialReserva <= numeroInicialLivre && numeroFinalReserva >= numeroFinalLivre) {
-            await rdsn.entities.NumeracaoLivre.update(livre.id, { disponivel: false });
-          }
-          // CASO 3: Reserva usa parte do início - ATUALIZAR números restantes
-          else if (numeroInicialReserva <= numeroInicialLivre && numeroFinalReserva < numeroFinalLivre) {
+          // CASO 2: Reserva usa parte do início da numeração livre
+          else if (iniRes === iniLiv) {
+            const novoInicio = proximoNumero(fimRes);
             await rdsn.entities.NumeracaoLivre.update(livre.id, {
-              numero_inicial: numeroFinalReserva + 1,
-              quantidade: numeroFinalLivre - numeroFinalReserva
+              numero_inicial: novoInicio,
+              quantidade: calcularQuantidade(novoInicio, fimLiv)
             });
           }
-          // CASO 4: Reserva usa parte do final - ATUALIZAR números restantes
-          else if (numeroInicialReserva > numeroInicialLivre && numeroFinalReserva >= numeroFinalLivre) {
+          // CASO 3: Reserva usa parte do final da numeração livre
+          else if (fimRes === fimLiv) {
+            const novoFim = anteriorNumero(iniRes);
             await rdsn.entities.NumeracaoLivre.update(livre.id, {
-              numero_final: numeroInicialReserva - 1,
-              quantidade: numeroInicialReserva - 1 - numeroInicialLivre + 1
+              numero_final: novoFim,
+              quantidade: calcularQuantidade(iniLiv, novoFim)
             });
           }
-          // CASO 5: Reserva usa o MEIO - DIVIDIR em duas partes
-          else if (numeroInicialReserva > numeroInicialLivre && numeroFinalReserva < numeroFinalLivre) {
+          // CASO 4: Reserva usa o MEIO - DIVIDIR em duas partes
+          else {
             // Parte 1: antes da reserva
+            const novoFimParte1 = anteriorNumero(iniRes);
             await rdsn.entities.NumeracaoLivre.update(livre.id, {
-              numero_final: numeroInicialReserva - 1,
-              quantidade: numeroInicialReserva - 1 - numeroInicialLivre + 1
+              numero_final: novoFimParte1,
+              quantidade: calcularQuantidade(iniLiv, novoFimParte1)
             });
             // Parte 2: depois da reserva (criar novo registro)
+            const novoInicioParte2 = proximoNumero(fimRes);
             await rdsn.entities.NumeracaoLivre.create({
               letra_produto: livre.letra_produto,
               ano: livre.ano,
               setor_id: livre.setor_id,
-              numero_inicial: numeroFinalReserva + 1,
-              numero_final: numeroFinalLivre,
-              quantidade: numeroFinalLivre - numeroFinalReserva,
+              numero_inicial: novoInicioParte2,
+              numero_final: fimLiv,
+              quantidade: calcularQuantidade(novoInicioParte2, fimLiv),
               reserva_original_id: livre.reserva_original_id,
               motivo: livre.motivo,
               disponivel: true,
@@ -298,10 +305,10 @@ export default function Reservas() {
         quantidade_baixada: 0
       });
 
-      const maxReservado = Math.max(data.numero_inicial, data.numero_final);
-      if (maxReservado > seq.ultimo_numero) {
+      const novoFinal = Number(data.numero_final);
+      if (eApos(novoFinal, seq.ultimo_numero)) {
         await rdsn.entities.SequenciaAnual.update(seq.id, {
-          ultimo_numero: maxReservado
+          ultimo_numero: novoFinal
         });
       }
 
@@ -393,7 +400,7 @@ export default function Reservas() {
 
       await rdsn.entities.ReservaLote.update(reserva.id, {
         numero_final: novoNumeroFinal,
-        quantidade: novoNumeroFinal - reserva.numero_inicial + 1
+        quantidade: calcularQuantidade(reserva.numero_inicial, novoNumeroFinal, reserva.sequencia_decrescente)
       });
 
       await rdsn.entities.NumeracaoLivre.create({

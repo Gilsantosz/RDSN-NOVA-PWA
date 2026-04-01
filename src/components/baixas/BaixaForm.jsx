@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Check, ScanLine, Camera, RefreshCw, Save, History, ShieldCheck } from "lucide-react";
 import { formatarNumeracao, extrairPrefixo } from '../formatacao/FormatacaoNumeracao';
+import { validarIntervaloBaixa } from '@/core/numeracaoService';
 import BarcodeScanner from '@/components/scanner/BarcodeScanner';
 import { AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -85,7 +86,7 @@ export default function BaixaForm({
 
   useEffect(() => {
     if (produtoInfo && !ordemIniciada) {
-      const isDecrescente = produtoInfo.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente;
+      const isDecrescente = reserva.sequencia_decrescente ?? (produtoInfo.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente);
       setOrdemDecrescente(!!isDecrescente);
       setOrdemIniciada(true);
     }
@@ -121,44 +122,26 @@ export default function BaixaForm({
 
   useEffect(() => {
     if (formData.numero_inicial && formData.numero_final) {
-      const ini = Number(formData.numero_inicial);
-      const fim = Number(formData.numero_final);
+      const { valida, erro, quantidade } = validarIntervaloBaixa(
+        formData.numero_inicial,
+        formData.numero_final,
+        reserva.numero_inicial,
+        reserva.numero_final,
+        ordemDecrescente
+      );
 
-      if (isNaN(ini) || isNaN(fim)) {
-        setCalculatedQty(0);
-        setError('Valores inválidos.');
-        return;
-      }
-
-      if (ordemDecrescente) {
-        if (ini < fim) {
-          setCalculatedQty(0);
-          setError('Ordem decrescente: O número inicial não pode ser menor que o final.');
-          return;
-        }
-        setCalculatedQty(ini - fim + 1);
-
-        if (ini > reserva.numero_final || fim < reserva.numero_inicial) {
-          setError(`Intervalo fora da reserva (${reserva.numero_final} - ${reserva.numero_inicial})`);
-        } else {
-          setError('');
-        }
-      } else {
-        if (ini > fim) {
-          setCalculatedQty(0);
-          setError('Ordem crescente: O número inicial não pode ser maior que o final.');
-          return;
-        }
-        setCalculatedQty(fim - ini + 1);
-
-        if (ini < reserva.numero_inicial || fim > reserva.numero_final) {
-          setError(`Intervalo fora da reserva (${reserva.numero_inicial} - ${reserva.numero_final})`);
-        } else {
-          setError('');
-        }
-      }
+      setCalculatedQty(quantidade || 0);
+      setError(valida ? '' : erro);
+      
+      // Se for válido mas tiver uma mensagem (como aviso de fora da reserva), 
+      // o erro original permitia prosseguir mas exibia o aviso.
+      // No BaixaForm original, o erro bloqueava o submit. 
+      // Nossa validarSequencia retorna erro para fora dos limites mas permite calculatedQty.
+      // Ajustamos para manter o comportamento de aviso vira erro de bloqueio se houver string de erro.
+      if (erro) setError(erro);
     } else {
       setCalculatedQty(0);
+      setError('');
     }
   }, [formData.numero_inicial, formData.numero_final, reserva, ordemDecrescente]);
 

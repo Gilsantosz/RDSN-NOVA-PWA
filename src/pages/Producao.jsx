@@ -465,7 +465,7 @@ export default function Producao() {
                                     <div className="flex flex-col gap-3 min-w-[140px]">
                                       {(() => {
                                         const prod = produtos.find(p => p.codigo_produto === reserva.codigo_produto);
-                                        const isInvertida = prod?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente;
+                                        const isInvertida = reserva.sequencia_decrescente ?? (prod?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente);
                                         return (
                                           <>
                                             {isInvertida && (

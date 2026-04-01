@@ -1,4 +1,12 @@
 import { rdsn } from './supabaseClient.js';
+import { 
+  checarSobreposicao, 
+  calcularFim, 
+  proximoNumero as proximo, 
+  calcularQuantidade,
+  anteriorNumero,
+  eApos
+} from '../core/numeracaoService.js';
 
 export async function alocarNumerosAutomatico(payload) {
   try {
@@ -93,12 +101,12 @@ export async function alocarNumerosAutomatico(payload) {
 
     const verificarIntervaloLivre = (inicio, fim) => {
       for (const ocupado of intervalosOcupados) {
-        if (!(fim < ocupado.inicio || inicio > ocupado.fim)) {
+        if (checarSobreposicao(inicio, fim, ocupado.inicio, ocupado.fim)) {
           return false;
         }
       }
       for (const bloqueio of bloqueiosAtivos) {
-        if (!(fim < bloqueio.numero_inicial || inicio > bloqueio.numero_final)) {
+        if (checarSobreposicao(inicio, fim, bloqueio.numero_inicial, bloqueio.numero_final)) {
           return false;
         }
       }
@@ -111,7 +119,7 @@ export async function alocarNumerosAutomatico(payload) {
         .filter(n => n > fim)
         .sort((a, b) => a - b)[0];
 
-      return proximaReserva ? (proximaReserva - fim - 1) : Infinity;
+      return proximaReserva ? calcularQuantidade(proximo(fim), anteriorNumero(proximaReserva)) : Infinity;
     };
 
     const calcularScoreQualidade = (intervalo) => {
@@ -142,7 +150,7 @@ export async function alocarNumerosAutomatico(payload) {
       if (livre.quantidade >= quantidade && verificarIntervaloLivre(livre.inicio, livre.fim)) {
         const intervalo = {
           inicio: livre.inicio,
-          fim: livre.inicio + quantidade - 1,
+          fim: calcularFim(livre.inicio, quantidade),
           quantidade: quantidade,
           origem: 'numeracao_livre',
           quantidadeDisponivel: livre.quantidade,
@@ -156,7 +164,7 @@ export async function alocarNumerosAutomatico(payload) {
         const fimLivre = livre.fim;
         const quantidadeLivre = livre.quantidade;
         const quantidadeFaltante = quantidade - quantidadeLivre;
-        const fimTotal = inicioLivre + quantidade - 1;
+        const fimTotal = calcularFim(inicioLivre, quantidade);
 
         if (verificarIntervaloLivre(inicioLivre, fimTotal)) {
           const intervalo = {
@@ -167,7 +175,7 @@ export async function alocarNumerosAutomatico(payload) {
             quantidadeDisponivel: quantidade,
             quantidadeLivre: quantidadeLivre,
             quantidadeSequencial: quantidadeFaltante,
-            motivo: `Combina ${quantidadeLivre} números livres (${inicioLivre}-${fimLivre}) + ${quantidadeFaltante} sequenciais (${fimLivre + 1}-${fimTotal})`
+            motivo: `Combina ${quantidadeLivre} números livres (${inicioLivre}-${fimLivre}) + ${quantidadeFaltante} sequenciais (${proximo(fimLivre)}-${fimTotal})`
           };
           intervalo.score = calcularScoreQualidade(intervalo);
           intervalosDisponiveis.push(intervalo);
@@ -198,13 +206,13 @@ export async function alocarNumerosAutomatico(payload) {
     for (let i = 0; i < todosNumeros.length - 1; i++) {
       const fimAtual = todosNumeros[i].fim;
       const inicioProximo = todosNumeros[i + 1].inicio;
-      const gap = inicioProximo - fimAtual - 1;
+      const gap = calcularQuantidade(proximo(fimAtual), anteriorNumero(inicioProximo));
 
       if (gap >= quantidade) {
-        const inicioGap = fimAtual + 1;
+        const inicioGap = proximo(fimAtual);
         const intervalo = {
           inicio: inicioGap,
-          fim: inicioGap + quantidade - 1,
+          fim: calcularFim(inicioGap, quantidade),
           quantidade: quantidade,
           origem: 'gap_entre_reservas',
           quantidadeDisponivel: gap,
@@ -218,17 +226,21 @@ export async function alocarNumerosAutomatico(payload) {
     // Próximo número = fim da ÚLTIMA RESERVA CONFIRMADA + 1
     // Ignora ultimo_numero (pode estar contaminado por simulações antigas)
     // A fonte da verdade é sempre o banco de dados de reservas confirmadas.
-    const maxOcupado = reservas.reduce((max, r) => Math.max(max, r.numero_final || 0), 0);
-    const proximoNumero = maxOcupado + 1;
+    const maxOcupado = reservas.reduce((max, r) => {
+      const nf = Number(r.numero_final) || 0;
+      if (max === 0) return nf;
+      return eApos(nf, max) ? nf : max;
+    }, 0);
+    const proximoNumeroDisp = proximo(maxOcupado);
 
-    if (verificarIntervaloLivre(proximoNumero, proximoNumero + quantidade - 1)) {
+    if (verificarIntervaloLivre(proximoNumeroDisp, calcularFim(proximoNumeroDisp, quantidade))) {
       const intervalo = {
-        inicio: proximoNumero,
-        fim: proximoNumero + quantidade - 1,
+        inicio: proximoNumeroDisp,
+        fim: calcularFim(proximoNumeroDisp, quantidade),
         quantidade: quantidade,
         origem: 'sequencia_nova',
         quantidadeDisponivel: quantidade,
-        motivo: `Continuação sequencial: ${proximoNumero.toLocaleString()} – ${(proximoNumero + quantidade - 1).toLocaleString()}`
+        motivo: `Continuação sequencial: ${proximoNumeroDisp.toLocaleString()} – ${calcularFim(proximoNumeroDisp, quantidade).toLocaleString()}`
       };
       intervalo.score = calcularScoreQualidade(intervalo);
       intervalosDisponiveis.push(intervalo);

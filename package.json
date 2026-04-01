@@ -1,12 +1,13 @@
 {
   "name": "rdsn-app",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.0.3",
   "main": "main.js",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:web": "vite build",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
@@ -133,6 +134,7 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2",
     "vite": "^6.1.0",
+    "vite-plugin-pwa": "^1.2.0",
     "wait-on": "^7.2.0"
   }
 }
