@@ -164,7 +164,7 @@ export default function AcessoInterno() {
                     PCP <span className="text-blue-500">MATRIX</span>
                   </h1>
                   <p className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
-                    Painel de Controle industrial • <span className="text-blue-500 flex items-center gap-1"><Shield className="w-3.5 h-3.5" />v2.0.4 PCP MATRIX</span>
+                    PAINEL DE CONTROLE INDUSTRIAL • <span className="text-blue-500 flex items-center gap-1"><Shield className="w-3.5 h-3.5" />V2.0.4 PCP MATRIX</span>
                   </p>
                 </div>
               </div>
@@ -175,7 +175,7 @@ export default function AcessoInterno() {
                   className="rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-[0.2em] px-8 h-12 gap-2 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-blue-500/20 overflow-hidden relative group/btn"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000" />
-                   <Lock className="w-4 h-4" /> Autenticar Coleta
+                   <Lock className="w-4 h-4" /> AUTENTICAR COLETA
                 </Button>
               </div>
             </div>
