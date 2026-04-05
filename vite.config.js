@@ -7,6 +7,19 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   base: './', // CRUCIAL CONFIGURATION: Makes file references relative for Electron build
   logLevel: 'error', // Suppress warnings, only show errors
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            const arr = id.toString().split('node_modules/')[1].split('/');
+            const name = arr[0] === '@' ? arr[0] + '/' + arr[1] : arr[0];
+            return 'vendor_' + name.replace('@', '');
+          }
+        }
+      }
+    }
+  },
   plugins: [
     react(),
     VitePWA({
@@ -28,7 +41,8 @@ export default defineConfig({
         background_color: "#ffffff"
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024
       }
     })
   ],
