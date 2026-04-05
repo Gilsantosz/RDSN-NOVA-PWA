@@ -12,6 +12,9 @@ function createWindow() {
         width: 1200,
         height: 800,
         title: "PCP Matrix - Industrial Intelligence Suite",
+        vibrancy: 'under-window',
+        visualEffectState: 'active',
+        trafficLightPosition: { x: 15, y: 15 },
         icon: path.join(__dirname, isDev ? 'public/pcp-matrix-icon.png' : 'dist/electron-icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
