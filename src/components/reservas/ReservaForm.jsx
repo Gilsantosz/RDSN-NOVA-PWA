@@ -43,6 +43,7 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
     quantidade: '',
     setor_id: null,
     manual: false,
+    sequencia_decrescente: false,
     numero_inicial: '',
     numero_final: '',
     unidade: 'UNIDADE 1'
@@ -93,7 +94,9 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
           codigo: codeToUse,
           nome: op.descricao || op.produto_nome || 'PLANEJAMENTO MENSAL',
           setor_id: op.setor_id,
-          letra_padrao: '',
+          letra_padrao: op.letra_produto || '',
+          sufixo: op.sufixo || '',
+          prefixo_padrao: op.prefixo_padrao || '',
           origem: 'pcp_mapa'
         });
       }
@@ -118,47 +121,63 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
     const letra = formData.letra_produto;
     const ano = Number(formData.ano);
 
-    // Nao disparar se manual ou se faltam dados essenciais (setor eh resolvido internamente)
+    // Não disparar se manual, faltam dados essenciais, ou setores ainda não carregaram
     if (formData.manual || !qtd || !letra || !ano || formData.quantidade === '') return;
+
+    // Resolver setor aqui para garantir que está disponível
+    const setorResolvido = (setorAtivo && setorAtivo !== 'ALL')
+      ? setorAtivo
+      : formData.setor_id || setores[0]?.id;
+
+    // Aguardar setores carregarem (evita race condition)
+    if (!setorResolvido) {
+      console.log('[AutoAlloc] Aguardando setores carregarem...');
+      return;
+    }
 
     const timer = setTimeout(async () => {
       // 1) Detectar lacunas: reservas CANCELADAS ou LIBERADAS para o mesmo produto e ano
-      const setorParaFiltro = setorAtivo && setorAtivo !== 'ALL' ? setorAtivo : formData.setor_id;
-      if (setorParaFiltro) {
-        try {
-          const todas = await rdsn.entities.ReservaLote.filter({
-            letra_produto: letra,
-            ano: ano,
-            setor_id: setorParaFiltro
-          });
-          const lacunas = (todas || []).filter(r =>
-            (r.status === 'CANCELADO' || r.status === 'LIBERADO') && Number(r.quantidade) === qtd
-          );
-          setLacunasSugeridas(lacunas);
-        } catch {
-          setLacunasSugeridas([]);
-        }
+      try {
+        const todas = await rdsn.entities.ReservaLote.filter({
+          letra_produto: letra,
+          ano: ano,
+          setor_id: setorResolvido
+        });
+        const lacunas = (todas || []).filter(r =>
+          (r.status === 'CANCELADO' || r.status === 'LIBERADO') && Number(r.quantidade) === qtd
+        );
+        setLacunasSugeridas(lacunas);
+      } catch {
+        setLacunasSugeridas([]);
       }
 
-      // 2) Disparar alocacao automatica (handleAlocarAutomatico resolve o setor internamente)
-      handleAlocarAutomatico(letra, qtd, null);
+      // 2) Disparar alocacao automatica com o setor já resolvido
+      handleAlocarAutomatico(letra, qtd, setorResolvido);
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [formData.quantidade, formData.letra_produto, formData.ano, formData.manual, setorAtivo, formData.setor_id]); // handleAlocarAutomatico omitido intencionalmente (ref estável)
+  }, [formData.quantidade, formData.letra_produto, formData.ano, formData.manual, setorAtivo, formData.setor_id, setores]); // setores adicionado para reagir quando carregarem
 
   const handleChange = (field, value) => {
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
+      const parseInputNumber = (val) => {
+        if (typeof val === 'number') return val;
+        return Number(String(val || '').replace(',', '.'));
+      };
+
       // Cálculo automático no Modo Manual: Final = Início + Quantidade - 1
       const isManual = field === 'manual' ? value : prev.manual;
       if (isManual && (field === 'numero_inicial' || field === 'quantidade' || field === 'manual')) {
-        const inicio = Number(field === 'numero_inicial' ? value : prev.numero_inicial);
-        const qtd = Number(field === 'quantidade' ? value : prev.quantidade);
+        const inicio = parseInputNumber(field === 'numero_inicial' ? value : prev.numero_inicial);
+        const qtd = parseInputNumber(field === 'quantidade' ? value : prev.quantidade);
         
         if (inicio > 0 && qtd > 0) {
-          newData.numero_final = String(inicio + qtd - 1);
+          const fimCalculado = inicio + qtd - 1;
+          // Usar toFixed ou formatar para evitar dízimas de ponto flutuante se necessário, 
+          // mas String() costuma ser ok para poucos decimais.
+          newData.numero_final = String(Number(fimCalculado.toFixed(4))); 
         }
       }
 
@@ -207,14 +226,33 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
           status: { $ne: 'CANCELADO' }
         });
 
-        const qtdJaReservada = (rArray || []).reduce((acc, r) => acc + (Number(r.quantidade) || 0), 0);
+        const parseInputNumber = (val) => {
+          if (typeof val === 'number') return val;
+          return Number(String(val || '').replace(',', '.'));
+        };
+
+        const qtdJaReservada = (rArray || []).reduce((acc, r) => acc + (parseInputNumber(r.quantidade) || 0), 0);
 
         // Somar demanda de todas as OPs encontradas
-        const qtdPCPTotal = opsRelacionadas.reduce((acc, op) => acc + (Number(op.quantidade_total) || 0), 0);
+        const qtdPCPTotal = opsRelacionadas.reduce((acc, op) => acc + (parseInputNumber(op.quantidade_total) || 0), 0);
         const qtdFaltante = Math.max(0, qtdPCPTotal - qtdJaReservada);
 
         // Pegar dados da OP mais recente ou da primeira para preenchimento
         const opPrincipal = opsRelacionadas[0];
+
+        // Calcular os valores finais para alocação automática ANTES de setFormData
+        // Prioridade: cadastro técnico > OP principal > estado atual do formulário
+        const letraFinal = produto?.letra_padrao || produto?.letra_produto || opPrincipal?.letra_produto || formData.letra_produto;
+        const qtdFinal = qtdFaltante > 0 ? qtdFaltante : (qtdPCPTotal > 0 && qtdJaReservada === 0 ? qtdPCPTotal : Number(formData.quantidade));
+        const setorFinal = opPrincipal?.setor_id || produto?.setor_id || formData.setor_id
+          || (setorAtivo && setorAtivo !== 'ALL' ? setorAtivo : null)
+          || setores[0]?.id;
+
+        // Resolver sufixo: cadastro técnico > extrair do prefixo_padrao > OP > estado atual
+        const sufixoFinal = produto?.sufixo
+          || produto?.prefixo_padrao?.replace(/^[A-Z]/i, '')
+          || opPrincipal?.sufixo
+          || '';
 
         setFormData(prev => {
           const newData = {
@@ -222,10 +260,10 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
             codigo_produto: codigo,
             modelo: opPrincipal?.descricao || produto?.modelo || produto?.nome || 'PRODUTO',
             // Prioridade absoluta para a letra do cadastro técnico/cliente, fallback para OP
-            letra_produto: produto?.letra_padrao || opPrincipal?.letra_produto || prev.letra_produto || '',
-            sufixo: produto?.sufixo || produto?.prefixo_padrao?.replace(/^[A-Z]\d*/i, '') || prev.sufixo || '',
+            letra_produto: letraFinal,
+            sufixo: sufixoFinal || prev.sufixo || '',
             cliente: opPrincipal?.cliente_nome || produto?.nome || prev.cliente,
-            setor_id: opPrincipal?.setor_id || produto?.setor_id || prev.setor_id
+            setor_id: setorFinal
           };
 
           // Autopreencher quantidade apenas se houver saldo no PCP agregado
@@ -233,6 +271,8 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
             newData.quantidade = String(qtdFaltante);
           } else if (qtdPCPTotal > 0 && qtdJaReservada === 0) {
             newData.quantidade = String(qtdPCPTotal);
+          } else {
+            newData.quantidade = String(qtdFinal); // Usar o valor já calculado
           }
 
           return newData;
@@ -253,10 +293,6 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
         }
 
         // Tenta alocação automática se tiver os dados necessários
-        const letraFinal = produto?.letra_padrao || opPrincipal?.letra_produto || formData.letra_produto;
-        const qtdFinal = qtdFaltante > 0 ? qtdFaltante : (qtdPCPTotal > 0 && qtdJaReservada === 0 ? qtdPCPTotal : Number(formData.quantidade));
-        const setorFinal = opPrincipal?.setor_id || produto?.setor_id || formData.setor_id;
-
         if (letraFinal && qtdFinal > 0 && !formData.manual) {
           handleAlocarAutomatico(letraFinal, qtdFinal, setorFinal);
         }
@@ -283,33 +319,49 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
   };
 
   const handleAlocarAutomatico = async (overrideLetra, overrideQtd, overrideSetorId) => {
+    const parseInputNumber = (val) => {
+      if (typeof val === 'number') return val;
+      return Number(String(val || '').replace(',', '.'));
+    };
+
     const letra = overrideLetra || formData.letra_produto;
-    const qtd = overrideQtd || Number(formData.quantidade);
-    const ano = Number(formData.ano);
-    const s_id = overrideSetorId || formData.setor_id || (setorAtivo === 'ALL' ? setores[0]?.id : setorAtivo) || setores[0]?.id;
+    const qtd = parseInputNumber(overrideQtd || formData.quantidade);
+    const ano = parseInputNumber(formData.ano);
+    // Resolução robusta do setor: prioridade ao override, depois form, depois tab ativa, depois primeiro da lista
+    const s_id = overrideSetorId
+      || formData.setor_id
+      || (setorAtivo && setorAtivo !== 'ALL' ? setorAtivo : null)
+      || setores[0]?.id;
+
+    console.log('[AutoAlloc] Tentando alocar:', { letra, qtd, ano, s_id, setorAtivo, formSetor: formData.setor_id });
 
     if (!letra || !ano || !qtd || !s_id) {
-      if (!overrideLetra) setError('Preencha os campos obrigatórios para alocação');
+      const motivo = !letra ? 'letra' : !ano ? 'ano' : !qtd ? 'quantidade' : 'setor';
+      console.warn(`[AutoAlloc] Abortado: campo '${motivo}' ausente`);
+      if (!overrideLetra) setError(`Preencha o campo '${motivo}' para alocação automática`);
       return;
     }
 
     setIsAllocating(true);
+    setPreview(null);
     setError('');
 
     try {
       const resp = await rdsn.functions.invoke('alocarNumerosAutomatico', {
         letra_produto: letra,
         ano: ano,
-        quantidade: Number(qtd),
+        quantidade: qtd,
         setor_id: s_id
       });
 
       // A resposta vem encapsulada em 'data' se for via simulator ou fetch real
-      const result = resp.data || resp;
+      const result = resp?.data || resp;
 
+      if (!result) throw new Error('Resposta vazia do serviço de alocação');
       if (result.error) throw new Error(result.error);
-      if (!result.intervalo) throw new Error('Não foi possível encontrar um intervalo disponível');
+      if (!result.intervalo) throw new Error('Nenhum intervalo disponível encontrado');
 
+      console.log('[AutoAlloc] Sucesso:', result.intervalo);
       setPreview(result);
       setFormData(prev => ({
         ...prev,
@@ -317,7 +369,7 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
         numero_final: result.intervalo.numero_final
       }));
     } catch (err) {
-      console.error('Erro na alocação automática:', err);
+      console.error('[AutoAlloc] Erro:', err);
       setError(err.message || 'Falha na alocação automática');
     } finally {
       setIsAllocating(false);
@@ -373,12 +425,17 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
       }
     }
 
+    const parseInputNumber = (val) => {
+      if (typeof val === 'number') return val;
+      return Number(String(val || '').replace(',', '.'));
+    };
+
     const dadosFinal = {
       ...formData,
-      ano: Number(formData.ano),
-      quantidade: Number(formData.quantidade),
-      numero_inicial: Number(formData.numero_inicial),
-      numero_final: Number(formData.numero_final),
+      ano: parseInputNumber(formData.ano),
+      quantidade: parseInputNumber(formData.quantidade),
+      numero_inicial: parseInputNumber(formData.numero_inicial),
+      numero_final: parseInputNumber(formData.numero_final),
       codigo_completo: preview?.codigo_completo || `${formData.letra_produto}${formData.ano}${formData.sufixo || ''}`
     };
 
@@ -589,6 +646,7 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
                 <div className="relative">
                   <Input
                     type="number"
+                    step="any"
                     value={formData.quantidade}
                     onChange={(e) => handleChange('quantidade', e.target.value)}
                     className="h-16 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/5 rounded-2xl px-6 text-2xl font-black italic tracking-tighter focus:bg-white dark:focus:bg-slate-800 transition-all text-blue-600 dark:text-blue-400"
@@ -684,13 +742,26 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
               </div>
             </div>
 
-            <div className="flex items-center gap-4 bg-white/5 p-2 rounded-2xl border border-white/5 backdrop-blur-md">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Atribuição Manual</span>
-              <Switch
-                checked={formData.manual}
-                onCheckedChange={(val) => handleChange('manual', val)}
-                className="data-[state=checked]:bg-blue-600"
-              />
+            <div className="flex items-center gap-6 bg-white/5 p-2 px-4 rounded-2xl border border-white/5 backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Sequência Decrescente</span>
+                <Switch
+                  checked={formData.sequencia_decrescente}
+                  onCheckedChange={(val) => handleChange('sequencia_decrescente', val)}
+                  className="data-[state=checked]:bg-amber-500"
+                />
+              </div>
+
+              <div className="w-[1px] h-8 bg-white/10" />
+
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Atribuição Manual</span>
+                <Switch
+                  checked={formData.manual}
+                  onCheckedChange={(val) => handleChange('manual', val)}
+                  className="data-[state=checked]:bg-blue-600"
+                />
+              </div>
             </div>
           </div>
 
@@ -706,6 +777,7 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
                 <Input
                   id="reserva-inicio-manual"
                   type="number"
+                  step="any"
                   placeholder="0"
                   value={formData.numero_inicial}
                   onChange={(e) => handleChange('numero_inicial', e.target.value)}
@@ -724,6 +796,7 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
                 <Input
                   id="reserva-fim-manual"
                   type="number"
+                  step="any"
                   placeholder="0"
                   value={formData.numero_final}
                   onChange={(e) => handleChange('numero_final', e.target.value)}

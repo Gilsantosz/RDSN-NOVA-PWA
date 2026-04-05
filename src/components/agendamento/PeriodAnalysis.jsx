@@ -2,8 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Factory, Package, TrendingUp } from 'lucide-react';
-import { format, startOfDay, startOfWeek, startOfMonth, endOfMonth, addDays, isWithinInterval, isSameDay, isSameWeek, isSameMonth } from 'date-fns';
+import { Factory, Package } from 'lucide-react';
+import { format, startOfWeek, startOfMonth, endOfMonth, addDays, isWithinInterval, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function PeriodAnalysis({ reservas, produtos, todasReservas }) {
@@ -130,7 +130,7 @@ export default function PeriodAnalysis({ reservas, produtos, todasReservas }) {
       {/* Filtros */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="text-sm font-medium text-slate-700 mb-2 block">Período</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">Período</label>
           <Select value={periodType} onValueChange={setPeriodType}>
             <SelectTrigger>
               <SelectValue />
@@ -144,7 +144,7 @@ export default function PeriodAnalysis({ reservas, produtos, todasReservas }) {
         </div>
 
         <div>
-          <label className="text-sm font-medium text-slate-700 mb-2 block">Status</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">Status</label>
           <Select value={selectedStatus} onValueChange={setSelectedStatus}>
             <SelectTrigger>
               <SelectValue />
@@ -159,7 +159,7 @@ export default function PeriodAnalysis({ reservas, produtos, todasReservas }) {
         </div>
 
         <div>
-          <label className="text-sm font-medium text-slate-700 mb-2 block">Célula de Produção</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">Célula de Produção</label>
           <Select value={selectedCell} onValueChange={setSelectedCell}>
             <SelectTrigger>
               <SelectValue />
@@ -177,10 +177,12 @@ export default function PeriodAnalysis({ reservas, produtos, todasReservas }) {
       {/* Períodos */}
       <div className="space-y-3">
         {getPeriodData.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center text-slate-500">
-              <Package className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-              <p>Nenhuma reserva encontrada com os filtros selecionados</p>
+          <Card className="border-slate-200 dark:border-white/5 bg-white dark:bg-slate-900/40 backdrop-blur-xl shadow-sm">
+            <CardContent className="p-8 text-center text-slate-500 dark:text-slate-400">
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 flex items-center justify-center mx-auto mb-4">
+                <Package className="w-6 h-6 text-slate-400 dark:text-slate-500" />
+              </div>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Nenhuma reserva encontrada com os filtros selecionados</p>
             </CardContent>
           </Card>
         ) : (
@@ -190,13 +192,13 @@ export default function PeriodAnalysis({ reservas, produtos, todasReservas }) {
             const corCarga = getCargaCor(cargaPerc);
 
             return (
-              <Card key={idx} className="overflow-hidden hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3 bg-slate-50">
+              <Card key={idx} className="overflow-hidden hover:shadow-md transition-shadow border-slate-200 dark:border-white/5 bg-white dark:bg-slate-900/40 backdrop-blur-xl">
+                <CardHeader className="pb-3 bg-slate-50 dark:bg-white/5">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-semibold text-slate-900">
+                    <CardTitle className="text-base font-semibold text-slate-900 dark:text-white">
                       {periodo.label}
                     </CardTitle>
-                    <Badge variant="outline">{periodo.reservasCount} reservas</Badge>
+                    <Badge variant="outline" className="dark:border-white/10 dark:text-slate-300">{periodo.reservasCount} reservas</Badge>
                   </div>
                 </CardHeader>
                 
@@ -204,22 +206,22 @@ export default function PeriodAnalysis({ reservas, produtos, todasReservas }) {
                   {/* Unidades e Carga */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Package className="w-5 h-5 text-blue-600" />
+                      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                        <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500">Total de Unidades</p>
-                        <p className="text-2xl font-bold text-slate-900">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Total de Unidades</p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white">
                           {periodo.totalUnidades.toLocaleString()}
                         </p>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-xs text-slate-500">Carga do Período</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Carga do Período</p>
                       <div className="flex items-center gap-3">
                         <div className="flex-1">
-                          <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
+                          <div className="h-3 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
                             <div 
                               className={`h-full ${corCarga} transition-all`} 
                               style={{ width: `${cargaPerc}%` }} 
@@ -227,8 +229,8 @@ export default function PeriodAnalysis({ reservas, produtos, todasReservas }) {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold text-slate-900">{Math.round(cargaPerc)}%</p>
-                          <p className="text-xs text-slate-500">{statusCarga}</p>
+                          <p className="text-sm font-bold text-slate-900 dark:text-white">{Math.round(cargaPerc)}%</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{statusCarga}</p>
                         </div>
                       </div>
                     </div>
@@ -236,8 +238,8 @@ export default function PeriodAnalysis({ reservas, produtos, todasReservas }) {
 
                   {/* Células */}
                   {selectedCell === 'all' && (
-                    <div className="border-t border-slate-100 pt-3">
-                      <p className="text-xs font-semibold text-slate-600 mb-2">Distribuição por Célula:</p>
+                    <div className="border-t border-slate-100 dark:border-white/5 pt-3">
+                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">Distribuição por Célula:</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                         {getCellasUnicas().map(celula => {
                           const celulasReservas = periodo.reservas.filter(r => {
@@ -250,12 +252,12 @@ export default function PeriodAnalysis({ reservas, produtos, todasReservas }) {
                           const unitsCelula = celulasReservas.reduce((sum, r) => sum + (r.quantidade - (r.quantidade_baixada || 0)), 0);
 
                           return (
-                            <div key={celula} className="bg-slate-50 rounded-lg p-2">
+                            <div key={celula} className="bg-slate-50 dark:bg-white/5 rounded-lg p-2 border border-transparent dark:border-white/5">
                               <div className="flex items-center gap-1.5 mb-1">
-                                <Factory className="w-3.5 h-3.5 text-slate-600" />
-                                <span className="text-xs font-medium text-slate-700">{celula}</span>
+                                <Factory className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{celula}</span>
                               </div>
-                              <p className="text-xs text-slate-600">
+                              <p className="text-xs text-slate-600 dark:text-slate-400">
                                 {celulasReservas.length} {celulasReservas.length === 1 ? 'reserva' : 'reservas'} • {unitsCelula.toLocaleString()} un.
                               </p>
                             </div>

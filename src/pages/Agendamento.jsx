@@ -100,8 +100,14 @@ export default function Agendamento() {
   });
 
   const { data: pcpClientes = [] } = useQuery({
-    queryKey: ['pcp-clientes-agendamento'],
-    queryFn: () => rdsn.entities.PCPCliente.list('nome', 500)
+    queryKey: ['pcp-clientes-agendamento', setorAtivo],
+    queryFn: () => {
+      if (!setorAtivo || setorAtivo === 'ALL') {
+        return rdsn.entities.PCPCliente.list('nome', 500);
+      }
+      return rdsn.entities.PCPCliente.filter({ setor_id: setorAtivo }, 'nome', 500);
+    },
+    enabled: !!setorAtivo
   });
 
   const clienteMap = useMemo(() => {
@@ -386,15 +392,15 @@ export default function Agendamento() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900/50 p-3 sm:p-6 transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header Premium */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(99,102,241,0.1),transparent)] pointer-events-none" />
           <div className="relative flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
-            <div className="flex items-center gap-6 sm:gap-8">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-indigo-600 to-violet-400 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all hover:scale-105 active:scale-95 group">
-                <Calendar className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:rotate-6 transition-transform" />
+            <div className="flex items-center gap-4 sm:gap-5">
+              <div className="w-16 h-16 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-600 to-violet-400 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all hover:scale-105 active:scale-95 group">
+                <Calendar className="w-8 h-8 sm:w-6 sm:h-6 text-white group-hover:rotate-6 transition-transform" />
               </div>
               <div className="space-y-1">
-                <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
                   Agendamento <span className="text-indigo-600 dark:text-indigo-400">PCP</span>
                 </h1>
                 <p className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80">

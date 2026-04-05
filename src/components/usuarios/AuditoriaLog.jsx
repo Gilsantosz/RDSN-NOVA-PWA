@@ -3,13 +3,8 @@ import { rdsn } from '@/api/supabaseClient';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
+
 import {
   Table,
   TableBody,
@@ -35,8 +30,6 @@ import {
   Loader2,
   Clock,
   History,
-  ArrowDownLeft,
-  ArrowUpRight,
   Fingerprint,
   Activity
 } from 'lucide-react';

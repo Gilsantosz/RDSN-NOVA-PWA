@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Command, 
   LayoutDashboard, 
   FileText, 
   Factory, 

@@ -19,8 +19,7 @@ import { ptBR } from 'date-fns/locale';
 import MonthlyProductionChart from '../components/charts/MonthlyProductionChart';
 import AdvancedFilters from '../components/relatorios/AdvancedFilters';
 import ReportPresets from '../components/relatorios/ReportPresets';
-import RelatorioCustomizavel from '../components/relatorios/RelatorioCustomizavel';
-import RelatorioLotesDetalhado from '../components/relatorios/RelatorioLotesDetalhado';
+
 import RelatorioMovimentacaoEstoque from '../components/relatorios/RelatorioMovimentacaoEstoque';
 import ExportarRelatorio from '../components/relatorios/ExportarRelatorio';
 import BotaoImprimir, { imprimirRelatorio } from '../components/relatorios/BotaoImprimir';
@@ -325,15 +324,15 @@ export default function Relatorios() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header Premium */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at:50%_-20%,rgba(100,116,139,0.1),transparent)] pointer-events-none" />
           <div className="relative flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
-            <div className="flex items-center gap-6 sm:gap-8">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-slate-600 to-slate-500 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(100,116,139,0.3)] transition-all hover:scale-105 active:scale-95 group border border-slate-400/20">
-                <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:rotate-12 transition-transform duration-500" />
+            <div className="flex items-center gap-4 sm:gap-5">
+              <div className="w-16 h-16 sm:w-14 sm:h-14 bg-gradient-to-br from-slate-600 to-slate-500 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(100,116,139,0.3)] transition-all hover:scale-105 active:scale-95 group border border-slate-400/20">
+                <FileText className="w-8 h-8 sm:w-6 sm:h-6 text-white group-hover:rotate-12 transition-transform duration-500" />
               </div>
               <div className="space-y-1">
-                <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
                   Relatórios <span className="text-slate-600 dark:text-slate-400">e Análises</span>
                 </h1>
                 <p className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
@@ -344,24 +343,14 @@ export default function Relatorios() {
           </div>
         </div>
 
-        <Tabs defaultValue="lotes" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6 bg-slate-100 dark:bg-slate-900/50 border border-transparent dark:border-slate-800 p-1.5 rounded-2xl shadow-inner">
-            <TabsTrigger value="lotes" className="flex items-center justify-center gap-2 px-3 sm:px-5 py-2 rounded-xl text-sm font-bold transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-blue-600 data-[state=active]:shadow-md data-[state=active]:text-slate-900 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 uppercase tracking-widest text-[10px]">Relatório de Lotes</TabsTrigger>
+        <Tabs defaultValue="movimentacao" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6 bg-slate-100 dark:bg-slate-900/50 border border-transparent dark:border-slate-800 p-1.5 rounded-2xl shadow-inner">
             <TabsTrigger value="movimentacao" className="flex items-center justify-center gap-2 px-3 sm:px-5 py-2 rounded-xl text-sm font-bold transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-blue-600 data-[state=active]:shadow-md data-[state=active]:text-slate-900 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 uppercase tracking-widest text-[10px]">Movimentação Estoque</TabsTrigger>
-            <TabsTrigger value="customizado" className="flex items-center justify-center gap-2 px-3 sm:px-5 py-2 rounded-xl text-sm font-bold transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-blue-600 data-[state=active]:shadow-md data-[state=active]:text-slate-900 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 uppercase tracking-widest text-[10px]">Relatórios Customizados</TabsTrigger>
             <TabsTrigger value="predefinidos" className="flex items-center justify-center gap-2 px-3 sm:px-5 py-2 rounded-xl text-sm font-bold transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-blue-600 data-[state=active]:shadow-md data-[state=active]:text-slate-900 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 uppercase tracking-widest text-[10px]">Relatórios Pré-definidos</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="lotes" className="space-y-6">
-            <RelatorioLotesDetalhado />
-          </TabsContent>
-
           <TabsContent value="movimentacao" className="space-y-6">
             <RelatorioMovimentacaoEstoque />
-          </TabsContent>
-
-          <TabsContent value="customizado" className="space-y-6">
-            <RelatorioCustomizavel />
           </TabsContent>
 
           <TabsContent value="predefinidos" className="space-y-6">
@@ -436,7 +425,7 @@ export default function Relatorios() {
                 iconColor="#3b82f6"
               >
                 <div className="space-y-1">
-                  <p className="text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">{metricas.totalProducao.toLocaleString()}</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">{metricas.totalProducao.toLocaleString()}</p>
                   <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest italic opacity-60 mt-1">unidades contabilizadas</p>
                 </div>
               </PremiumCard>
@@ -447,7 +436,7 @@ export default function Relatorios() {
                 iconColor="#64748b"
               >
                 <div className="space-y-1">
-                  <p className="text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">{metricas.totalBaixas}</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">{metricas.totalBaixas}</p>
                   <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest italic opacity-60 mt-1">registros em sistema</p>
                 </div>
               </PremiumCard>
@@ -458,7 +447,7 @@ export default function Relatorios() {
                 iconColor="#10b981"
               >
                 <div className="space-y-1">
-                  <p className="text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">{metricas.totalMovimentacoes}</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">{metricas.totalMovimentacoes}</p>
                   <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest italic opacity-60 mt-1">operações no período</p>
                 </div>
               </PremiumCard>
@@ -469,7 +458,7 @@ export default function Relatorios() {
                 iconColor="#f59e0b"
               >
                 <div className="space-y-1">
-                  <p className="text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">{metricas.celulasAtivas}</p>
+                  <p className="text-2xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">{metricas.celulasAtivas}</p>
                   <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest italic opacity-60 mt-1">em rede de operação</p>
                 </div>
               </PremiumCard>

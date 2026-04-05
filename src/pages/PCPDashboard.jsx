@@ -1,6 +1,6 @@
 // @ts-nocheck
-import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { cn } from "@/lib/utils";
@@ -41,6 +41,29 @@ export default function PCPDashboard() {
   const [mes, setMes] = useState(hoje.getMonth() + 1);
   const [ano, setAno] = useState(hoje.getFullYear() % 100);
   const { setorAtivo, bloqueado, nomeSetor } = usePCPSetor();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const unsubSeq = rdsn.entities.SequenciaAnual.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['sequencias-pcp'] });
+    });
+    const unsubOps = rdsn.entities.PCPOrdemProducao.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['pcp-ops-dash'] });
+    });
+    const unsubProd = rdsn.entities.PCPProducaoDiaria.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['pcp-producoes-dash'] });
+    });
+    const unsubBaix = rdsn.entities.BaixaLote.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['baixas-dash'] });
+    });
+
+    return () => {
+      if (unsubSeq) unsubSeq();
+      if (unsubOps) unsubOps();
+      if (unsubProd) unsubProd();
+      if (unsubBaix) unsubBaix();
+    };
+  }, [queryClient]);
 
   // Filtros PCP
   const [filtroStatus, setFiltroStatus] = useState('Todos');
@@ -129,22 +152,24 @@ export default function PCPDashboard() {
       return s + producoes.filter(p => p.op_id === op.id).reduce((ss, p) => ss + (p.previsto || 0), 0);
     }, 0);
 
+    const producoesValidas = producoes.filter(p => opsNaoCanceladas.some(op => op.id === p.op_id));
     const totalReal = opsNaoCanceladas.reduce((s, op) =>
       s + producoes.filter(p => p.op_id === op.id).reduce((ss, p) => ss + (p.realizado || 0), 0), 0);
 
     const saldo = totalReal - totalPrev;
     const perc = totalPrev > 0 ? ((totalReal / totalPrev) * 100).toFixed(1) : '0.0';
-    // Média diária: baseado nos dias com realizado > 0 (todos ops)
-    const diasComReal = [...new Set(producoes.filter(p => (p.realizado || 0) > 0).map(p => p.dia))].length;
+    // Média diária: baseado nos dias com realizado > 0 (apenas ops não-canceladas)
+    const diasComReal = [...new Set(producoesValidas.filter(p => (p.realizado || 0) > 0).map(p => p.dia))].length;
     const media = totalReal > 0 && diasComReal > 0 ? Math.round(totalReal / diasComReal) : 0;
     const opsAtivas = opsNaoCanceladas.filter(op => op.status === 'Ativo').length;
-    return { totalPrev, totalReal, saldo, perc, media, opsAtivas };
-  }, [producoes, opsFiltradas]);
+    return { totalPrev, totalReal, saldo, perc, media, opsAtivas, producoesValidas };
+  }, [producoes, opsNaoCanceladas]);
 
-  // Gráfico: Produção prevista vs realizada por dia (soma de todas OPs)
+  // Gráfico: Produção prevista vs realizada por dia (soma de OPs não canceladas)
   const dadosDiarios = useMemo(() => {
+    const producoesValidas = resumo.producoesValidas || [];
     const diasMap = {};
-    for (const p of producoes) {
+    for (const p of producoesValidas) {
       const d = p.dia;
       if (!diasMap[d]) diasMap[d] = { dia: `${d}`, previsto: 0, realizado: 0 };
       diasMap[d].previsto += p.previsto || 0;
@@ -153,7 +178,7 @@ export default function PCPDashboard() {
     return Object.values(diasMap)
       .filter(d => d.previsto > 0 || d.realizado > 0)
       .sort((a, b) => Number(a.dia) - Number(b.dia));
-  }, [producoes]);
+  }, [resumo.producoesValidas]);
 
   // Gráfico: Baixas por dia (do mês)
   const baixasPorDia = useMemo(() => {
@@ -198,16 +223,16 @@ export default function PCPDashboard() {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-slate-200 dark:border-white/5 mb-6"
+          className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-white/5 mb-6"
         >
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(37,99,235,0.1),transparent)] pointer-events-none" />
           <div className="relative flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
-            <div className="flex items-center gap-6 sm:gap-8">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all hover:scale-110 active:scale-95 group border border-blue-400/20 cursor-pointer">
-                <Cpu className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:rotate-12 transition-transform duration-500" />
+            <div className="flex items-center gap-4 sm:gap-5">
+              <div className="w-16 h-16 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all hover:scale-110 active:scale-95 group border border-blue-400/20 cursor-pointer">
+                <Cpu className="w-8 h-8 sm:w-6 sm:h-6 text-white group-hover:rotate-12 transition-transform duration-500" />
               </div>
               <div className="space-y-1">
-                <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
                   PCP<span className="text-blue-600 dark:text-blue-400">MATRIX</span>
                 </h1>
                 <p className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">

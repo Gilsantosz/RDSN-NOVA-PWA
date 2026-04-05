@@ -2,27 +2,45 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
 import { useSetor } from '@/components/context/SetorContext';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { PremiumCard } from '@/components/ui/PremiumCard';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Filter, X, ArrowUpCircle, ArrowDownCircle, RefreshCw, Factory, Package } from 'lucide-react';
+import {
+  Filter, X, ArrowUpCircle, ArrowDownCircle, RefreshCw,
+  Factory, Package, TrendingUp, BarChart3, Activity
+} from 'lucide-react';
 import ExportarRelatorio from './ExportarRelatorio';
 import PaginacaoTabela from '../tables/PaginacaoTabela';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const TIPO_CONFIG = {
-  ENTRADA: { label: 'Entrada', color: 'bg-green-100 text-green-800', icon: ArrowUpCircle },
-  SAIDA: { label: 'Saída', color: 'bg-red-100 text-red-800', icon: ArrowDownCircle },
-  AJUSTE: { label: 'Ajuste', color: 'bg-amber-100 text-amber-800', icon: RefreshCw },
-  PRODUCAO: { label: 'Produção', color: 'bg-blue-100 text-blue-800', icon: Factory },
-  BAIXA: { label: 'Baixa', color: 'bg-purple-100 text-purple-800', icon: Package }
+  ENTRADA: { label: 'Entrada', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20', icon: ArrowUpCircle },
+  SAIDA: { label: 'Saída', color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20', icon: ArrowDownCircle },
+  AJUSTE: { label: 'Ajuste', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20', icon: RefreshCw },
+  PRODUCAO: { label: 'Produção', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20', icon: Factory },
+  BAIXA: { label: 'Baixa', color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20', icon: Package }
+};
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-2xl backdrop-blur-xl">
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">{label}</p>
+      {payload.map((entry, i) => (
+        <div key={i} className="flex items-center gap-2 text-sm">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+          <span className="font-bold text-slate-700 dark:text-slate-300">{entry.name}:</span>
+          <span className="font-black text-slate-900 dark:text-white">{entry.value?.toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 export default function RelatorioMovimentacaoEstoque() {
@@ -63,11 +81,6 @@ export default function RelatorioMovimentacaoEstoque() {
       return await rdsn.entities.Produto.filter({ setor_id: setorAtivo });
     },
     enabled: !!setorAtivo
-  });
-
-  const { data: setores = [] } = useQuery({
-    queryKey: ['setores-mov'],
-    queryFn: () => rdsn.entities.Setor.list()
   });
 
   const getProdutoNome = (produtoId) => {
@@ -193,166 +206,195 @@ export default function RelatorioMovimentacaoEstoque() {
     'Operador': filtros.operador || 'Todos'
   };
 
-  const celulasDisponiveis = [...new Set(movimentacoes.map(m => m.celula).filter(Boolean))].sort();
   const tiposDisponiveis = Object.keys(TIPO_CONFIG);
 
   return (
     <div className="space-y-6">
-      {/* Filtros */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Filtros
-            </CardTitle>
-            <Button variant="outline" size="sm" onClick={limparFiltros}>
-              <X className="w-4 h-4 mr-2" />
-              Limpar
-            </Button>
+      {/* Filtros Premium */}
+      <PremiumCard
+        title="Filtros"
+        icon={Filter}
+        iconColor="#64748b"
+        badge={
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={limparFiltros}
+            className="h-9 px-4 rounded-xl font-black uppercase text-[10px] tracking-widest text-slate-500 dark:text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/5 transition-all"
+          >
+            <X className="w-3.5 h-3.5 mr-1.5" />
+            Limpar
+          </Button>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1 italic">Data Início</Label>
+            <Input
+              type="date"
+              value={filtros.dataInicio}
+              onChange={(e) => setFiltros(p => ({ ...p, dataInicio: e.target.value }))}
+              className="h-11 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/5 rounded-xl px-4 text-sm font-bold text-slate-900 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 transition-all"
+            />
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div>
-              <Label className="text-xs">Data Início</Label>
-              <Input type="date" value={filtros.dataInicio} onChange={(e) => setFiltros(p => ({ ...p, dataInicio: e.target.value }))} />
-            </div>
-            <div>
-              <Label className="text-xs">Data Fim</Label>
-              <Input type="date" value={filtros.dataFim} onChange={(e) => setFiltros(p => ({ ...p, dataFim: e.target.value }))} />
-            </div>
-            <div>
-              <Label className="text-xs">Produto</Label>
-              <Select value={filtros.produto_id} onValueChange={(v) => setFiltros(p => ({ ...p, produto_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={null}>Todos</SelectItem>
-                  {produtos.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.letra_produto}{p.sufixo ? ' - ' + p.sufixo : ''}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Tipo</Label>
-              <Select value={filtros.tipo} onValueChange={(v) => setFiltros(p => ({ ...p, tipo: v }))}>
-                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={null}>Todos</SelectItem>
-                  {tiposDisponiveis.map(t => (
-                    <SelectItem key={t} value={t}>{TIPO_CONFIG[t].label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Célula</Label>
-              <Input placeholder="Filtrar célula" value={filtros.celula} onChange={(e) => setFiltros(p => ({ ...p, celula: e.target.value }))} />
-            </div>
-            <div>
-              <Label className="text-xs">Operador</Label>
-              <Input placeholder="Filtrar operador" value={filtros.operador} onChange={(e) => setFiltros(p => ({ ...p, operador: e.target.value }))} />
-            </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1 italic">Data Fim</Label>
+            <Input
+              type="date"
+              value={filtros.dataFim}
+              onChange={(e) => setFiltros(p => ({ ...p, dataFim: e.target.value }))}
+              className="h-11 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/5 rounded-xl px-4 text-sm font-bold text-slate-900 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-800 transition-all"
+            />
           </div>
-          <div className="flex gap-2 mt-3">
-            <Button size="sm" variant="ghost" onClick={() => {
-              const today = new Date().toISOString().split('T')[0];
-              setFiltros(p => ({ ...p, dataInicio: today, dataFim: today }));
-            }} className="text-blue-600 text-xs">Hoje</Button>
-            <Button size="sm" variant="ghost" onClick={() => {
-              const d = new Date();
-              setFiltros(p => ({
-                ...p,
-                dataInicio: new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0],
-                dataFim: new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
-              }));
-            }} className="text-blue-600 text-xs">Mês Atual</Button>
-            <Button size="sm" variant="ghost" onClick={() => {
-              const d = new Date();
-              const start = new Date(d);
-              start.setDate(d.getDate() - 7);
-              setFiltros(p => ({
-                ...p,
-                dataInicio: start.toISOString().split('T')[0],
-                dataFim: d.toISOString().split('T')[0]
-              }));
-            }} className="text-blue-600 text-xs">Últimos 7 dias</Button>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1 italic">Produto</Label>
+            <Select value={filtros.produto_id} onValueChange={(v) => setFiltros(p => ({ ...p, produto_id: v }))}>
+              <SelectTrigger className="h-11 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/5 rounded-xl text-sm font-bold dark:text-slate-200">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl dark:bg-slate-950 dark:border-white/10 backdrop-blur-xl">
+                <SelectItem value={null}>Todos</SelectItem>
+                {produtos.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.letra_produto}{p.sufixo ? ' - ' + p.sufixo : ''}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1 italic">Tipo</Label>
+            <Select value={filtros.tipo} onValueChange={(v) => setFiltros(p => ({ ...p, tipo: v }))}>
+              <SelectTrigger className="h-11 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/5 rounded-xl text-sm font-bold dark:text-slate-200">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl dark:bg-slate-950 dark:border-white/10 backdrop-blur-xl">
+                <SelectItem value={null}>Todos</SelectItem>
+                {tiposDisponiveis.map(t => (
+                  <SelectItem key={t} value={t}>{TIPO_CONFIG[t].label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1 italic">Célula</Label>
+            <Input
+              placeholder="Filtrar célula"
+              value={filtros.celula}
+              onChange={(e) => setFiltros(p => ({ ...p, celula: e.target.value }))}
+              className="h-11 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/5 rounded-xl px-4 text-sm font-bold text-slate-900 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:bg-white dark:focus:bg-slate-800 transition-all"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1 italic">Operador</Label>
+            <Input
+              placeholder="Filtrar operador"
+              value={filtros.operador}
+              onChange={(e) => setFiltros(p => ({ ...p, operador: e.target.value }))}
+              className="h-11 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/5 rounded-xl px-4 text-sm font-bold text-slate-900 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:bg-white dark:focus:bg-slate-800 transition-all"
+            />
+          </div>
+        </div>
+        <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-white/5">
+          <Button size="sm" variant="ghost" onClick={() => {
+            const today = new Date().toISOString().split('T')[0];
+            setFiltros(p => ({ ...p, dataInicio: today, dataFim: today }));
+          }} className="h-8 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 dark:hover:bg-blue-500/10 transition-all">Hoje</Button>
+          <Button size="sm" variant="ghost" onClick={() => {
+            const d = new Date();
+            setFiltros(p => ({
+              ...p,
+              dataInicio: new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0],
+              dataFim: new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+            }));
+          }} className="h-8 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 dark:hover:bg-blue-500/10 transition-all">Mês Atual</Button>
+          <Button size="sm" variant="ghost" onClick={() => {
+            const d = new Date();
+            const start = new Date(d);
+            start.setDate(d.getDate() - 7);
+            setFiltros(p => ({
+              ...p,
+              dataInicio: start.toISOString().split('T')[0],
+              dataFim: d.toISOString().split('T')[0]
+            }));
+          }} className="h-8 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 dark:hover:bg-blue-500/10 transition-all">Últimos 7 dias</Button>
+        </div>
+      </PremiumCard>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <p className="text-sm text-slate-500">Movimentações</p>
-            <p className="text-3xl font-bold text-slate-900">{estatisticas.totalMovimentacoes}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-green-200">
-          <CardContent className="pt-6 text-center">
-            <p className="text-sm text-green-600">Entradas/Produção</p>
-            <p className="text-3xl font-bold text-green-700">{estatisticas.totalEntrada.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-red-200">
-          <CardContent className="pt-6 text-center">
-            <p className="text-sm text-red-600">Saídas/Baixas</p>
-            <p className="text-3xl font-bold text-red-700">{estatisticas.totalSaida.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card className={estatisticas.saldo >= 0 ? 'border-blue-200' : 'border-amber-200'}>
-          <CardContent className="pt-6 text-center">
-            <p className="text-sm text-slate-500">Saldo</p>
-            <p className={`text-3xl font-bold ${estatisticas.saldo >= 0 ? 'text-blue-700' : 'text-amber-700'}`}>
-              {estatisticas.saldo >= 0 ? '+' : ''}{estatisticas.saldo.toLocaleString()}
-            </p>
-          </CardContent>
-        </Card>
+      {/* KPIs Premium */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          {
+            label: 'Movimentações',
+            value: estatisticas.totalMovimentacoes,
+            icon: Activity,
+            iconColor: '#3b82f6',
+            sublabel: 'registros no período'
+          },
+          {
+            label: 'Entradas/Produção',
+            value: estatisticas.totalEntrada.toLocaleString(),
+            icon: ArrowUpCircle,
+            iconColor: '#10b981',
+            sublabel: 'unidades incorporadas'
+          },
+          {
+            label: 'Saídas/Baixas',
+            value: estatisticas.totalSaida.toLocaleString(),
+            icon: ArrowDownCircle,
+            iconColor: '#ef4444',
+            sublabel: 'unidades consumidas'
+          },
+          {
+            label: 'Saldo',
+            value: `${estatisticas.saldo >= 0 ? '+' : ''}${estatisticas.saldo.toLocaleString()}`,
+            icon: TrendingUp,
+            iconColor: estatisticas.saldo >= 0 ? '#3b82f6' : '#f59e0b',
+            sublabel: 'balanço operacional'
+          }
+        ].map((kpi, idx) => (
+          <PremiumCard key={idx} title={kpi.label} icon={kpi.icon} iconColor={kpi.iconColor}>
+            <div className="space-y-1">
+              <p className="text-2xl font-black text-slate-900 dark:text-white italic tracking-tighter leading-none">{kpi.value}</p>
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest italic opacity-60 mt-1">{kpi.sublabel}</p>
+            </div>
+          </PremiumCard>
+        ))}
       </div>
 
-      {/* Gráficos */}
+      {/* Gráficos Premium */}
       {estatisticas.porMes.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Movimentação por Mês</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={estatisticas.porMes}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="mes" fontSize={12} />
-                  <YAxis fontSize={12} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="entrada" name="Entradas" fill="#22c55e" />
-                  <Bar dataKey="saida" name="Saídas" fill="#ef4444" />
-                  <Bar dataKey="ajuste" name="Ajustes" fill="#f59e0b" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <PremiumCard title="Movimentação por Mês" icon={BarChart3} iconColor="#6366f1">
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={estatisticas.porMes}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
+                <XAxis dataKey="mes" fontSize={11} fontWeight={700} tick={{ fill: '#94a3b8' }} axisLine={{ stroke: 'rgba(148,163,184,0.2)' }} />
+                <YAxis fontSize={11} fontWeight={700} tick={{ fill: '#94a3b8' }} axisLine={{ stroke: 'rgba(148,163,184,0.2)' }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(59,130,246,0.05)' }} />
+                <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+                <Bar dataKey="entrada" name="Entradas" fill="#10b981" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="saida" name="Saídas" fill="#ef4444" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="ajuste" name="Ajustes" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </PremiumCard>
 
-          <Card>
-            <CardHeader><CardTitle className="text-base">Top Produtos Movimentados</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={estatisticas.porProduto} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" fontSize={12} />
-                  <YAxis type="category" dataKey="produto" width={120} fontSize={11} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="entrada" name="Entradas" fill="#22c55e" />
-                  <Bar dataKey="saida" name="Saídas" fill="#ef4444" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <PremiumCard title="Top Produtos" icon={Package} iconColor="#0ea5e9">
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={estatisticas.porProduto} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
+                <XAxis type="number" fontSize={11} fontWeight={700} tick={{ fill: '#94a3b8' }} axisLine={{ stroke: 'rgba(148,163,184,0.2)' }} />
+                <YAxis type="category" dataKey="produto" width={120} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} axisLine={{ stroke: 'rgba(148,163,184,0.2)' }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(59,130,246,0.05)' }} />
+                <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+                <Bar dataKey="entrada" name="Entradas" fill="#10b981" radius={[0, 6, 6, 0]} />
+                <Bar dataKey="saida" name="Saídas" fill="#ef4444" radius={[0, 6, 6, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </PremiumCard>
         </div>
       )}
 
-      {/* Ações */}
+      {/* Ações de exportação */}
       <div className="flex gap-3 justify-end">
         <ExportarRelatorio
           dados={dadosExportacao}
@@ -363,63 +405,77 @@ export default function RelatorioMovimentacaoEstoque() {
         />
       </div>
 
-      {/* Tabela */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Movimentações ({dadosFiltrados.length} registros)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Quantidade</TableHead>
-                  <TableHead>Anterior</TableHead>
-                  <TableHead>Nova</TableHead>
-                  <TableHead>Célula</TableHead>
-                  <TableHead>Operador</TableHead>
-                  <TableHead>Observação</TableHead>
+      {/* Tabela Premium */}
+      <PremiumCard
+        title={`Movimentações (${dadosFiltrados.length} registros)`}
+        icon={Activity}
+        iconColor="#3b82f6"
+        noPadding
+      >
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-slate-50/50 dark:bg-slate-950/50">
+              <TableRow className="border-b dark:border-white/5 hover:bg-transparent">
+                <TableHead className="text-[10px] uppercase font-black italic tracking-widest py-4 text-slate-500 dark:text-slate-400">Data</TableHead>
+                <TableHead className="text-[10px] uppercase font-black italic tracking-widest py-4 text-slate-500 dark:text-slate-400">Produto</TableHead>
+                <TableHead className="text-[10px] uppercase font-black italic tracking-widest py-4 text-slate-500 dark:text-slate-400">Tipo</TableHead>
+                <TableHead className="text-[10px] uppercase font-black italic tracking-widest py-4 text-slate-500 dark:text-slate-400">Quantidade</TableHead>
+                <TableHead className="text-[10px] uppercase font-black italic tracking-widest py-4 text-slate-500 dark:text-slate-400">Anterior</TableHead>
+                <TableHead className="text-[10px] uppercase font-black italic tracking-widest py-4 text-slate-500 dark:text-slate-400">Nova</TableHead>
+                <TableHead className="text-[10px] uppercase font-black italic tracking-widest py-4 text-slate-500 dark:text-slate-400">Célula</TableHead>
+                <TableHead className="text-[10px] uppercase font-black italic tracking-widest py-4 text-slate-500 dark:text-slate-400">Operador</TableHead>
+                <TableHead className="text-[10px] uppercase font-black italic tracking-widest py-4 text-slate-500 dark:text-slate-400">Observação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow className="hover:bg-transparent border-0">
+                  <TableCell colSpan={9} className="text-center py-16">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                        <RefreshCw className="w-5 h-5 animate-spin text-blue-500" />
+                      </div>
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest italic">Carregando dados...</p>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">Carregando...</TableCell>
-                  </TableRow>
-                ) : dadosFiltrados.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-slate-500">
-                      Nenhuma movimentação encontrada
+              ) : dadosFiltrados.length === 0 ? (
+                <TableRow className="hover:bg-transparent border-0">
+                  <TableCell colSpan={9} className="text-center py-16">
+                    <div className="flex flex-col items-center gap-3 opacity-40">
+                      <Package className="w-10 h-10 text-slate-400" />
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest italic">
+                        Nenhuma movimentação encontrada
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                dadosPaginados.map(mov => (
+                  <TableRow key={mov.id} className="border-b dark:border-white/5 hover:bg-slate-50 dark:hover:bg-blue-600/5 transition-colors">
+                    <TableCell className="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                      {format(new Date(mov.created_at), 'dd/MM/yy HH:mm', { locale: ptBR })}
                     </TableCell>
+                    <TableCell className="text-sm font-semibold text-slate-700 dark:text-slate-300 max-w-[150px] truncate">
+                      {getProdutoNome(mov.produto_id)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={`${TIPO_CONFIG[mov.tipo]?.color || 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/20'} font-black text-[9px] uppercase rounded-lg`}>
+                        {TIPO_CONFIG[mov.tipo]?.label || mov.tipo}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-black text-slate-900 dark:text-white italic">{mov.quantidade}</TableCell>
+                    <TableCell className="text-sm text-slate-400 dark:text-slate-500 font-medium">{mov.quantidade_anterior ?? '-'}</TableCell>
+                    <TableCell className="text-sm text-slate-400 dark:text-slate-500 font-medium">{mov.quantidade_nova ?? '-'}</TableCell>
+                    <TableCell className="text-sm font-medium text-slate-600 dark:text-slate-400">{mov.celula || '-'}</TableCell>
+                    <TableCell className="text-sm font-medium text-slate-600 dark:text-slate-400">{mov.operador || '-'}</TableCell>
+                    <TableCell className="text-[11px] text-slate-400 dark:text-slate-500 max-w-[200px] truncate font-medium italic">{mov.observacao || '-'}</TableCell>
                   </TableRow>
-                ) : (
-                  dadosPaginados.map(mov => (
-                    <TableRow key={mov.id}>
-                      <TableCell className="text-sm whitespace-nowrap">
-                        {format(new Date(mov.created_at), 'dd/MM/yy HH:mm', { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="text-sm max-w-[150px] truncate">
-                        {getProdutoNome(mov.produto_id)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={TIPO_CONFIG[mov.tipo]?.color || 'bg-slate-100 text-slate-800'}>
-                          {TIPO_CONFIG[mov.tipo]?.label || mov.tipo}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-bold">{mov.quantidade}</TableCell>
-                      <TableCell className="text-slate-500">{mov.quantidade_anterior ?? '-'}</TableCell>
-                      <TableCell className="text-slate-500">{mov.quantidade_nova ?? '-'}</TableCell>
-                      <TableCell className="text-sm">{mov.celula || '-'}</TableCell>
-                      <TableCell className="text-sm">{mov.operador || '-'}</TableCell>
-                      <TableCell className="text-xs text-slate-500 max-w-[200px] truncate">{mov.observacao || '-'}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          <div className="p-4 border-t border-slate-100 dark:border-white/5">
             <PaginacaoTabela
               totalItems={dadosFiltrados.length}
               paginaAtual={paginaAtual}
@@ -428,8 +484,8 @@ export default function RelatorioMovimentacaoEstoque() {
               onItensPorPaginaChange={(v) => { setItensPorPagina(v); setPaginaAtual(1); }}
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </PremiumCard>
     </div>
   );
 }

@@ -82,6 +82,24 @@ export default function Producao() {
     enabled: !!setorAtivo
   });
 
+  React.useEffect(() => {
+    const unsubRes = rdsn.entities.ReservaLote.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['reservas'] });
+    });
+    const unsubProd = rdsn.entities.Produto.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['produtos'] });
+    });
+    const unsubBaixa = rdsn.entities.BaixaLote.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['reservas'] });
+    });
+
+    return () => {
+      unsubRes();
+      unsubProd();
+      unsubBaixa();
+    };
+  }, [queryClient]);
+
   const createBaixaMutation = useMutation({
     mutationFn: async (data) => {
       const baixa = await rdsn.entities.BaixaLote.create(data);
@@ -249,8 +267,7 @@ export default function Producao() {
         if (a.status === 'EM_PRODUCAO' && b.status !== 'EM_PRODUCAO') return -1;
         if (a.status !== 'EM_PRODUCAO' && b.status === 'EM_PRODUCAO') return 1;
 
-        const isDesc = (produtos.find(p => p.codigo_produto === a.codigo_produto) ||
-          produtos.find(p => p.letra_produto === a.letra_produto && !p.codigo_produto))?.ordem_baixa === 'decrescente';
+        const isDesc = a.sequencia_decrescente === true;
 
         if (isDesc) return b.numero_final - a.numero_final;
         return a.numero_inicial - b.numero_inicial;
@@ -276,15 +293,15 @@ export default function Producao() {
         <SetorReadonlyBanner />
         {/* Header */}
         {/* Header Premium */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-slate-200 dark:border-white/5">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-white/5">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(37,99,235,0.1),transparent)] pointer-events-none" />
           <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-            <div className="flex items-center gap-6 sm:gap-8">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-indigo-400 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all hover:scale-105 active:scale-95 group cursor-pointer">
-                <ScanLine className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:rotate-12 transition-transform" />
+            <div className="flex items-center gap-4 sm:gap-5">
+              <div className="w-16 h-16 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-600 to-indigo-400 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all hover:scale-105 active:scale-95 group cursor-pointer">
+                <ScanLine className="w-8 h-8 sm:w-6 sm:h-6 text-white group-hover:rotate-12 transition-transform" />
               </div>
               <div className="space-y-1">
-                <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
                   Fluxo de <span className="text-blue-600 dark:text-blue-400">Produção</span>
                 </h1>
                 <p className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80">Industrial Control Hub • Tempo Real</p>
@@ -402,91 +419,92 @@ export default function Producao() {
 
                               <div className="flex-1 p-6 sm:p-10 relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-1.5 h-0 group-hover:h-full bg-blue-600 transition-all duration-500" />
-                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
-                                  <div className="flex items-start gap-8 flex-1">
-                                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-slate-950 dark:bg-white text-white dark:text-slate-900 rounded-[2rem] flex items-center justify-center font-black text-4xl shadow-2xl transition-all group-hover:rotate-6 group-hover:scale-110">
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                                  <div className="flex items-start gap-6 flex-1 min-w-0">
+                                    <div className="w-16 h-16 sm:w-14 sm:h-14 bg-slate-950 dark:bg-white text-white dark:text-slate-900 rounded-[1.5rem] flex items-center justify-center font-black text-3xl shadow-2xl transition-all group-hover:rotate-6 group-hover:scale-110 shrink-0">
                                       {reserva.codigo_completo?.substring(0, 1)}
                                     </div>
 
-                                    <div className="flex-1 space-y-5 min-w-0">
-                                      <div className="flex flex-wrap items-center gap-4">
-                                        <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter leading-none truncate uppercase italic">
+                                    <div className="flex-1 space-y-4 min-w-0">
+                                      <div className="flex flex-wrap items-center gap-3">
+                                        {/* Título do produto truncado — máx 45% do espaço */}
+                                        <span className="text-xl font-black text-slate-900 dark:text-white tracking-tighter leading-none truncate uppercase italic max-w-[45vw] lg:max-w-[28vw]" title={reserva.modelo}>
                                           {reserva.modelo}
                                         </span>
-                                        <Badge variant="outline" className="bg-slate-100 dark:bg-slate-800 border-0 text-slate-500 dark:text-slate-400 font-black text-[10px] uppercase px-3 py-1 rounded-full tracking-widest">
+                                        <Badge variant="outline" className="bg-slate-100 dark:bg-slate-800 border-0 text-slate-500 dark:text-slate-400 font-black text-[10px] uppercase px-3 py-1 rounded-full tracking-widest shrink-0">
                                           {reserva.codigo_produto}
                                         </Badge>
                                         <StatusBadge status={reserva.status} />
                                       </div>
 
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                        <div className="space-y-1.5">
+                                      {/* Grid 3 colunas flexível: cliente | range | botões de ação */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.8fr)_auto] gap-4 items-end">
+                                        <div className="space-y-1 min-w-0">
                                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Cliente de Destino</p>
-                                          <p className="text-lg font-bold text-slate-700 dark:text-slate-300 truncate uppercase tracking-tight">
+                                          <p className="text-base font-bold text-slate-700 dark:text-slate-300 truncate uppercase tracking-tight" title={reserva.cliente || 'OCASIONAL'}>
                                             {reserva.cliente || 'OCASIONAL'}
                                           </p>
                                         </div>
 
-                                        <div className="space-y-1.5">
+                                        <div className="space-y-1 min-w-0">
                                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Range de Identificação</p>
-                                          <div className="flex items-center gap-3">
-                                            <div className="px-3 py-1 bg-slate-100 dark:bg-slate-950/60 rounded-lg border border-slate-200 dark:border-white/5">
-                                              <p className="text-sm font-black text-slate-900 dark:text-white tracking-tight">
-                                                {reserva.codigo_completo}{formatarNumeracao(reserva.numero_inicial, extrairPrefixo(reserva.codigo_completo), setorAtivo)} - {reserva.codigo_completo}{formatarNumeracao(reserva.numero_final, extrairPrefixo(reserva.codigo_completo), setorAtivo)}
-                                              </p>
-                                            </div>
+                                          <div className="px-2 py-1.5 bg-slate-100 dark:bg-slate-950/60 rounded-lg border border-slate-200 dark:border-white/5 break-all sm:break-normal">
+                                            <p className="text-xs font-black text-slate-900 dark:text-white tracking-tight">
+                                              {reserva.codigo_completo}{formatarNumeracao(reserva.numero_inicial, extrairPrefixo(reserva.codigo_completo), setorAtivo)} – {reserva.codigo_completo}{formatarNumeracao(reserva.numero_final, extrairPrefixo(reserva.codigo_completo), setorAtivo)}
+                                            </p>
                                           </div>
+                                        </div>
+
+                                        {/* Botões de ação — ficam na 3ª coluna do grid */}
+                                        <div className="flex flex-col gap-2 shrink-0">
+                                          {(() => {
+                                            const isInvertida = reserva.sequencia_decrescente === true;
+                                            return (
+                                              <>
+                                                {isInvertida && (
+                                                  <Badge className="bg-indigo-500/10 text-indigo-500 border-0 font-black text-[9px] uppercase tracking-widest py-1 justify-center rounded-xl">
+                                                    NUMERAÇÃO REVERSA
+                                                  </Badge>
+                                                )}
+                                                <Button
+                                                  onClick={() => {
+                                                    setSelectedReserva(reserva);
+                                                    setShowBaixa(true);
+                                                  }}
+                                                  disabled={isReadonly}
+                                                  className="h-11 px-6 rounded-2xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-blue-500/10 transition-all active:scale-95 disabled:grayscale w-full"
+                                                >
+                                                  <ScanLine className="w-4 h-4 mr-2" />
+                                                  Coletar Baixa
+                                                </Button>
+                                              </>
+                                            );
+                                          })()}
                                         </div>
                                       </div>
                                     </div>
                                   </div>
 
-                                  <div className="flex flex-wrap items-center gap-10 lg:gap-16 shrink-0">
-                                    <div className="space-y-4">
-                                      <div className="flex justify-between items-end">
+                                  {/* Bloco direito: Fluxo de Entrega + A Produzir */}
+                                  <div className="flex flex-wrap items-center gap-6 lg:gap-10 shrink-0">
+                                    <div className="space-y-3">
+                                      <div className="flex justify-between items-end gap-4">
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic leading-none">Fluxo de Entrega</span>
-                                        <span className="text-2xl font-black text-blue-500 italic tracking-tighter">{progresso}%</span>
+                                        <span className="text-xl font-black text-blue-500 italic tracking-tighter">{progresso}%</span>
                                       </div>
-                                      <div className="h-3 w-48 bg-slate-100 dark:bg-slate-950 rounded-full overflow-hidden border border-slate-200 dark:border-white/5">
+                                      <div className="h-2.5 w-36 bg-slate-100 dark:bg-slate-950 rounded-full overflow-hidden border border-slate-200 dark:border-white/5">
                                         <div
                                           className="h-full bg-blue-600 rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(37,99,235,0.4)]"
                                           style={{ width: `${progresso}%` }} />
                                       </div>
                                       <p className="text-[10px] font-black text-center text-slate-500 dark:text-slate-400 uppercase tracking-widest opacity-60">
-                                        {(reserva.quantidade_baixada || 0).toLocaleString()} / {reserva.quantidade?.toLocaleString()} UNIDADES
+                                        {(reserva.quantidade_baixada || 0).toLocaleString()} / {reserva.quantidade?.toLocaleString()} un
                                       </p>
                                     </div>
 
-                                    <div className="text-right space-y-1.5">
+                                    <div className="text-right space-y-1">
                                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic leading-none">A Produzir</span>
-                                      <p className="text-5xl font-black text-slate-900 dark:text-white tracking-tighter leading-none italic">{restante.toLocaleString()}</p>
-                                    </div>
-
-                                    <div className="flex flex-col gap-3 min-w-[140px]">
-                                      {(() => {
-                                        const prod = produtos.find(p => p.codigo_produto === reserva.codigo_produto);
-                                        const isInvertida = reserva.sequencia_decrescente ?? (prod?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente);
-                                        return (
-                                          <>
-                                            {isInvertida && (
-                                              <Badge className="bg-indigo-500/10 text-indigo-500 border-0 font-black text-[9px] uppercase tracking-widest py-1.5 justify-center rounded-xl">
-                                                Ordem Decrescente
-                                              </Badge>
-                                            )}
-                                            <Button
-                                              onClick={() => {
-                                                setSelectedReserva(reserva);
-                                                setShowBaixa(true);
-                                              }}
-                                              disabled={isReadonly}
-                                              className="h-14 px-8 rounded-2xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-blue-500/10 transition-all active:scale-95 disabled:grayscale"
-                                            >
-                                              <ScanLine className="w-5 h-5 mr-3" />
-                                              Coletar Baixa
-                                            </Button>
-                                          </>
-                                        );
-                                      })()}
+                                      <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter leading-none italic">{restante.toLocaleString()}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -517,7 +535,7 @@ export default function Producao() {
                       </DialogTitle>
                     </div>
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-2 italic">
-                      Terminal de Coleta • Lote {selectedReserva?.codigo_completo}
+                      Coleta • Lote {selectedReserva?.codigo_completo}
                     </p>
                   </DialogHeader>
 

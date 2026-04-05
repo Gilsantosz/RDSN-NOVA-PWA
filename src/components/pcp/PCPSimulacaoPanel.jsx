@@ -21,16 +21,36 @@ export default function PCPSimulacaoPanel({ _mes, _ano, ops, producaoMap, dias, 
 
   const set = (k, v) => setParams(p => ({ ...p, [k]: Number(v) || 0 }));
 
+  const [filtrosBase, setFiltrosBase] = useState({
+    diaInicio: dias[0] || 1,
+    diaFim: dias[dias.length - 1] || 31,
+    mesesMultiplicador: 1
+  });
+
+  const [opsSelecionadas, setOpsSelecionadas] = useState(ops.map(o => o.id));
+
+  const toggleOp = (id) => {
+    setOpsSelecionadas(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
   const baseStats = useMemo(() => {
     let totalPrev = 0, totalReal = 0;
-    for (const op of ops) {
-      for (const d of dias) {
+    const diasFiltrados = dias.filter(d => d >= filtrosBase.diaInicio && d <= filtrosBase.diaFim);
+    const opsFiltradas = ops.filter(op => opsSelecionadas.includes(op.id));
+
+    for (const op of opsFiltradas) {
+      for (const d of diasFiltrados) {
         totalPrev += producaoMap[`${op.id}-${d}`]?.previsto || 0;
         totalReal += producaoMap[`${op.id}-${d}`]?.realizado || 0;
       }
     }
-    return { totalPrev, totalReal };
-  }, [ops, producaoMap, dias]);
+    
+    return { 
+      totalPrev: totalPrev * filtrosBase.mesesMultiplicador, 
+      totalReal: totalReal * filtrosBase.mesesMultiplicador,
+      diasCorridos: diasFiltrados.length * filtrosBase.mesesMultiplicador
+    };
+  }, [ops, producaoMap, dias, filtrosBase, opsSelecionadas]);
 
   const calcular = () => {
     const { percAumento, opsExtra, percReducao, percCapacidade, custoUnitario, vendaUnitario } = params;
@@ -42,7 +62,7 @@ export default function PCPSimulacaoPanel({ _mes, _ano, ops, producaoMap, dias, 
     const novoRealizado = Math.round(baseStats.totalReal * fatorEficiencia * fatorCapacidade);
     const novoSaldo = novoRealizado - novoPrevisto;
     const percAtendimento = novoPrevisto > 0 ? ((novoRealizado / novoPrevisto) * 100).toFixed(1) : '0.0';
-    const mediaDiaria = dias.length > 0 ? Math.round(novoRealizado / dias.length) : 0;
+    const mediaDiaria = baseStats.diasCorridos > 0 ? Math.round(novoRealizado / baseStats.diasCorridos) : 0;
     
     // Impacto Financeiro
     const lucroPrevisto = novoRealizado * (vendaUnitario - custoUnitario);
@@ -93,18 +113,85 @@ export default function PCPSimulacaoPanel({ _mes, _ano, ops, producaoMap, dias, 
         </div>
 
         <div className="p-8 space-y-6 max-h-[75vh] overflow-y-auto custom-scrollbar">
-          {/* Cenário Base */}
+          {/* Escopo da Base (Filtros de Simulação) */}
+          <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 italic flex items-center gap-2 mb-2">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-blue-500" /> Escopo da Base (Setup)
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-3 space-y-2">
+                <div className="flex justify-between items-center ml-1">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ordens de Produção (Alvo)</Label>
+                  <span className="text-[10px] font-bold text-slate-400">{opsSelecionadas.length} / {ops.length} ativas</span>
+                </div>
+                <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto custom-scrollbar p-2 bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-white/5">
+                  {ops.map(op => (
+                    <Badge 
+                      key={op.id} 
+                      onClick={() => toggleOp(op.id)}
+                      variant={opsSelecionadas.includes(op.id) ? "default" : "outline"}
+                      className={cn("cursor-pointer font-bold transition-all text-[9.5px] uppercase", 
+                        opsSelecionadas.includes(op.id) ? "bg-blue-600 hover:bg-blue-700 text-white border-0" : "opacity-40 grayscale hover:opacity-100"
+                      )}
+                    >
+                      {op.codigo_op}
+                    </Badge>
+                  ))}
+                  {ops.length === 0 && <span className="text-[10px] text-slate-400 italic">Nenhuma OP livre encontrada</span>}
+                </div>
+              </div>
+
+               <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Partida (Dia Mín)</Label>
+                <Input 
+                   type="number" 
+                   min={1} 
+                   max={31} 
+                   value={filtrosBase.diaInicio} 
+                   onChange={e => setFiltrosBase(p => ({ ...p, diaInicio: Number(e.target.value) }))}
+                   className="h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 rounded-xl font-black text-center"
+                 />
+              </div>
+
+               <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Término (Dia Máx)</Label>
+                <Input 
+                   type="number" 
+                   min={1} 
+                   max={31} 
+                   value={filtrosBase.diaFim} 
+                   onChange={e => setFiltrosBase(p => ({ ...p, diaFim: Number(e.target.value) }))}
+                   className="h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 rounded-xl font-black text-center"
+                 />
+              </div>
+
+               <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Projeção (Meses)</Label>
+                <Input 
+                   type="number" 
+                   min={1} 
+                   max={24} 
+                   value={filtrosBase.mesesMultiplicador} 
+                   onChange={e => setFiltrosBase(p => ({ ...p, mesesMultiplicador: Number(e.target.value) }))}
+                   className="h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 rounded-xl font-black text-center text-amber-500"
+                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Cenário Base Resultante */}
           <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2">
-              <Activity className="w-3.5 h-3.5" /> Situação Atual (Real)
+              <Activity className="w-3.5 h-3.5" /> Situação Atual (Extrapolada)
             </p>
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Demanda Prevista</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Demanda Prevista Original</p>
                 <p className="text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tighter">{baseStats.totalPrev.toLocaleString()}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Coleta Realizada</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Coleta Realizada Original</p>
                 <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">{baseStats.totalReal.toLocaleString()}</p>
               </div>
             </div>

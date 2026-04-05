@@ -12,7 +12,7 @@ export default function CellLoadAnalysis({ ops: _ops = [], producoes: _producoes
             </div>
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2 italic">Análise de Carga</h3>
             <p className="text-slate-500 dark:text-slate-400 max-w-xs text-sm">
-                O sistema de análise de capacidade por terminal de coleta está em fase de implementação.
+                O sistema de análise de capacidade por coleta está em fase de implementação.
             </p>
             <div className="mt-6 flex gap-3">
                 <div className="px-4 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest italic shadow-lg">Integridade Alpha</div>

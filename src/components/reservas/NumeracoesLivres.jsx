@@ -6,7 +6,7 @@ import { PremiumCard } from '@/components/ui/PremiumCard';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Unlock, TrendingDown, Plus } from 'lucide-react';
+import { Unlock, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Input } from "@/components/ui/input";
@@ -87,31 +87,36 @@ export default function NumeracoesLivres({ produtos = [], sequencias = [], onRes
 
   return (
     <>
-      <PremiumCard
-        title="Numerações Livres"
-        icon={Unlock}
-        badge={
-          <div className="flex bg-blue-600/10 dark:bg-blue-400/10 px-3 py-1 rounded-full border border-blue-200 dark:border-blue-900/30 shadow-sm">
-            <span className="text-blue-600 dark:text-blue-400 font-black text-sm uppercase tracking-tighter">
-              {totalDisponivel.toLocaleString()} <span className="text-[10px] opacity-70">disponíveis</span>
-            </span>
+      {numeracoesLivres.length === 0 ? (
+        /* Compact inline indicator when no free numbers exist */
+        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 shadow-sm">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5">
+            <Unlock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
           </div>
-        }
-      >
-        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest italic opacity-80 mb-6">
-          Números liberados por encurtamento ou quebra • Clique para reutilizar
-        </p>
-
-        {numeracoesLivres.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 relative overflow-hidden bg-white/40 dark:bg-[#0c0c0e]/40 backdrop-blur-md rounded-[2.5rem] border border-dashed border-slate-300 dark:border-white/10 shadow-[inset_0_0_20px_rgba(0,0,0,0.02)] transition-all duration-500 group">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 dark:from-blue-500/10 dark:to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-            <div className="p-6 bg-white/60 dark:bg-white/5 rounded-full mb-5 shadow-[0_8px_32px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(255,255,255,0.02)] border border-white/50 dark:border-white/5 relative z-10 group-hover:scale-110 transition-transform duration-500 ease-out">
-              <TrendingDown className="w-8 h-8 opacity-50 text-slate-500 dark:text-slate-400" />
+          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest italic">
+            Nenhuma numeração livre disponível
+          </p>
+          <Badge variant="outline" className="ml-auto text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-slate-200 dark:border-white/10 px-2 py-0.5">
+            0 disponíveis
+          </Badge>
+        </div>
+      ) : (
+        /* Full expanded card only when there ARE free numbers */
+        <PremiumCard
+          title="Numerações Livres"
+          icon={Unlock}
+          badge={
+            <div className="flex bg-blue-600/10 dark:bg-blue-400/10 px-3 py-1 rounded-full border border-blue-200 dark:border-blue-900/30 shadow-sm">
+              <span className="text-blue-600 dark:text-blue-400 font-black text-sm uppercase tracking-tighter">
+                {totalDisponivel.toLocaleString()} <span className="text-[10px] opacity-70">disponíveis</span>
+              </span>
             </div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 relative z-10">Sem numerações liberadas</p>
-            <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-2 relative z-10">Nenhuma numeração por encurtamento no momento</p>
-          </div>
-        ) : (
+          }
+        >
+          <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest italic opacity-80 mb-6">
+            Números liberados por encurtamento ou quebra • Clique para reutilizar
+          </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {numeracoesLivres.map((num) => {
               const config = motivoConfig[num.motivo] || motivoConfig.CANCELAMENTO;
@@ -165,8 +170,8 @@ export default function NumeracoesLivres({ produtos = [], sequencias = [], onRes
               );
             })}
           </div>
-        )}
-      </PremiumCard>
+        </PremiumCard>
+      )}
 
       {/* Modal para criar reserva */}
       <Dialog open={showForm} onOpenChange={setShowForm}>

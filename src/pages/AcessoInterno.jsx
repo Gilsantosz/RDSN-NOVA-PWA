@@ -152,19 +152,19 @@ export default function AcessoInterno() {
       {/* ── HEADER PREMIUM (DASHBOARD STYLE) ── */}
       <section className="relative flex flex-col overflow-hidden pt-6 px-6">
         <div className="max-w-7xl mx-auto w-full">
-          <div className="relative overflow-hidden rounded-[2.5rem] bg-white/5 dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-white/5 mb-6 animate-in fade-in slide-in-from-top-4 duration-1000">
+          <div className="relative overflow-hidden rounded-[2.5rem] bg-white/5 dark:bg-slate-900/40 backdrop-blur-3xl p-5 sm:p-6 shadow-2xl border border-white/5 mb-6 animate-in fade-in slide-in-from-top-4 duration-1000">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(59,130,246,0.1),transparent)] pointer-events-none" />
             <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-              <div className="flex items-center gap-6 sm:gap-8">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all hover:scale-105 active:scale-95 group border border-blue-400/20">
-                  <Factory className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:rotate-12 transition-transform duration-500" />
+              <div className="flex items-center gap-4 sm:gap-5">
+                <div className="w-16 h-16 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all hover:scale-105 active:scale-95 group border border-blue-400/20">
+                  <Factory className="w-8 h-8 sm:w-6 sm:h-6 text-white group-hover:rotate-12 transition-transform duration-500" />
                 </div>
                 <div className="space-y-1">
-                  <h1 className="text-3xl sm:text-5xl font-black text-white uppercase italic tracking-tighter leading-none">
+                  <h1 className="text-2xl sm:text-3xl font-black text-white uppercase italic tracking-tighter leading-none">
                     PCP <span className="text-blue-500">MATRIX</span>
                   </h1>
                   <p className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
-                    Painel de Controle industrial • <span className="text-blue-500 flex items-center gap-1"><Shield className="w-3.5 h-3.5" />v2.0.0 RDSN FÁBRICA</span>
+                    Painel de Controle industrial • <span className="text-blue-500 flex items-center gap-1"><Shield className="w-3.5 h-3.5" />v2.0.3 RDSN FÁBRICA</span>
                   </p>
                 </div>
               </div>
@@ -175,7 +175,7 @@ export default function AcessoInterno() {
                   className="rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-[0.2em] px-8 h-12 gap-2 transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-blue-500/20 overflow-hidden relative group/btn"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000" />
-                  <Lock className="w-4 h-4" /> Autenticar Terminal
+                   <Lock className="w-4 h-4" /> Autenticar Coleta
                 </Button>
               </div>
             </div>
@@ -264,7 +264,7 @@ export default function AcessoInterno() {
               <Lock className="w-8 h-8 text-blue-400" />
             </div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase italic">Protocolo de Acesso</h2>
-            <p className="text-slate-500 mt-3 font-medium italic uppercase text-xs tracking-widest">Identifique-se para o terminal</p>
+             <p className="text-slate-500 mt-3 font-medium italic uppercase text-xs tracking-widest">Identifique-se para a coleta</p>
           </div>
 
           <div className="bg-slate-900/60 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] p-10 sm:p-12 shadow-[0_40px_100px_rgba(0,0,0,0.6)] relative overflow-hidden group">
@@ -345,7 +345,7 @@ export default function AcessoInterno() {
               <Factory className="w-6 h-6 text-blue-500" />
             </div>
             <div>
-              <span className="font-black text-white tracking-[0.2em] uppercase italic text-lg leading-none block">v2.0.0 RESERVA<span className="text-blue-500">NOVA</span></span>
+              <span className="font-black text-white tracking-[0.2em] uppercase italic text-lg leading-none block">v2.0.3 RESERVA<span className="text-blue-500">NOVA</span></span>
               <span className="text-[10px] font-black text-slate-600 tracking-[0.4em] uppercase block mt-1">Intelligence Division</span>
             </div>
           </div>

@@ -231,8 +231,14 @@ export default function PCPAlertasPanel() {
   });
 
   const { data: clientes = [] } = useQuery({
-    queryKey: ['pcp-clientes-alertas'],
-    queryFn: () => rdsn.entities.PCPCliente.list('nome', 300)
+    queryKey: ['pcp-clientes-alertas', setorAtivo],
+    queryFn: () => {
+      if (!setorAtivo || setorAtivo === 'ALL') {
+        return rdsn.entities.PCPCliente.list('nome', 300);
+      }
+      return rdsn.entities.PCPCliente.filter({ setor_id: setorAtivo }, 'nome', 300);
+    },
+    enabled: !!setorAtivo
   });
 
   const { data: baixas = [] } = useQuery({

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSetor } from '@/components/context/SetorContext';
-import { Eye, Factory } from 'lucide-react';
+import { Eye } from 'lucide-react';
 
 /**
  * Banner exibido quando o usuário está em modo "Todos os Setores" (ALL).

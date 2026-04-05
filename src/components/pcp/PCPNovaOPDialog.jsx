@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Factory } from 'lucide-react';
 import { usePCPSetor } from '@/components/pcp/PCPSetorGuard';
-import { cn } from "@/lib/utils";
 
 export default function PCPNovaOPDialog({ mes, ano, onClose }) {
   const [form, setForm] = useState({
@@ -24,8 +23,14 @@ export default function PCPNovaOPDialog({ mes, ano, onClose }) {
   const { nomeSetor, setorAtivo, bloqueado } = usePCPSetor();
 
   const { data: clientes = [] } = useQuery({
-    queryKey: ['pcp-clientes'],
-    queryFn: () => rdsn.entities.PCPCliente.list('nome', 500)
+    queryKey: ['pcp-clientes', setorAtivo],
+    queryFn: () => {
+      if (!setorAtivo || setorAtivo === 'ALL') {
+        return rdsn.entities.PCPCliente.list('nome', 500);
+      }
+      return rdsn.entities.PCPCliente.filter({ setor_id: setorAtivo }, 'nome', 500);
+    },
+    enabled: !!setorAtivo
   });
 
   const { data: opsExistentes = [] } = useQuery({

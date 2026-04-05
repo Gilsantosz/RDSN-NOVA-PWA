@@ -32,6 +32,18 @@ export default defineConfig({
           {
             src: "https://base44.com/logo_v2.svg",
             type: "image/svg+xml",
+            sizes: "192x192",
+            purpose: "any maskable"
+          },
+          {
+            src: "https://base44.com/logo_v2.svg",
+            type: "image/svg+xml",
+            sizes: "512x512",
+            purpose: "any maskable"
+          },
+          {
+            src: "https://base44.com/logo_v2.svg",
+            type: "image/svg+xml",
             sizes: "any"
           }
         ],

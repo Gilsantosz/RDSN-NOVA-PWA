@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNotifications } from '@/components/hooks/useNotifications';
-import { Bell, Check, Trash2, Archive, AlertCircle, Info, CheckCircle, XCircle, ExternalLink, Clock } from 'lucide-react';
+import { Bell, Check, Trash2, AlertCircle, Info, CheckCircle, XCircle, ExternalLink, Clock } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

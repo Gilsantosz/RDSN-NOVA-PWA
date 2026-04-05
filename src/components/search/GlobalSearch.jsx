@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
-import { Search, X, FileText, Users, Package, Loader2, Camera, ScanLine } from 'lucide-react';
+import { Search, X, FileText, Users, Package, Camera } from 'lucide-react';
 import { useSetor } from '@/components/context/SetorContext';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
@@ -11,9 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import BarcodeScanner from '@/components/scanner/BarcodeScanner';
 import { AnimatePresence } from 'framer-motion';
 

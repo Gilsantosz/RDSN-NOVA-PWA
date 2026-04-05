@@ -1,7 +1,7 @@
 import { handleCors, buildCorsResponse } from './cors.ts';
 import { createClientFromRequest } from './supabase-shim.ts';
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: any) => {
   try {
   const corsHandler = handleCors(req);
   if (corsHandler) return corsHandler;
@@ -16,10 +16,11 @@ Deno.serve(async (req) => {
     }
 
     // Buscar sequência atual
-    let sequencias = [];
+    let sequencias: any[] = [];
     try {
+      // @ts-ignore
       const todas = await rdsn.asServiceRole.entities.SequenciaAnual.list();
-      sequencias = todas.filter(s =>
+      sequencias = todas.filter((s: any) =>
         s.letra_produto === letra_produto &&
         s.ano === ano &&
         s.setor_id === setor_id
@@ -29,9 +30,10 @@ Deno.serve(async (req) => {
     }
 
     // Se não existir, criar sequência
-    let sequencia;
+    let sequencia: any;
     if (sequencias.length === 0) {
       try {
+        // @ts-ignore
         sequencia = await rdsn.asServiceRole.entities.SequenciaAnual.create({
           letra_produto,
           ano,
@@ -39,7 +41,7 @@ Deno.serve(async (req) => {
           ultimo_numero: 0,
           encerrado: false
         });
-      } catch (err) {
+      } catch (err: any) {
         return buildCorsResponse({ 
           error: 'Erro ao criar sequência: ' + err.message
         }, { status: 500 });
@@ -55,21 +57,23 @@ Deno.serve(async (req) => {
     }
 
     // Buscar todas as reservas existentes do mesmo setor
+    // @ts-ignore
     const todasReservas = await rdsn.asServiceRole.entities.ReservaLote.filter({ 
       letra_produto, 
       ano,
       setor_id
     });
 
-    const reservas = todasReservas.filter(r => 
+    const reservas = todasReservas.filter((r: any) => 
       ['RESERVADO', 'EM_PRODUCAO', 'BAIXADO', 'PRODUZIDO'].includes(r.status)
     );
 
     // Buscar numerações livres do mesmo setor
-    let numeracoesLivres = [];
+    let numeracoesLivres: any[] = [];
     try {
+      // @ts-ignore
       const todasNumLivres = await rdsn.asServiceRole.entities.NumeracaoLivre.list();
-      numeracoesLivres = todasNumLivres.filter(n =>
+      numeracoesLivres = todasNumLivres.filter((n: any) =>
         n.letra_produto === letra_produto &&
         n.ano === ano &&
         n.setor_id === setor_id &&
@@ -81,10 +85,11 @@ Deno.serve(async (req) => {
 
     // Buscar bloqueios ativos
     const agora = new Date().toISOString();
-    let bloqueiosAtivos = [];
+    let bloqueiosAtivos: any[] = [];
     try {
+      // @ts-ignore
       const todosBloqueios = await rdsn.asServiceRole.entities.BloqueioIntervalo.list();
-      bloqueiosAtivos = todosBloqueios.filter(b =>
+      bloqueiosAtivos = todosBloqueios.filter((b: any) =>
         b.letra_produto === letra_produto &&
         b.ano === ano &&
         b.setor_id === setor_id &&
@@ -95,13 +100,13 @@ Deno.serve(async (req) => {
     }
 
     // Construir mapa de intervalos ocupados
-    const intervalosOcupados = reservas.map(r => ({
+    const intervalosOcupados = reservas.map((r: any) => ({
       inicio: r.numero_inicial,
       fim: r.numero_final
     }));
 
     // Adicionar intervalos das numerações livres (invertido - elas são espaços livres)
-    const intervalosLivresExistentes = numeracoesLivres.map(n => ({
+    const intervalosLivresExistentes = numeracoesLivres.map((n: any) => ({
       inicio: n.numero_inicial,
       fim: n.numero_final,
       quantidade: n.quantidade,
@@ -109,7 +114,7 @@ Deno.serve(async (req) => {
     }));
 
     // Função para verificar se um intervalo está livre
-    const verificarIntervaloLivre = (inicio, fim) => {
+    const verificarIntervaloLivre = (inicio: number, fim: number) => {
       // Verificar sobreposição com reservas
       for (const ocupado of intervalosOcupados) {
         if (!(fim < ocupado.inicio || inicio > ocupado.fim)) {
@@ -127,17 +132,17 @@ Deno.serve(async (req) => {
     };
 
     // Calcular proximidade com próximas reservas (padrão de uso)
-    const calcularProximidadeReservas = (inicio, fim) => {
+    const calcularProximidadeReservas = (inicio: number, fim: number) => {
       const proximaReserva = reservas
-        .map(r => r.numero_inicial)
-        .filter(n => n > fim)
+        .map((r: any) => r.numero_inicial)
+        .filter((n: number) => n > fim)
         .sort()[0];
       
       return proximaReserva ? proximaReserva - fim - 1 : Infinity;
     };
 
     // Calcular score de qualidade de um intervalo
-    const calcularScoreQualidade = (intervalo) => {
+    const calcularScoreQualidade = (intervalo: any) => {
       let score = 0;
 
       // Preferir reutilizar numerações livres (reduz fragmentação) - ALTA PRIORIDADE
@@ -165,13 +170,13 @@ Deno.serve(async (req) => {
     };
 
     // Encontrar intervalos disponíveis
-    const intervalosDisponiveis = [];
+    const intervalosDisponiveis: any[] = [];
 
     // 1. Verificar numerações livres existentes e criar intervalos combinados
     for (const livre of intervalosLivresExistentes) {
       // Se a numeração livre é suficiente para a quantidade completa
       if (livre.quantidade >= quantidade && verificarIntervaloLivre(livre.inicio, livre.fim)) {
-        const intervalo = {
+        const intervalo: any = {
           inicio: livre.inicio,
           fim: livre.inicio + quantidade - 1,
           quantidade: quantidade,
@@ -192,7 +197,7 @@ Deno.serve(async (req) => {
         
         // Verificar se o intervalo combinado (livre + continuação) está disponível
         if (verificarIntervaloLivre(inicioLivre, fimTotal)) {
-          const intervalo = {
+          const intervalo: any = {
             inicio: inicioLivre,
             fim: fimTotal,
             quantidade: quantidade,
@@ -210,7 +215,7 @@ Deno.serve(async (req) => {
 
     // 2. Procurar gaps ANTES da primeira reserva e entre reservas existentes
     const todosNumeros = [...intervalosOcupados]
-      .sort((a, b) => a.inicio - b.inicio);
+      .sort((a: any, b: any) => a.inicio - b.inicio);
 
     // PRIMEIRO: Verificar espaço ANTES da primeira reserva (do número 1 até primeira reserva)
     if (todosNumeros.length > 0) {
@@ -218,7 +223,7 @@ Deno.serve(async (req) => {
       const espacoInicial = primeiraReserva.inicio - 1;
       
       if (espacoInicial >= quantidade) {
-        const intervalo = {
+        const intervalo: any = {
           inicio: 1,
           fim: quantidade,
           quantidade: quantidade,
@@ -239,7 +244,7 @@ Deno.serve(async (req) => {
 
       if (gap >= quantidade) {
         const inicioGap = fimAtual + 1;
-        const intervalo = {
+        const intervalo: any = {
           inicio: inicioGap,
           fim: inicioGap + quantidade - 1,
           quantidade: quantidade,
@@ -259,7 +264,7 @@ Deno.serve(async (req) => {
 
     while (!encontradoSequencia && maxTentativas > 0) {
       if (verificarIntervaloLivre(tentativaNumero, tentativaNumero + quantidade - 1)) {
-        const intervalo = {
+        const intervalo: any = {
           inicio: tentativaNumero,
           fim: tentativaNumero + quantidade - 1,
           quantidade: quantidade,
@@ -274,7 +279,7 @@ Deno.serve(async (req) => {
         encontradoSequencia = true;
       } else {
         // Pular para o final da reserva que está bloqueando ou incrementar
-        const bloqueador = reservas.find(r => !(tentativaNumero + quantidade - 1 < r.numero_inicial || tentativaNumero > r.numero_final));
+        const bloqueador = reservas.find((r: any) => !(tentativaNumero + quantidade - 1 < r.numero_inicial || tentativaNumero > r.numero_final));
         if (bloqueador) {
           tentativaNumero = bloqueador.numero_final + 1;
         } else {
@@ -292,31 +297,31 @@ Deno.serve(async (req) => {
     }
 
     // Aplicar critério de seleção com inteligência aumentada
-    let intervaloSelecionado;
-    const alternativasOrdenadas = [...intervalosDisponiveis].sort((a, b) => b.score - a.score);
+    let intervaloSelecionado: any;
+    const alternativasOrdenadas = [...intervalosDisponiveis].sort((a: any, b: any) => b.score - a.score);
 
     if (criterio === 'menor_intervalo') {
       intervaloSelecionado = alternativasOrdenadas
-        .filter(i => i.origem === 'numeracao_livre')[0]
+        .filter((i: any) => i.origem === 'numeracao_livre')[0]
         || alternativasOrdenadas[0];
     } else if (criterio === 'maior_contiguo') {
       intervaloSelecionado = alternativasOrdenadas
-        .sort((a, b) => b.quantidadeDisponivel - a.quantidadeDisponivel)[0];
+        .sort((a: any, b: any) => b.quantidadeDisponivel - a.quantidadeDisponivel)[0];
     } else if (criterio === 'sequencial') {
       // Critério sequencial: SEMPRE retorna continuação da sequência com exatamente a quantidade digitada
       intervaloSelecionado = intervalosDisponiveis
-        .find(i => i.origem === 'sequencia_nova' && i.quantidade === quantidade);
+        .find((i: any) => i.origem === 'sequencia_nova' && i.quantidade === quantidade);
       
       if (!intervaloSelecionado) {
         // Se não encontrou sequencial com quantidade exata, busca outro critério mas mantém prioridade sequencial
         intervaloSelecionado = intervalosDisponiveis
-          .find(i => i.origem === 'sequencia_nova')
+          .find((i: any) => i.origem === 'sequencia_nova')
           || alternativasOrdenadas[0];
       }
     } else {
       // Default: melhor score (algoritmo inteligente)
       // PRIORIZAR numerações livres quando existirem e forem eficientes
-      const numLivreCompleta = alternativasOrdenadas.find(i => i.origem === 'numeracao_livre');
+      const numLivreCompleta = alternativasOrdenadas.find((i: any) => i.origem === 'numeracao_livre');
       
       if (numLivreCompleta && numLivreCompleta.score > 50) {
         intervaloSelecionado = numLivreCompleta;
@@ -326,7 +331,7 @@ Deno.serve(async (req) => {
     }
 
     // Preparar top 3 alternativas com justificativas
-    const topAlternativas = alternativasOrdenadas.slice(0, 3).map(alt => ({
+    const topAlternativas = alternativasOrdenadas.slice(0, 3).map((alt: any) => ({
       numero_inicial: alt.inicio,
       numero_final: alt.fim,
       origem: alt.origem,
@@ -351,7 +356,7 @@ Deno.serve(async (req) => {
       mensagem: `Intervalo alocado (score ${Math.round(intervaloSelecionado.score)}): ${intervaloSelecionado.inicio.toLocaleString()} - ${intervaloSelecionado.fim.toLocaleString()}`
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao alocar números:', error);
     return buildCorsResponse({ 
       error: error.message || 'Erro ao alocar números automaticamente' 

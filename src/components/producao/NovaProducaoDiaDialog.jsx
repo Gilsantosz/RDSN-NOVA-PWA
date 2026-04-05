@@ -41,7 +41,8 @@ export default function NovaProducaoDiaDialog({
   onIniciar,
   isLoading,
   produtos = [],
-  setorInfo
+  setorInfo,
+  lotesSessaoAbertos = []
 }) {
   const [search, setSearch] = useState('');
   const [selecionados, setSelecionados] = useState([]);
@@ -75,24 +76,41 @@ export default function NovaProducaoDiaDialog({
       setSelecionados(selecionados.filter(s => s.reserva_id !== reserva.id));
     } else {
       const baixas = baixasPorReserva[reserva.id] || [];
+      const lotesSessao = lotesSessaoAbertos.filter(l => l.reserva_id === reserva.id);
+
       const prodInfo = produtos.find(p => p.codigo_produto === reserva.codigo_produto) ||
         produtos.find(p => p.letra_produto === reserva.letra_produto && !p.codigo_produto);
-      const isDecrescente = reserva.sequencia_decrescente ?? (prodInfo?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente);
+      const isDecrescente = reserva.sequencia_decrescente === true;
 
       let sugereNum;
 
-      if (baixas.length > 0) {
-        if (isDecrescente) {
-          const menorNum = Math.min(...baixas.map(b => Math.min(b.numero_inicial || Infinity, b.numero_final || Infinity)));
-          const ultimoProduzido = menorNum;
-          sugereNum = proximoNumero(ultimoProduzido, true);
+      // Unificar o que já saiu do banco e o que está aberto em sessão
+      const numsJaUsados = [
+        ...baixas.map(b => [Number(b.numero_inicial), Number(b.numero_final)]).flat(),
+        ...lotesSessao.map(l => [Number(l.numeracao_inicial), Number(l.numeracao_final)]).flat()
+      ].filter(n => !isNaN(n));
+
+      const resIni = Number(reserva.numero_inicial) || 0;
+      const resFim = Number(reserva.numero_final) || 0;
+      const rangeMin = Math.min(resIni, resFim);
+      const rangeMax = Math.max(resIni, resFim);
+
+      if (isDecrescente) {
+        // Se decrescente, tenta o topo da reserva. Se o topo já estiver ocupado, sugere o anterior ao menor usado.
+        if (numsJaUsados.length === 0 || !numsJaUsados.includes(rangeMax)) {
+          sugereNum = rangeMax;
         } else {
-          const maiorNum = Math.max(...baixas.map(b => Math.max(b.numero_inicial || -Infinity, b.numero_final || -Infinity)));
-          const ultimoProduzido = maiorNum;
-          sugereNum = proximoNumero(ultimoProduzido, false);
+          const menorUsado = Math.min(...numsJaUsados);
+          sugereNum = proximoNumero(menorUsado, true);
         }
       } else {
-        sugereNum = reserva.numero_inicial;
+        // Se crescente, tenta o início da reserva. Se o início já estiver ocupado, sugere o próximo do maior usado.
+        if (numsJaUsados.length === 0 || !numsJaUsados.includes(rangeMin)) {
+          sugereNum = rangeMin;
+        } else {
+          const maiorUsado = Math.max(...numsJaUsados);
+          sugereNum = proximoNumero(maiorUsado, false);
+        }
       }
 
       setSelecionados([...selecionados, {
@@ -108,6 +126,49 @@ export default function NovaProducaoDiaDialog({
     setSelecionados(selecionados.map(s =>
       s.reserva_id === id ? { ...s, numeracao_inicial: parseInt(num) || 0 } : s
     ));
+  };
+
+  const handleToggleOrdem = (id) => {
+    setSelecionados(selecionados.map(s => {
+      if (s.reserva_id !== id) return s;
+      const novaOrdem = !s.sequencia_decrescente;
+      
+      // Re-sugerir número inicial baseado na nova ordem se o atual for o default
+      let novoSugere = s.numeracao_inicial;
+      const baixas = baixasPorReserva[s.reserva_id] || [];
+      const lotesSessao = lotesSessaoAbertos.filter(l => l.reserva_id === s.reserva_id);
+      const reserva = s.reserva;
+
+      const numsJaUsados = [
+        ...baixas.map(b => [Number(b.numero_inicial), Number(b.numero_final)]).flat(),
+        ...lotesSessao.map(l => [Number(l.numeracao_inicial), Number(l.numeracao_final)]).flat()
+      ].filter(n => !isNaN(n));
+
+      const resIni = Number(reserva.numero_inicial) || 0;
+      const resFim = Number(reserva.numero_final) || 0;
+      const rangeMin = Math.min(resIni, resFim);
+      const rangeMax = Math.max(resIni, resFim);
+
+      if (novaOrdem) {
+        // Decrescente: Prioriza o topo se livre
+        if (numsJaUsados.length === 0 || !numsJaUsados.includes(rangeMax)) {
+          novoSugere = rangeMax;
+        } else {
+          const menorUsado = Math.min(...numsJaUsados);
+          novoSugere = proximoNumero(menorUsado, true);
+        }
+      } else {
+        // Crescente: Prioriza o início se livre
+        if (numsJaUsados.length === 0 || !numsJaUsados.includes(rangeMin)) {
+          novoSugere = rangeMin;
+        } else {
+          const maiorUsado = Math.max(...numsJaUsados);
+          novoSugere = proximoNumero(maiorUsado, false);
+        }
+      }
+
+      return { ...s, sequencia_decrescente: novaOrdem, numeracao_inicial: novoSugere };
+    }));
   };
 
   const handleIniciar = () => {
@@ -253,8 +314,7 @@ export default function NovaProducaoDiaDialog({
                               <Hash className="w-3 h-3 text-blue-500" />
                               <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 font-mono tracking-tighter">
                                 {(() => {
-                                  const prodInfo = produtos.find(p => p.letra_produto === reserva.letra_produto);
-                                  const isDecrescente = reserva.sequencia_decrescente ?? (prodInfo?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente);
+                                  const isDecrescente = reserva.sequencia_decrescente === true;
                                   return `${isDecrescente ? Math.max(reserva.numero_inicial, reserva.numero_final) : Math.min(reserva.numero_inicial, reserva.numero_final)} — ${isDecrescente ? Math.min(reserva.numero_inicial, reserva.numero_final) : Math.max(reserva.numero_inicial, reserva.numero_final)}`;
                                 })()}
                               </span>
@@ -334,19 +394,43 @@ export default function NovaProducaoDiaDialog({
                       </div>
 
                       <div className="space-y-5 bg-slate-50 dark:bg-white/5 p-6 rounded-[2rem] border border-slate-100 dark:border-white/5 mt-4">
-                        <div className="space-y-3">
-                          <Label className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] italic ml-1 flex items-center gap-2">
+                        <div className="flex items-center justify-between mb-2">
+                           <Label className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] italic ml-1 flex items-center gap-2">
                             <Play className="w-3 h-3 text-blue-500" />
-                            Terminal de Partida Hoje
+                            Coleta de Partida Hoje
                           </Label>
-                          <div className="relative group">
-                            <Input
-                              type="number"
-                              value={sel.numeracao_inicial}
-                              onChange={e => handleUpdateNum(sel.reserva_id, e.target.value)}
-                              className="h-16 pl-6 pr-6 bg-white dark:bg-slate-950 border-2 border-slate-200 dark:border-white/10 rounded-2xl font-black text-3xl italic text-blue-600 dark:text-blue-400 tracking-tighter shadow-inner focus:ring-0 focus:border-blue-500 transition-all text-center"
-                            />
-                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleOrdem(sel.reserva_id)}
+                            className={cn(
+                              "h-7 px-3 rounded-full text-[9px] font-black uppercase tracking-widest gap-2 border transition-all",
+                              sel.sequencia_decrescente 
+                                ? "bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20" 
+                                : "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20"
+                            )}
+                          >
+                            {sel.sequencia_decrescente ? (
+                              <>
+                                <Hash className="w-3 h-3 rotate-180" />
+                                Decrescente (↓)
+                              </>
+                            ) : (
+                              <>
+                                <Hash className="w-3 h-3" />
+                                Crescente (↑)
+                              </>
+                            )}
+                          </Button>
+                        </div>
+
+                        <div className="relative group">
+                          <Input
+                            type="number"
+                            value={sel.numeracao_inicial}
+                            onChange={e => handleUpdateNum(sel.reserva_id, e.target.value)}
+                            className="h-16 pl-6 pr-6 bg-white dark:bg-slate-950 border-2 border-slate-200 dark:border-white/10 rounded-2xl font-black text-3xl italic text-blue-600 dark:text-blue-400 tracking-tighter shadow-inner focus:ring-0 focus:border-blue-500 transition-all text-center"
+                          />
                         </div>
 
                         <div className="pt-4 border-t border-slate-200 dark:border-white/5 flex items-center justify-between px-2">
@@ -383,7 +467,7 @@ export default function NovaProducaoDiaDialog({
                 ) : (
                   <Play className="w-6 h-6 mr-4 fill-current group-hover:animate-pulse" />
                 )}
-                Sincronizar Terminal Operativo
+                Sincronizar Coleta Operativa
               </Button>
               <div className="mt-6 flex items-center justify-center gap-3 opacity-30 group">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] group-hover:scale-150 transition-transform" />

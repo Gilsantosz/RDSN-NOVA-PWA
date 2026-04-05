@@ -1,6 +1,7 @@
 import React from 'react';
 
 const STATUS_LABELS = {
+  // Numéricos (dashboard genérico)
   1: 'Ativo',
   2: 'Pendente',
   3: 'Concluído',
@@ -9,38 +10,71 @@ const STATUS_LABELS = {
   'pendente': 'Pendente',
   'concluido': 'Concluído',
   'cancelado': 'Cancelado',
-  'concluído': 'Concluído'
+  'concluído': 'Concluído',
+  // Status RDSN
+  'reservado': 'Reservado',
+  'em_producao': 'Em Produção',
+  'produzido': 'Produzido',
+  'baixado': 'Baixado',
+  'liberado': 'Liberado',
+  'em_andamento': 'Em Andamento',
 };
 
 const getThemeClasses = (status) => {
   const s = String(status).toLowerCase();
-  
+
   switch(s) {
+    // ── AMARELO: Reservado (aguardando produção) ──
+    case 'reservado':
+      return {
+        badge: 'bg-amber-400/20 border-amber-400/40 text-amber-700 dark:text-amber-300 hover:bg-amber-400/30 hover:border-amber-400/60',
+        dot: 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]',
+      };
+
+    // ── AZUL: Em Produção ──
+    case 'em_producao':
+    case 'em_andamento':
+    case '3':
+    case 'concluido':
+    case 'concluído':
+      return {
+        badge: 'bg-blue-500/15 border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-500/25 hover:border-blue-500/50',
+        dot: 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.9)]',
+      };
+
+    // ── VERDE: Produzido / Baixado ──
+    case 'produzido':
+    case 'baixado':
     case '1':
     case 'ativo':
       return {
-        badge: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/40',
-        dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]',
+        badge: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 hover:border-emerald-500/50',
+        dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]',
       };
+
+    // ── VERMELHO: Cancelado ──
+    case 'cancelado':
+    case '4':
+      return {
+        badge: 'bg-red-500/15 border-red-500/30 text-red-700 dark:text-red-300 hover:bg-red-500/25 hover:border-red-500/50',
+        dot: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)]',
+      };
+
+    // ── ROXO: Liberado ──
+    case 'liberado':
+      return {
+        badge: 'bg-violet-500/15 border-violet-500/30 text-violet-700 dark:text-violet-300 hover:bg-violet-500/25 hover:border-violet-500/50',
+        dot: 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.9)]',
+      };
+
+    // ── AMARELO SUAVE: Pendente (genérico) ──
     case '2':
     case 'pendente':
       return {
         badge: 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/40',
         dot: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]',
       };
-    case '3':
-    case 'concluido':
-    case 'concluído':
-      return {
-        badge: 'bg-blue-500/15 border-blue-500/30 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/40',
-        dot: 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]',
-      };
-    case '4':
-    case 'cancelado':
-      return {
-        badge: 'bg-red-500/15 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-500/20 hover:border-red-500/40',
-        dot: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]',
-      };
+
     default:
       return {
         badge: 'bg-gray-500/15 border-gray-500/30 text-gray-700 dark:text-gray-400 hover:bg-gray-500/20 hover:border-gray-500/40',
@@ -48,6 +82,7 @@ const getThemeClasses = (status) => {
       };
   }
 };
+
 
 const StatusBadge = ({ status, className = '' }) => {
   if (!status) return null;

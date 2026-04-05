@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Trash2, AlertTriangle, Check, FileText } from 'lucide-react';
+import { usePCPSetor } from '@/components/pcp/PCPSetorGuard';
 
 export default function PCPEditarOPDialog({ op, mes, ano, onClose }) {
   const [form, setForm] = useState({
@@ -26,10 +26,17 @@ export default function PCPEditarOPDialog({ op, mes, ano, onClose }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const qc = useQueryClient();
+  const { setorAtivo } = usePCPSetor();
 
   const { data: clientes = [] } = useQuery({
-    queryKey: ['pcp-clientes'],
-    queryFn: () => rdsn.entities.PCPCliente.list('nome', 500)
+    queryKey: ['pcp-clientes', setorAtivo],
+    queryFn: () => {
+      if (!setorAtivo || setorAtivo === 'ALL') {
+        return rdsn.entities.PCPCliente.list('nome', 500);
+      }
+      return rdsn.entities.PCPCliente.filter({ setor_id: setorAtivo }, 'nome', 500);
+    },
+    enabled: !!setorAtivo
   });
 
   const updateMutation = useMutation({

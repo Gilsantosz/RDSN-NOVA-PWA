@@ -1,6 +1,6 @@
 // @ts-nocheck
-import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
 import { Package, TrendingUp, AlertTriangle, CircleCheck, Clock, BarChart3, XCircle, PlayCircle, Zap, Activity, Users, Target, CheckCircle2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -17,6 +17,37 @@ import { cn } from "@/lib/utils";
 export default function Dashboard() {
   const [filtroAno, setFiltroAno] = useState(new Date().getFullYear() % 100);
   const { setorAtivo, isAdmin } = useSetor();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const unsubReservas = rdsn.entities.ReservaLote.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['reservas'] });
+    });
+    const unsubSeq = rdsn.entities.SequenciaAnual.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['sequencias'] });
+    });
+    const unsubMov = rdsn.entities.MovimentacaoEstoque.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-dashboard'] });
+    });
+    const unsubOps = rdsn.entities.PCPOrdemProducao.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['pcp-ops-dashboard'] });
+    });
+    const unsubProd = rdsn.entities.PCPProducaoDiaria.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['pcp-producoes-dashboard'] });
+    });
+    const unsubAud = rdsn.entities.Auditoria.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['auditoria-dashboard'] });
+    });
+
+    return () => {
+      if (unsubReservas) unsubReservas();
+      if (unsubSeq) unsubSeq();
+      if (unsubMov) unsubMov();
+      if (unsubOps) unsubOps();
+      if (unsubProd) unsubProd();
+      if (unsubAud) unsubAud();
+    };
+  }, [queryClient]);
 
   const { data: reservas = [], isLoading: loadingReservas } = useQuery({
     queryKey: ['reservas', setorAtivo, isAdmin],
@@ -60,23 +91,23 @@ export default function Dashboard() {
 
 
   const { data: pcpOps = [] } = useQuery({
-    queryKey: ['pcp-ops-dashboard', setorAtivo],
+    queryKey: ['pcp-ops-dashboard', setorAtivo, filtroAno],
     queryFn: async () => {
       if (!setorAtivo || setorAtivo === 'ALL') {
-        return rdsn.entities.PCPOrdemProducao.list('-created_at', 2000);
+        return rdsn.entities.PCPOrdemProducao.filter({ ano: filtroAno }, '-created_at', 2000);
       }
-      return rdsn.entities.PCPOrdemProducao.filter({ setor_id: setorAtivo }, '-created_at', 2000);
+      return rdsn.entities.PCPOrdemProducao.filter({ setor_id: setorAtivo, ano: filtroAno }, '-created_at', 2000);
     },
     enabled: !!setorAtivo
   });
 
   const { data: pcpProducoes = [] } = useQuery({
-    queryKey: ['pcp-producoes-dashboard', setorAtivo],
+    queryKey: ['pcp-producoes-dashboard', setorAtivo, filtroAno],
     queryFn: async () => {
       if (!setorAtivo || setorAtivo === 'ALL') {
-        return rdsn.entities.PCPProducaoDiaria.list('-created_at', 5000);
+        return rdsn.entities.PCPProducaoDiaria.filter({ ano: filtroAno }, '-created_at', 5000);
       }
-      return rdsn.entities.PCPProducaoDiaria.filter({ setor_id: setorAtivo }, '-created_at', 5000);
+      return rdsn.entities.PCPProducaoDiaria.filter({ setor_id: setorAtivo, ano: filtroAno }, '-created_at', 5000);
     },
     enabled: !!setorAtivo
   });
@@ -100,45 +131,116 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     const hoje = new Date().toDateString();
-    const filtradas = reservas.filter(r => !filtroAno || r.ano === filtroAno);
-    const anoAnterior = reservas.filter(r => r.ano === (filtroAno - 1));
+    
+    // Variáveis de acumulação
+    let totalReservado = 0;
+    let totalProduzido = 0;
+    let emProducao = 0;
+    let pendentes = 0;
+    let totalAnoAnterior = 0;
+    let reservasAtivasCount = 0;
+    const countStatus = {};
+    const countPorCliente = {};
+    const countPorMes = {};
+    const lotesNaoFinalizados = [];
 
-    // Cálculos Básicos
-    const totalReservado = filtradas.reduce((acc, r) => acc + (r.quantidade || 0), 0);
-    const totalProduzido = filtradas.reduce((acc, r) => acc + (r.quantidade_baixada || 0), 0);
-    const emProducao = filtradas.filter(r => r.status === 'EM_PRODUCAO').length;
-    const pendentes = filtradas.filter(r => r.status === 'RESERVADO').length;
+    // Passagem única pelas reservas (1000 items O(N))
+    for (let i = 0; i < reservas.length; i++) {
+        const r = reservas[i];
+        
+        // Verifica o ano
+        if (r.ano === (filtroAno - 1)) {
+            totalAnoAnterior += (r.quantidade || 0);
+        }
 
-    // Produção do dia
-    const producaoDia = movimentacoes
-      .filter(m => m.tipo === 'PRODUCAO' && new Date(m.created_at).toDateString() === hoje)
-      .reduce((acc, m) => acc + (m.quantidade || 0), 0);
+        if (!filtroAno || r.ano === filtroAno) {
+            const qtd = r.quantidade || 0;
+            const qtdBaixada = r.quantidade_baixada || 0;
+            const status = r.status || 'INDEFINIDO';
+            const m = r.mes_producao || 'Sem Mês';
+            const cli = r.cliente || 'Desconhecido';
+            
+            totalReservado += qtd;
+            totalProduzido += qtdBaixada;
+            
+            if (status === 'EM_PRODUCAO') emProducao++;
+            if (status === 'RESERVADO') pendentes++;
+            
+            countStatus[status] = (countStatus[status] || 0) + 1;
+            
+            if (['RESERVADO', 'EM_PRODUCAO'].includes(status)) {
+                reservasAtivasCount++;
+                if (qtdBaixada < qtd) {
+                    lotesNaoFinalizados.push(r);
+                }
+            }
 
-    // Alertas recentes (últimas 24h)
+            if (!countPorCliente[cli]) countPorCliente[cli] = { reservado: 0, produzido: 0 };
+            countPorCliente[cli].reservado += qtd;
+            countPorCliente[cli].produzido += qtdBaixada;
+
+            if (!countPorMes[m]) countPorMes[m] = { reservado: 0, produzido: 0 };
+            countPorMes[m].reservado += qtd;
+            countPorMes[m].produzido += qtdBaixada;
+        }
+    }
+
+    // Produção do dia (movimentacoes) - O(N)
+    let producaoDia = 0;
+    const gargalosMap = {};
+    for (let i = 0; i < movimentacoes.length; i++) {
+        const m = movimentacoes[i];
+        if (m.tipo === 'PRODUCAO') {
+            const qtd = m.quantidade || 0;
+            if (new Date(m.created_at).toDateString() === hoje) {
+                producaoDia += qtd;
+            }
+            if (m.celula) {
+                gargalosMap[m.celula] = (gargalosMap[m.celula] || 0) + qtd;
+            }
+        }
+    }
+
+    const gargalos = Object.entries(gargalosMap)
+        .sort((a, b) => b[1] - a[1]) // highest first
+        .slice(0, 3)
+        .map(([celula, quantidade]) => ({ celula, quantidade }));
+
+    // Alertas recentes (auditoria) - O(N)
     const ultimas24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const alertasRecentes = auditoria.filter(a =>
-      new Date(a.created_at) >= ultimas24h &&
-      ['RESERVA_CANCELADA', 'ANO_ENCERRADO'].includes(a.acao)
-    );
+    const alertasRecentes = [];
+    for (let i = 0; i < auditoria.length; i++) {
+        const a = auditoria[i];
+        if (new Date(a.created_at) >= ultimas24h && ['RESERVA_CANCELADA', 'ANO_ENCERRADO'].includes(a.acao)) {
+            alertasRecentes.push(a);
+        }
+    }
 
-    // Lotes não finalizados
-    const lotesNaoFinalizados = filtradas.filter(r =>
-      ['RESERVADO', 'EM_PRODUCAO'].includes(r.status) &&
-      r.quantidade_baixada < r.quantidade
-    );
+    // KPIs do PCP (ops) - O(N)
+    let totalOPsPrevistas = 0;
+    let opsComAtraso = 0;
+    for (let i = 0; i < pcpOps.length; i++) {
+        const op = pcpOps[i];
+        if (op.ano === filtroAno) {
+            const qt = op.quantidade_total || 0;
+            const qr = op.realizado || 0;
+            totalOPsPrevistas += qt;
+            if (op.status === 'Ativo' && qt > 0 && qr < qt) {
+                opsComAtraso++;
+            }
+        }
+    }
 
-    // KPIs do PCP (Unidos do Executivo)
-    const opsAnoAtual = pcpOps.filter(op => op.ano === filtroAno);
-    const totalOPsPrevistas = opsAnoAtual.reduce((acc, op) => acc + (op.quantidade_total || 0), 0);
-    const totalOPsRealizadas = pcpProducoes.filter(p => p.ano === filtroAno).reduce((acc, p) => acc + (p.realizado || 0), 0);
-    const opsComAtraso = opsAnoAtual.filter(op => op.status === 'Ativo' && (op.quantidade_total || 0) > 0 && (op.realizado || 0) < op.quantidade_total).length;
+    let totalOPsRealizadas = 0;
+    for (let i = 0; i < pcpProducoes.length; i++) {
+        totalOPsRealizadas += (pcpProducoes[i].realizado || 0);
+    }
 
     // --- SCORE DE RISCO ---
     const taxaProducao = totalReservado > 0 ? (totalProduzido / totalReservado) * 100 : 0;
-    const reservasAtivas = filtradas.filter(r => ['RESERVADO', 'EM_PRODUCAO'].includes(r.status)).length;
     let riskScore = 20;
-    if (taxaProducao < 30 && reservasAtivas > 10) riskScore = 85;
-    else if (taxaProducao < 50 && reservasAtivas > 5) riskScore = 60;
+    if (taxaProducao < 30 && reservasAtivasCount > 10) riskScore = 85;
+    else if (taxaProducao < 50 && reservasAtivasCount > 5) riskScore = 60;
     else if (taxaProducao < 70) riskScore = 40;
 
     let riskLevel = 'low';
@@ -152,38 +254,19 @@ export default function Dashboard() {
     }[riskLevel];
 
     // --- TOP CLIENTES ---
-    const porCliente = filtradas.reduce((acc, r) => {
-      if (r.cliente) {
-        if (!acc[r.cliente]) acc[r.cliente] = { reservado: 0, produzido: 0 };
-        acc[r.cliente].reservado += r.quantidade || 0;
-        acc[r.cliente].produzido += r.quantidade_baixada || 0;
-      }
-      return acc;
-    }, {});
-
-    const topClientes = Object.entries(porCliente)
+    const topClientes = Object.entries(countPorCliente)
       .sort(([, a], [, b]) => b.reservado - a.reservado)
       .slice(0, 5)
       .map(([name, data]) => ({ name, ...data }));
 
-    // Concentração
     const totalVolTop3 = topClientes.slice(0, 3).reduce((acc, c) => acc + c.reservado, 0);
     const top3Percentual = totalReservado > 0 ? Math.round((totalVolTop3 / totalReservado) * 100) : 0;
 
     // --- COMPARATIVO ---
-    const totalAnoAnterior = anoAnterior.reduce((acc, r) => acc + (r.quantidade || 0), 0);
     const crescimento = totalAnoAnterior > 0 ? Math.round(((totalReservado - totalAnoAnterior) / totalAnoAnterior) * 100) : 0;
 
     // --- DADOS MENSAIS ---
-    const porMes = filtradas.reduce((acc, r) => {
-      const m = r.mes_producao || 'Sem Mês';
-      if (!acc[m]) acc[m] = { reservado: 0, produzido: 0 };
-      acc[m].reservado += r.quantidade || 0;
-      acc[m].produzido += r.quantidade_baixada || 0;
-      return acc;
-    }, {});
-
-    const dadosMensais = Object.entries(porMes).map(([name, data]) => ({
+    const dadosMensais = Object.entries(countPorMes).map(([name, data]) => ({
       name,
       ...data,
       eficiencia: data.reservado > 0 ? Math.round((data.produzido / data.reservado) * 100) : 0
@@ -201,7 +284,7 @@ export default function Dashboard() {
       totalProduzido,
       emProducao,
       pendentes,
-      statusCount: filtradas.reduce((acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc; }, {}),
+      statusCount: countStatus,
       topClientes,
       top3Percentual,
       crescimento,
@@ -215,10 +298,9 @@ export default function Dashboard() {
       opsComAtraso,
       percentualProduzido: totalReservado > 0 ? Math.round((totalProduzido / totalReservado) * 100) : 0,
       taxaProducao: Math.round(taxaProducao),
-      gargalos: Object.entries(movimentacoes.filter(m => m.tipo === 'PRODUCAO' && m.celula).reduce((acc, m) => { acc[m.celula] = (acc[m.celula] || 0) + (m.quantidade || 0); return acc; }, {}))
-        .sort((a, b) => a[1] - b[1]).slice(0, 3).map(([celula, quantidade]) => ({ celula, quantidade }))
+      gargalos
     };
-  }, [reservas, filtroAno, movimentacoes, auditoria, pcpOps, pcpProducoes]);
+  }, [reservas, movimentacoes, auditoria, pcpOps, pcpProducoes, filtroAno]);
 
   const anosDisponiveis = useMemo(() => {
     return [...new Set(sequencias.filter(s => s && s.ano).map(s => s.ano))]
@@ -537,7 +619,7 @@ export default function Dashboard() {
                           </div>
                           <div className="space-y-1">
                             <p className="font-black text-slate-900 dark:text-white uppercase italic tracking-tighter text-lg leading-none">{gargalo.celula}</p>
-                            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest italic opacity-60">Terminal de Coleta</p>
+                            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest italic opacity-60">Coleta</p>
                           </div>
                         </div>
                         <div className="text-right">

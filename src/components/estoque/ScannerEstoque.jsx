@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, Keyboard, Search, Package, X } from 'lucide-react';
+import { Camera, Keyboard, Search, X } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

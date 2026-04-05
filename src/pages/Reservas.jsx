@@ -8,6 +8,8 @@ import { createPageUrl } from '../utils';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Plus, Package, Eye, History, BarChart3, RefreshCw, ScanLine, Calendar, X } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useSearch } from '../components/hooks/useSearch';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import ReservaForm from '../components/reservas/ReservaForm';
 import BaixaForm from '../components/baixas/BaixaForm';
 import ReservasTable from '../components/tables/ReservasTable';
-import AdvancedFilterBar from '../components/filters/AdvancedFilterBar';
+
 import ExportarRelatorio from '../components/relatorios/ExportarRelatorio';
 import { proximoNumero, anteriorNumero, calcularQuantidade, checarSobreposicao, estaContido, eApos } from '../core/numeracaoService';
 import ProdutosTab from '../components/reservas/ProdutosTab';
@@ -27,7 +29,7 @@ import QuebrarLoteDialog from '../components/reservas/QuebrarLoteDialog';
 import NumeracoesLivres from '../components/reservas/NumeracoesLivres';
 import DashboardReservas from '../components/reservas/DashboardReservas';
 import SetorReadonlyBanner, { useSetorReadonly } from '@/components/pcp/SetorReadonlyBanner';
-import { PremiumCard } from '@/components/ui/PremiumCard';
+
 import SearchBar from '../components/search/SearchBar';
 import { PageTransition } from '@/components/ui/page-transition';
 
@@ -113,6 +115,8 @@ export default function Reservas() {
         nome: p.nome_cliente || p.modelo || p.descricao || 'PRODUTO TÉCNICO',
         codigo: p.codigo_produto,
         letra_padrao: p.letra_produto || '',
+        sufixo: p.sufixo || '',
+        prefixo_padrao: p.prefixo_padrao || '',
         modelo: p.modelo || '',
         origem: 'tecnico'
       }));
@@ -123,6 +127,8 @@ export default function Reservas() {
         nome: c.nome,
         codigo: c.codigo,
         letra_padrao: c.letra_produto || '',
+        sufixo: c.sufixo || '',
+        prefixo_padrao: c.prefixo_padrao || '',
         modelo: c.modelo || c.descricao_produto || '',
         origem: 'comercial'
       }));
@@ -133,8 +139,18 @@ export default function Reservas() {
         const exist = unified.find(u => u.codigo === c.codigo);
         if (!exist) {
           unified.push(c);
-        } else if (!exist.letra_padrao && c.letra_produto) {
-          exist.letra_padrao = c.letra_produto;
+        } else {
+          // Preencher letra se ausente no técnico
+          if (!exist.letra_padrao && c.letra_produto) {
+            exist.letra_padrao = c.letra_produto;
+          }
+          // Preencher sufixo e prefixo se ausentes no técnico
+          if (!exist.sufixo && c.sufixo) {
+            exist.sufixo = c.sufixo;
+          }
+          if (!exist.prefixo_padrao && c.prefixo_padrao) {
+            exist.prefixo_padrao = c.prefixo_padrao;
+          }
         }
       });
 
@@ -180,8 +196,14 @@ export default function Reservas() {
   });
 
   const { data: pcpOps = [] } = useQuery({
-    queryKey: ['pcp-ops-all'],
-    queryFn: () => rdsn.entities.PCPOrdemProducao.filter({ status: 'Ativo' })
+    queryKey: ['pcp-ops-all', setorAtivo],
+    queryFn: () => {
+      if (!setorAtivo || setorAtivo === 'ALL') {
+        return rdsn.entities.PCPOrdemProducao.list();
+      }
+      return rdsn.entities.PCPOrdemProducao.filter({ setor_id: setorAtivo });
+    },
+    enabled: !!setorAtivo
   });
 
   const sincronizarMutation = useMutation({
@@ -708,22 +730,26 @@ export default function Reservas() {
     return f;
   }, [filters]);
 
-  const letras = [...new Set(produtos.map(p => p.letra_produto))].sort();
+
   const anos = [...new Set(sequencias.map(s => s.ano))].sort((a, b) => b - a);
+  const letras = [...new Set(produtos.map(p => p.letra_produto).filter(Boolean))].sort();
+  const statusOptions = ['RESERVADO', 'EM PRODUÇÃO', 'CONCLUIDO', 'CANCELADO'];
+  const activeFilterCount = Object.values(filters).filter(v => v !== '').length;
+  const hasActiveFilters = activeFilterCount > 0;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header Premium */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(59,130,246,0.1),transparent)] pointer-events-none" />
           <div className="relative flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
-            <div className="flex items-center gap-6 sm:gap-8">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all hover:scale-105 active:scale-95 group border border-blue-400/20">
-                <Package className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:rotate-12 transition-transform duration-500" />
+            <div className="flex items-center gap-4 sm:gap-5">
+              <div className="w-16 h-16 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all hover:scale-105 active:scale-95 group border border-blue-400/20">
+                <Package className="w-8 h-8 sm:w-6 sm:h-6 text-white group-hover:rotate-12 transition-transform duration-500" />
               </div>
               <div className="space-y-1">
-                <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
                   Gestão de <span className="text-blue-600 dark:text-blue-400">Reservas</span>
                 </h1>
                 <p className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
@@ -814,6 +840,7 @@ export default function Reservas() {
                 sequencias={sequencias}
                 setActiveTab={setActiveTab}
                 setFilters={setFilters}
+                pcpOps={pcpOps}
               />
             </PageTransition>
           </TabsContent>
@@ -829,8 +856,9 @@ export default function Reservas() {
                 }}
               />
 
-              {/* Barra de Busca Global */}
-              <PremiumCard noPadding className="mb-6" title="Busca Rápida" icon={Plus}>
+              {/* Busca + Filtros Granulares Integrados */}
+              <div className="rounded-[2rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl border border-slate-200 dark:border-white/5 shadow-lg overflow-hidden">
+                {/* Search bar */}
                 <div className="p-4">
                   <SearchBar
                     value={searchTerm}
@@ -840,25 +868,81 @@ export default function Reservas() {
                     showResultCount={searchTerm !== ''}
                   />
                 </div>
-              </PremiumCard>
 
-              <AdvancedFilterBar
-                filters={filters}
-                setFilters={setFilters}
-                reservas={reservas}
-                letras={letras}
-                anos={anos}
-                onClear={() => setFilters({
-                  cliente: '',
-                  codigoProduto: '',
-                  modelo: '',
-                  letra: '',
-                  ano: '',
-                  status: '',
-                  dataInicio: '',
-                  dataFim: ''
-                })}
-              />
+                {/* Filtros compactos inline */}
+                <div className="px-4 pb-4 pt-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Status */}
+                    <Select value={filters.status || 'all'} onValueChange={(v) => setFilters(prev => ({ ...prev, status: v === 'all' ? '' : v }))}>
+                      <SelectTrigger className="w-auto min-w-[130px] h-8 text-[10px] font-bold uppercase tracking-widest bg-white/50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl hover:bg-white/80 dark:hover:bg-white/10 transition-colors px-3 gap-1.5">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200 dark:border-white/10 shadow-2xl bg-white/95 dark:bg-[#0c0c0e]/95 backdrop-blur-xl">
+                        <SelectItem value="all" className="rounded-lg cursor-pointer text-xs">Todos os Status</SelectItem>
+                        {statusOptions.map(s => (
+                          <SelectItem key={s} value={s} className="rounded-lg cursor-pointer text-xs">{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Prefixo / Letra */}
+                    <Select value={filters.letra || 'all'} onValueChange={(v) => setFilters(prev => ({ ...prev, letra: v === 'all' ? '' : v }))}>
+                      <SelectTrigger className="w-auto min-w-[110px] h-8 text-[10px] font-bold uppercase tracking-widest bg-white/50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl hover:bg-white/80 dark:hover:bg-white/10 transition-colors px-3 gap-1.5">
+                        <SelectValue placeholder="Prefixo" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200 dark:border-white/10 shadow-2xl bg-white/95 dark:bg-[#0c0c0e]/95 backdrop-blur-xl">
+                        <SelectItem value="all" className="rounded-lg cursor-pointer text-xs">Todos Prefixos</SelectItem>
+                        {letras.map(l => (
+                          <SelectItem key={l} value={l} className="rounded-lg cursor-pointer text-xs font-mono">{l}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Ano */}
+                    <Select value={filters.ano || 'all'} onValueChange={(v) => setFilters(prev => ({ ...prev, ano: v === 'all' ? '' : v }))}>
+                      <SelectTrigger className="w-auto min-w-[100px] h-8 text-[10px] font-bold uppercase tracking-widest bg-white/50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl hover:bg-white/80 dark:hover:bg-white/10 transition-colors px-3 gap-1.5">
+                        <SelectValue placeholder="Ano" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-slate-200 dark:border-white/10 shadow-2xl bg-white/95 dark:bg-[#0c0c0e]/95 backdrop-blur-xl">
+                        <SelectItem value="all" className="rounded-lg cursor-pointer text-xs">Todos os Anos</SelectItem>
+                        {anos.map(a => (
+                          <SelectItem key={a} value={String(a)} className="rounded-lg cursor-pointer text-xs">{a}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Cliente input */}
+                    <Input
+                      value={filters.cliente}
+                      onChange={(e) => setFilters(prev => ({ ...prev, cliente: e.target.value }))}
+                      placeholder="Cliente..."
+                      className="w-auto min-w-[140px] max-w-[200px] h-8 text-xs bg-white/50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl hover:bg-white/80 dark:hover:bg-white/10 transition-colors px-3"
+                    />
+
+                    {/* Resultado + Limpar */}
+                    <div className="flex items-center gap-2 ml-auto">
+                      {hasActiveFilters && (
+                        <>
+                          <Badge className="bg-blue-600/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg">
+                            {activeFilterCount} filtro{activeFilterCount > 1 ? 's' : ''}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFilters({ cliente: '', codigoProduto: '', modelo: '', letra: '', ano: '', status: '', dataInicio: '', dataFim: '' })}
+                            className="h-7 px-2 text-[9px] font-bold uppercase tracking-widest text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 rounded-lg transition-colors"
+                          >
+                            <X className="w-3 h-3 mr-1" />
+                            Limpar
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
 
               <ReservasTable
                 reservas={filteredReservas}
@@ -948,7 +1032,7 @@ export default function Reservas() {
         {/* Baixa Dialog */}
         <Dialog open={showBaixa} onOpenChange={setShowBaixa}>
           <DialogContent className="max-w-[70rem] h-[90vh] md:h-[85vh] p-0 flex flex-col bg-white dark:bg-slate-900 border-0 rounded-[2.5rem] overflow-hidden shadow-2xl dark:shadow-emerald-900/20">
-            <div className="shrink-0 relative overflow-hidden bg-gradient-to-br from-emerald-600 to-teal-800 p-8 sm:p-10">
+            <div className="shrink-0 relative overflow-hidden bg-gradient-to-br from-emerald-600 to-teal-800 p-5 sm:p-6">
               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full -mr-32 -mt-32 blur-3xl" />
               <DialogHeader className="relative z-10">
                 <div className="flex items-center gap-4 mb-3">
@@ -1019,6 +1103,7 @@ export default function Reservas() {
                   <ReservaDetalhes
                     reserva={selectedReserva}
                     baixas={baixas.filter(b => b.reserva_id === selectedReserva.id)}
+                    pcpOps={pcpOps}
                     onBaixa={() => {
                       setShowDetalhes(false);
                       setShowBaixa(true);

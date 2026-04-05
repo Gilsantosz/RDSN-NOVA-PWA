@@ -18,7 +18,7 @@ Any change pushed to the repo will also be reflected in the RDSN Builder.
 4. Create an `.env.local` file and set the right environment variables
 
 ```bash
-# RDSN Project Configuration (v2.0.0)
+# RDSN Project Configuration (v2.0.1)
 VITE_RDSN_APP_ID=your_app_id
 
 # Supabase Configuration

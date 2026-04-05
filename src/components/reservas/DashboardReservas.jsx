@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
 import { useSetor } from '@/components/context/SetorContext';
@@ -100,9 +100,27 @@ const CustomTooltip = ({ active = false, payload = [], label = "" }) => {
   );
 };
 
-export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTab, setFilters }) {
+export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTab, setFilters, pcpOps = [] }) {
   const { setorAtivo, isAdmin } = useSetor();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const unsubReservas = rdsn.entities.ReservaLote.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['reservas'] });
+    });
+    const unsubMov = rdsn.entities.MovimentacaoEstoque.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['movimentacoes-dashboard'] });
+    });
+    const unsubAud = rdsn.entities.Auditoria.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['auditoria-dashboard'] });
+    });
+
+    return () => {
+      unsubReservas();
+      unsubMov();
+      unsubAud();
+    };
+  }, [queryClient]);
 
   // Membros do time/sessão
   const { data: user } = useQuery({
@@ -133,9 +151,9 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
         return await rdsn.entities.MovimentacaoEstoque.list('-created_at', 500);
       }
       const produtos = await rdsn.entities.Produto.filter({ setor_id: setorAtivo });
-      const produtoIds = produtos.map(p => p.id);
+      const produtoIds = new Set(produtos.map(p => p.id));
       const todas = await rdsn.entities.MovimentacaoEstoque.list('-created_at', 500);
-      return todas.filter(m => produtoIds.includes(m.produto_id));
+      return todas.filter(m => produtoIds.has(m.produto_id));
     },
     enabled: !!setorAtivo,
     staleTime: 5 * 60 * 1000
@@ -150,42 +168,73 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
       }
       const todas = await rdsn.entities.Auditoria.list('-created_at', 50);
       const seqs = await rdsn.entities.SequenciaAnual.filter({ setor_id: setorAtivo });
-      const letras = [...new Set(seqs.map(s => s.letra_produto))];
-      return todas.filter(a => letras.includes(a.letra_produto));
+      const letras = new Set(seqs.map(s => s.letra_produto));
+      return todas.filter(a => letras.has(a.letra_produto));
     },
     enabled: !!setorAtivo,
     staleTime: 5 * 60 * 1000
   });
 
   // Estatísticas calculadas
+  // Estatísticas calculadas de forma otimizada para lidar com grandes volumes
   const stats = useMemo(() => {
+    // 1. Otimização de filtros básicos
+    const preFiltradas = filtroAno ? reservas.filter(r => r.ano === filtroAno) : reservas;
+    
+    // Filtro para ignorar reservas canceladas e reservas com OPs Canceladas
+    const filtradas = preFiltradas.filter(r => {
+      if (r.status === 'CANCELADO') return false;
+      
+      if (pcpOps && pcpOps.length > 0 && r.codigo_produto) {
+        const opVinculada = pcpOps.find(op => 
+          op.codigo_produto && 
+          op.codigo_produto.toLowerCase().trim() === r.codigo_produto.toLowerCase().trim()
+        );
+        if (opVinculada && opVinculada.status === 'Cancelado') {
+          return false;
+        }
+      }
+      return true;
+    });
+
     const hojeString = new Date().toDateString();
-    const filtradas = reservas.filter(r => !filtroAno || r.ano === filtroAno);
+    const ultimas24h = Date.now() - 24 * 60 * 60 * 1000;
+    const acoesRelevantes = new Set(['RESERVA_CANCELADA', 'ANO_ENCERRADO']);
 
-    const producaoDia = movimentacoes
-      .filter(m => m.tipo === 'PRODUCAO' && new Date(m.created_at).toDateString() === hojeString)
-      .reduce((acc, m) => acc + (m.quantidade || 0), 0);
+    // 2. Loop único para movimentações (evita filter seguido de reduce e recriação de Date)
+    let producaoDia = 0;
+    for (const m of movimentacoes) {
+      if (m.tipo === 'PRODUCAO' && new Date(m.created_at).toDateString() === hojeString) {
+        producaoDia += (m.quantidade || 0);
+      }
+    }
 
-    const ultimas24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    // 3. Loop único para auditoria com data otimizada
     const alertasRecentes = auditoria.filter(a =>
-      new Date(a.created_at) >= ultimas24h &&
-      ['RESERVA_CANCELADA', 'ANO_ENCERRADO'].includes(a.acao)
+      new Date(a.created_at).getTime() >= ultimas24h && acoesRelevantes.has(a.acao)
     );
 
-    const lotesEmProducao = filtradas.filter(r => r.status === 'EM_PRODUCAO');
-    const totalReservado = filtradas.reduce((acc, r) => acc + (r.quantidade || 0), 0);
-    const totalProduzido = filtradas.reduce((acc, r) => acc + (r.quantidade_baixada || 0), 0);
+    // 4. Loop único processando as milhares de reservas sem recriar arrays
+    let totalReservado = 0;
+    let totalProduzido = 0;
+    const lotesEmProducao = [];
+    const porMes = {};
 
-    const porMes = filtradas.reduce((acc, r) => {
+    for (const r of filtradas) {
+      if (r.status === 'EM_PRODUCAO') {
+        lotesEmProducao.push(r);
+      }
+      totalReservado += (r.quantidade || 0);
+      totalProduzido += (r.quantidade_baixada || 0);
+
       const mes = r.mes_producao || 'Sem Mês';
-      if (!acc[mes]) acc[mes] = { reservado: 0, produzido: 0 };
-      acc[mes].reservado += r.quantidade || 0;
-      acc[mes].produzido += r.quantidade_baixada || 0;
-      return acc;
-    }, {});
+      if (!porMes[mes]) porMes[mes] = { reservado: 0, produzido: 0 };
+      porMes[mes].reservado += r.quantidade || 0;
+      porMes[mes].produzido += r.quantidade_baixada || 0;
+    }
 
     const mesesOrdenados = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro', 'Sem Mês'];
 
     const dadosMensais = mesesOrdenados
       .filter(mes => porMes[mes])
@@ -196,6 +245,9 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
         eficiencia: porMes[mes].reservado > 0 ? (porMes[mes].produzido / porMes[mes].reservado) * 100 : 0
       }));
 
+    const rawPercentual = totalReservado > 0 ? Math.round((totalProduzido / totalReservado) * 100) : 0;
+    const percentualProduzido = Math.min(100, rawPercentual); // Impede o overflow visual na barra se for > 100%
+
     return {
       producaoDia,
       alertasRecentes,
@@ -203,9 +255,10 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
       totalReservado,
       totalProduzido,
       dadosMensais,
-      percentualProduzido: totalReservado > 0 ? Math.round((totalProduzido / totalReservado) * 100) : 0
+      rawPercentual,
+      percentualProduzido
     };
-  }, [reservas, filtroAno, movimentacoes, auditoria]);
+  }, [reservas, filtroAno, movimentacoes, auditoria, pcpOps]);
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['reservas'] });
@@ -289,7 +342,7 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
         <PremiumDashboardCell 
           title="Yield Performance"
           value={stats.totalProduzido.toLocaleString()}
-          subValue={`${stats.percentualProduzido}% da meta`}
+          subValue={`${stats.rawPercentual}% da meta`}
           icon={CircleCheck}
           color="emerald"
           trend={stats.producaoDia > 0 ? `+${stats.producaoDia}` : null}
@@ -439,7 +492,7 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
                   </div>
                   <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Status Geral</p>
                   <h3 className="text-3xl font-black mt-2 tracking-tighter">
-                    {stats.percentualProduzido}% <span className="text-slate-500 text-lg">DONE</span>
+                    {stats.rawPercentual}% <span className="text-slate-500 text-lg">DONE</span>
                   </h3>
                   <div className="mt-8 h-2 w-full bg-slate-800 rounded-full overflow-hidden">
                     <motion.div 
@@ -450,7 +503,10 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
                     />
                   </div>
                   <p className="text-[10px] font-bold mt-4 text-slate-500">
-                    Faltam <span className="text-white">{(stats.totalReservado - stats.totalProduzido).toLocaleString()}</span> peças para meta
+                    {stats.totalProduzido >= stats.totalReservado 
+                      ? <span className="text-emerald-400">Meta concluída!</span>
+                      : <>Faltam <span className="text-white">{(stats.totalReservado - stats.totalProduzido).toLocaleString()}</span> peças para meta</>
+                    }
                   </p>
                </div>
 

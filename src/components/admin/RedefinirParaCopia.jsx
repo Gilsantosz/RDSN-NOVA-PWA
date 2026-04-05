@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Trash2, Loader2, Shield, CheckCircle } from 'lucide-react';
+import { AlertTriangle, Trash2, Loader2, Shield } from 'lucide-react';
 import { toast } from "sonner";
 import {
   Dialog,

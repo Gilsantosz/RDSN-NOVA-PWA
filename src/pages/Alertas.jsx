@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
 import { useSetor } from '@/components/context/SetorContext';
@@ -49,6 +49,20 @@ const notifPrioridadeConfig = {
 export default function Alertas() {
   const queryClient = useQueryClient();
   const { setorAtivo, isAdmin } = useSetor();
+
+  useEffect(() => {
+    const unsubAlertas = rdsn.entities.Alerta.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['alertas'] });
+    });
+    const unsubNotificacoes = rdsn.entities.Notificacao.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['notificacoes-central'] });
+    });
+
+    return () => {
+      if (unsubAlertas) unsubAlertas();
+      if (unsubNotificacoes) unsubNotificacoes();
+    };
+  }, [queryClient]);
   const [filtroAlerta, setFiltroAlerta] = useState('todos');
   const [filtroNotif, setFiltroNotif] = useState('todos');
   const [tab, setTab] = useState('pcp');
@@ -202,15 +216,15 @@ export default function Alertas() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-6 transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header Premium */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(239,68,68,0.1),transparent)] pointer-events-none" />
           <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-            <div className="flex items-center gap-6 sm:gap-8">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-red-600 to-rose-400 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.3)] transition-all hover:scale-105 active:scale-95 group border border-red-400/20">
-                <Bell className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:rotate-12 transition-transform duration-500" />
+            <div className="flex items-center gap-4 sm:gap-5">
+              <div className="w-16 h-16 sm:w-14 sm:h-14 bg-gradient-to-br from-red-600 to-rose-400 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.3)] transition-all hover:scale-105 active:scale-95 group border border-red-400/20">
+                <Bell className="w-8 h-8 sm:w-6 sm:h-6 text-white group-hover:rotate-12 transition-transform duration-500" />
               </div>
               <div className="space-y-1">
-                <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
                   Central de <span className="text-red-600 dark:text-red-400">Alertas</span>
                 </h1>
                 <p className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
@@ -318,23 +332,23 @@ export default function Alertas() {
                     className="h-12 px-6 rounded-2xl border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all font-black uppercase text-[10px] tracking-widest italic gap-3 shadow-lg shadow-red-500/10"
                   >
                     <Trash2 className="w-4 h-4" />
-                    Limpar Terminal
+                    Limpar Coleta
                   </Button>
                 )}
               </div>
             </div>
 
             {/* Terminal de Alertas Premium */}
-            <PremiumCard title="Journal de Incidências" icon={Activity} iconColor="#ef4444" contentClassName="p-8 sm:p-10">
+            <PremiumCard title="Journal de Incidências" icon={Activity} iconColor="#ef4444" contentClassName="p-5 sm:p-6">
               {loadingAlertas ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4">
                   <div className="w-12 h-12 border-4 border-red-500/20 border-t-red-600 rounded-full animate-spin" />
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] italic animate-pulse">Sincronizando Terminal...</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] italic animate-pulse">Sincronizando Coleta...</p>
                 </div>
               ) : alertasFiltrados.length === 0 ? (
                 <div className="text-center py-20 bg-slate-50/50 dark:bg-white/5 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-white/5">
                   <CircleCheck className="w-20 h-20 text-emerald-500/40 mx-auto mb-6 drop-shadow-2xl" />
-                  <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Terminal em Conformidade</h4>
+                  <h4 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Coleta em Conformidade</h4>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">Nenhum evento registrado no período selecionado</p>
                 </div>
               ) : (

@@ -48,8 +48,14 @@ export default function PCPProgramacaoMensal() {
   const dias = Array.from({ length: totalDias }, (_, i) => i + 1);
 
   const { data: pcpClientes = [] } = useQuery({
-    queryKey: ['pcp-clientes'],
-    queryFn: () => rdsn.entities.PCPCliente.list('nome', 500)
+    queryKey: ['pcp-clientes', setorAtivo],
+    queryFn: () => {
+      if (!setorAtivo || setorAtivo === 'ALL') {
+        return rdsn.entities.PCPCliente.list('nome', 500);
+      }
+      return rdsn.entities.PCPCliente.filter({ setor_id: setorAtivo }, 'nome', 500);
+    },
+    enabled: !!setorAtivo
   });
 
   const clienteMap = useMemo(() => {
@@ -267,21 +273,23 @@ export default function PCPProgramacaoMensal() {
       <React.Fragment key={op.id}>
         {/* Linha Previsto */}
         <tr className="border-b border-slate-100 dark:border-slate-800 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 group transition-colors">
-          <td rowSpan={3} className="sticky left-0 z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-slate-500 dark:text-slate-400 px-2 min-w-[40px] group-hover:bg-blue-50/30 dark:group-hover:bg-blue-900/20">{op.item_num || idx + 1}</td>
-          <td rowSpan={3} className="sticky left-[40px] z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300 px-2 min-w-[100px] group-hover:bg-blue-50/30 dark:group-hover:bg-blue-900/20">
-            <div className="flex items-center gap-1">
-              <span>{op.codigo_op}</span>
-              <button type="button" onClick={() => setEditingOP(op)} className="opacity-0 group-hover:opacity-100 transition-all ml-1 p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700" title="Editar OP">
-                <Pencil className="w-3 h-3 text-slate-500 dark:text-slate-400" />
-              </button>
-              <button type="button" onClick={() => setDistribuindoOP(op)} className="opacity-0 group-hover:opacity-100 transition-all p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900" title="Distribuir quantidade nos dias">
-                <SlidersHorizontal className="w-3 h-3 text-blue-500 dark:text-blue-400" />
-              </button>
+          <td rowSpan={3} className="sticky left-0 z-20 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-slate-500 dark:text-slate-400 px-2 min-w-[40px] group-hover:bg-blue-50 dark:group-hover:bg-slate-800 transition-colors">{op.item_num || idx + 1}</td>
+          <td rowSpan={3} className="sticky left-[40px] z-20 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300 px-2 min-w-[125px] group-hover:bg-blue-50 dark:group-hover:bg-slate-800 transition-colors">
+            <div className="flex items-center justify-between gap-1 w-full">
+              <span className="truncate" title={op.codigo_op}>{op.codigo_op}</span>
+              <div className="flex items-center shrink-0">
+                <button type="button" onClick={() => setEditingOP(op)} className="opacity-70 hover:opacity-100 transition-all p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700" title="Editar OP">
+                  <Pencil className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                </button>
+                <button type="button" onClick={() => setDistribuindoOP(op)} className="opacity-70 hover:opacity-100 transition-all p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700" title="Distribuir quantidade">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                </button>
+              </div>
             </div>
           </td>
-          <td rowSpan={3} className="sticky left-[140px] z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 px-2 min-w-[150px] group-hover:bg-blue-50/30 dark:group-hover:bg-blue-900/20 max-w-[150px] truncate">{op.descricao || '-'}</td>
-          <td rowSpan={3} className="sticky left-[290px] z-10 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 px-2 min-w-[120px] group-hover:bg-blue-50/30 dark:group-hover:bg-blue-900/20 max-w-[120px] truncate">{op.cliente_nome || '-'}</td>
-          <td className="sticky left-[410px] z-10 bg-blue-50 dark:bg-blue-950 border-r-2 border-slate-300 dark:border-slate-700 text-center text-xs font-bold text-blue-700 dark:text-blue-400 px-2 min-w-[60px]">
+          <td rowSpan={3} className="sticky left-[165px] z-20 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 px-2 min-w-[150px] group-hover:bg-blue-50 dark:group-hover:bg-slate-800 max-w-[150px] transition-colors truncate">{op.descricao || '-'}</td>
+          <td rowSpan={3} className="sticky left-[315px] z-20 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 px-2 min-w-[120px] group-hover:bg-blue-50 dark:group-hover:bg-slate-800 max-w-[120px] transition-colors truncate">{op.cliente_nome || '-'}</td>
+          <td className="sticky left-[435px] z-20 bg-blue-50 dark:bg-slate-800 border-r-2 border-slate-300 dark:border-slate-700 text-center text-xs font-bold text-blue-700 dark:text-blue-400 px-2 min-w-[60px] shadow-[4px_0_6px_-2px_rgba(0,0,0,0.1)]">
             {qtdTotal > 0 ? qtdTotal.toLocaleString() : (totalPrev > 0 ? totalPrev.toLocaleString() : '-')}
           </td>
           <td className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-900/30 px-1 min-w-[28px] text-center border-r border-slate-100 dark:border-slate-800">Prev</td>
@@ -309,7 +317,7 @@ export default function PCPProgramacaoMensal() {
         </tr>
         {/* Linha Realizado */}
         <tr className="border-b border-slate-100 dark:border-slate-800 hover:bg-green-50/30 dark:hover:bg-green-900/10 group transition-colors">
-          <td className="sticky left-[410px] z-10 bg-green-50 dark:bg-green-950 border-r-2 border-slate-300 dark:border-slate-700 text-center text-xs font-bold text-green-700 dark:text-green-400 px-2 min-w-[60px]">
+          <td className="sticky left-[435px] z-20 bg-green-50 dark:bg-emerald-950 border-r-2 border-slate-300 dark:border-slate-700 text-center text-xs font-bold text-green-700 dark:text-green-400 px-2 min-w-[60px] shadow-[4px_0_6px_-2px_rgba(0,0,0,0.1)]">
             {totalReal > 0 ? totalReal.toLocaleString() : '-'}
           </td>
           <td className="text-[10px] font-semibold text-green-600 dark:text-green-400 bg-green-50/50 dark:bg-green-900/30 px-1 min-w-[28px] text-center border-r border-slate-100 dark:border-slate-800">Real</td>
@@ -335,7 +343,7 @@ export default function PCPProgramacaoMensal() {
         </tr>
         {/* Linha Saldo */}
         <tr className="border-b-2 border-slate-200 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 group transition-colors">
-          <td className="sticky left-[410px] z-10 bg-slate-50 dark:bg-slate-950 border-r-2 border-slate-300 dark:border-slate-700 text-center text-xs font-bold px-2 min-w-[60px]">
+          <td className="sticky left-[435px] z-20 bg-slate-50 dark:bg-slate-900 border-r-2 border-slate-300 dark:border-slate-700 text-center text-xs font-bold px-2 min-w-[60px] shadow-[4px_0_6px_-2px_rgba(0,0,0,0.1)]">
             <span className={totalSaldo >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
               {totalSaldo > 0 ? `+${totalSaldo}` : totalSaldo !== 0 ? totalSaldo.toLocaleString() : '-'}
             </span>
@@ -382,15 +390,15 @@ export default function PCPProgramacaoMensal() {
   const content = (
     <div className="p-4 md:p-6 min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       {/* Header Premium */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-8 sm:p-10 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-white/5 mb-6">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(37,99,235,0.1),transparent)] pointer-events-none" />
         <div className="relative flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8">
-          <div className="flex items-center gap-6 sm:gap-8">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all hover:scale-105 active:scale-95 group border border-blue-400/20">
-              <BarChart3 className="w-8 h-8 sm:w-10 sm:h-10 text-white group-hover:rotate-12 transition-transform duration-500" />
+          <div className="flex items-center gap-4 sm:gap-5">
+            <div className="w-16 h-16 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(37,99,235,0.3)] transition-all hover:scale-105 active:scale-95 group border border-blue-400/20">
+              <BarChart3 className="w-8 h-8 sm:w-6 sm:h-6 text-white group-hover:rotate-12 transition-transform duration-500" />
             </div>
             <div className="space-y-1">
-              <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
                 Programação <span className="text-blue-600 dark:text-blue-400">Mensal</span>
               </h1>
               <p className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
@@ -492,14 +500,14 @@ export default function PCPProgramacaoMensal() {
 
       <PremiumCard title="Quadro de Programação PCP" icon={Layers} contentClassName="p-0">
         <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 360px)' }}>
-          <table className="text-xs border-collapse" style={{ minWidth: `${470 + totalDias * 38 + COMP_COLS.length * COMP_W}px` }}>
+          <table className="text-xs border-collapse" style={{ minWidth: `${495 + totalDias * 38 + COMP_COLS.length * COMP_W}px` }}>
             <thead className="sticky top-0 z-20">
               {/* Linha Título */}
               <tr className="bg-slate-900 text-white">
                 <th colSpan={4} className="sticky left-0 z-30 bg-slate-900 text-left px-3 py-2 text-xs font-bold border-r-2 border-slate-600">
                   {MESES[mes - 1].toUpperCase()} 20{ano} — PROGRAMAÇÃO PCP
                 </th>
-                <th className="sticky left-[410px] z-30 bg-slate-900 px-2 py-2 text-xs font-bold border-r-2 border-slate-600 min-w-[60px]">TOTAL</th>
+                <th className="sticky left-[435px] z-30 bg-slate-900 px-2 py-2 text-xs font-bold border-r-2 border-slate-600 min-w-[60px] shadow-[4px_0_6px_-2px_rgba(0,0,0,0.2)]">TOTAL</th>
                 <th className="bg-slate-800 px-1 py-2 min-w-[28px]"></th>
                 {dias.map(dia => {
                   const isWknd = isWeekend(ano, mes, dia);
@@ -517,10 +525,10 @@ export default function PCPProgramacaoMensal() {
               {/* Linha SubHeader */}
               <tr className="bg-slate-100 dark:bg-slate-800 border-b-2 border-slate-300 dark:border-slate-700">
                 <th className="sticky left-0 z-30 bg-slate-100 dark:bg-slate-800 text-center text-xs font-bold text-slate-600 dark:text-slate-400 px-2 py-1.5 border-r border-slate-200 dark:border-slate-700 min-w-[40px]">#</th>
-                <th className="sticky left-[40px] z-30 bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 px-2 py-1.5 border-r border-slate-200 dark:border-slate-700 min-w-[100px]">Código</th>
-                <th className="sticky left-[140px] z-30 bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 px-2 py-1.5 border-r border-slate-200 dark:border-slate-700 min-w-[150px]">Descrição</th>
-                <th className="sticky left-[290px] z-30 bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 px-2 py-1.5 border-r border-slate-200 dark:border-slate-700 min-w-[120px]">Cliente</th>
-                <th className="sticky left-[410px] z-30 bg-slate-100 dark:bg-slate-800 text-center text-xs font-bold text-slate-600 dark:text-slate-400 px-2 py-1.5 border-r-2 border-slate-300 dark:border-slate-700 min-w-[60px]">Total</th>
+                <th className="sticky left-[40px] z-30 bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 px-2 py-1.5 border-r border-slate-200 dark:border-slate-700 min-w-[125px]">Código</th>
+                <th className="sticky left-[165px] z-30 bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 px-2 py-1.5 border-r border-slate-200 dark:border-slate-700 min-w-[150px]">Descrição</th>
+                <th className="sticky left-[315px] z-30 bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 px-2 py-1.5 border-r border-slate-200 dark:border-slate-700 min-w-[120px]">Cliente</th>
+                <th className="sticky left-[435px] z-30 bg-slate-100 dark:bg-slate-800 text-center text-xs font-bold text-slate-600 dark:text-slate-400 px-2 py-1.5 border-r-2 border-slate-300 dark:border-slate-700 min-w-[60px] shadow-[4px_0_6px_-2px_rgba(0,0,0,0.1)]">Total</th>
                 <th className="bg-slate-100 dark:bg-slate-800 px-1 py-1.5 min-w-[28px] text-xs font-bold text-slate-500 dark:text-slate-400 text-center border-r border-slate-200 dark:border-slate-700">P/R/S</th>
                 {dias.map(dia => {
                   const isWknd = isWeekend(ano, mes, dia);
@@ -547,8 +555,8 @@ export default function PCPProgramacaoMensal() {
               {/* Total Geral */}
               {opsNormais.length > 0 && (
                 <tr className="bg-slate-800 text-white font-bold border-t-2 border-slate-400">
-                  <td colSpan={4} className="sticky left-0 z-10 bg-slate-800 px-3 py-2 text-xs">TOTAL GERAL</td>
-                  <td className="sticky left-[410px] z-10 bg-slate-800 text-center px-2 text-xs">
+                  <td colSpan={4} className="sticky left-0 z-20 bg-slate-800 px-3 py-2 text-xs">TOTAL GERAL</td>
+                  <td className="sticky left-[435px] z-20 bg-slate-800 text-center px-2 text-xs shadow-[4px_0_6px_-2px_rgba(0,0,0,0.3)]">
                     {opsNormais.reduce((s, op) => s + getTotalOP(op.id, 'previsto'), 0).toLocaleString()}
                   </td>
                   <td className="bg-slate-800 px-1"></td>

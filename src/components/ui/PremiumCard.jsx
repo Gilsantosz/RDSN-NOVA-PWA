@@ -25,23 +25,23 @@ export function PremiumCard({
         )}>
             {(title || Icon) && (
                 <CardHeader className={cn(
-                    "bg-slate-50 dark:bg-slate-950/40 border-b border-slate-200 dark:border-white/5 p-6 sm:p-8 flex flex-row items-center justify-between",
+                    "bg-slate-50 dark:bg-slate-950/40 border-b border-slate-200 dark:border-white/5 p-4 sm:p-5 flex flex-row items-center justify-between",
                     headerClassName
                 )}>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                         {Icon && (
                             <div
-                                className="w-12 h-12 rounded-2xl flex items-center justify-center border shadow-inner transition-transform"
+                                className="w-9 h-9 rounded-xl flex items-center justify-center border shadow-inner transition-transform"
                                 style={{
                                     backgroundColor: `${iconColor}15`, // 15 = ~8% opacity
                                     borderColor: `${iconColor}30` // 30 = ~20% opacity
                                 }}
                             >
-                                <Icon className="w-6 h-6" style={{ color: iconColor }} />
+                                <Icon className="w-4 h-4" style={{ color: iconColor }} />
                             </div>
                         )}
                         {title && (
-                            <CardTitle className="text-xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none">
+                            <CardTitle className="text-sm font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-none">
                                 {title}
                             </CardTitle>
                         )}

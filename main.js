@@ -9,7 +9,7 @@ function createWindow() {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
-        title: "v2.0.0 RDSN - Industrial Intelligence Hub",
+        title: "v2.0.1 RDSN - Industrial Intelligence Hub",
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,

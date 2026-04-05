@@ -1,13 +1,27 @@
-import React, { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useMemo, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
 import { PremiumCard } from '@/components/ui/PremiumCard';
-import { BarChart3, TrendingUp, TrendingDown, Target, CircleCheck, Factory, Activity } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { BarChart3, Target, CircleCheck, Activity } from 'lucide-react';
 import { useSetor } from '@/components/context/SetorContext';
 
 export default function RelatorioExecutivo() {
     const { setorAtivo } = useSetor();
+    const queryClient = useQueryClient();
+
+    useEffect(() => {
+        const unsubReservas = rdsn.entities.ReservaLote.subscribe(() => {
+            queryClient.invalidateQueries({ queryKey: ['executivo-reservas'] });
+        });
+        const unsubBaixas = rdsn.entities.BaixaLote.subscribe(() => {
+            queryClient.invalidateQueries({ queryKey: ['executivo-baixas'] });
+        });
+
+        return () => {
+            if (unsubReservas) unsubReservas();
+            if (unsubBaixas) unsubBaixas();
+        };
+    }, [queryClient]);
 
     const { data: reservas = [] } = useQuery({
         queryKey: ['executivo-reservas', setorAtivo],

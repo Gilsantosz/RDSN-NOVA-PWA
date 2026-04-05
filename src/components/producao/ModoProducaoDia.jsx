@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { calcularQuantidade } from '@/core/numeracaoService';
 
 import ProducaoDiaCard from './ProducaoDiaCard';
 import NovaProducaoDiaDialog from './NovaProducaoDiaDialog';
@@ -106,12 +107,7 @@ export default function ModoProducaoDia({ reservas, produtos, setorInfo }) {
         // l.sequencia_decrescente é definido no handleToggle do NovaProducaoDiaDialog
         // Fallback para reserva e produto caso não esteja presente
         const reservaObj = l.reserva || l.reserva_original;
-        const prod = produtos.find(p => p.codigo_produto === reservaObj?.codigo_produto)
-          || produtos.find(p => p.letra_produto === reservaObj?.letra_produto && !p.codigo_produto);
-        const isDecrescente = l.sequencia_decrescente
-          ?? reservaObj?.sequencia_decrescente
-          ?? (prod?.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente)
-          ?? false;
+        const isDecrescente = l.sequencia_decrescente === true || reservaObj?.sequencia_decrescente === true;
         return rdsn.entities.ProducaoDiaLote.create({
           producao_dia_id: sessao.id,
           reserva_id: l.reserva_id,
@@ -158,13 +154,16 @@ export default function ModoProducaoDia({ reservas, produtos, setorInfo }) {
 
   // Mutation: Fechar lote (gerar baixa automática)
   const fecharLoteMutation = useMutation({
-    mutationFn: async ({ lote, numFinal }) => {
+    mutationFn: async ({ lote, numInicial, numFinal, ordemDecrescente, qtty }) => {
       const reserva = reservasMap[lote.reserva_id];
       if (!reserva) throw new Error('Reserva não encontrada');
 
-      const ini = Number(lote.numeracao_inicial) || 0;
+      const ini = Number(numInicial ?? lote.numeracao_inicial) || 0;
       const fim = Number(numFinal) || 0;
-      const quantidade = Math.abs(fim - ini) + 1;
+      const isDec = ordemDecrescente ?? (lote.sequencia_decrescente === true);
+      const quantidade = Number(qtty) || calcularQuantidade(ini, fim, isDec);
+      
+      // Na BaixaLote, numero_inicial sempre <= numero_final (representação do intervalo físico)
       const numInicialBaixa = Math.min(ini, fim);
       const numFinalBaixa = Math.max(ini, fim);
 
@@ -295,8 +294,8 @@ export default function ModoProducaoDia({ reservas, produtos, setorInfo }) {
     }
   });
 
-  const handleFechar = (lote, numFinal) => {
-    fecharLoteMutation.mutate({ lote, numFinal });
+  const handleFechar = (lote, numInicial, numFinal, ordemDecrescente, qtty) => {
+    fecharLoteMutation.mutate({ lote, numInicial, numFinal, ordemDecrescente, qtty });
   };
 
   const handleCancelar = (lote) => {
@@ -341,7 +340,7 @@ export default function ModoProducaoDia({ reservas, produtos, setorInfo }) {
       {isLoading ? (
         <div className="text-center py-20">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-500 dark:text-slate-400 font-black uppercase text-xs tracking-widest italic animate-pulse">Sincronizando Terminal...</p>
+          <p className="text-slate-500 dark:text-slate-400 font-black uppercase text-xs tracking-widest italic animate-pulse">Sincronizando Coleta...</p>
         </div>
       ) : lotesAbertos.length === 0 ? (
         <div className="relative group overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900/40 backdrop-blur-xl border-2 border-dashed border-slate-200 dark:border-white/5 p-16 text-center transition-all hover:border-blue-500/30">
@@ -396,6 +395,7 @@ export default function ModoProducaoDia({ reservas, produtos, setorInfo }) {
         onOpenChange={setShowNova}
         reservas={reservas}
         lotesJaAbertos={lotesJaAbertosIds}
+        lotesSessaoAbertos={lotesAbertos}
         baixasPorReserva={baixasPorReserva}
         setorNome={setorNome}
         onIniciar={(lotes) => iniciarProducaoMutation.mutate(lotes)}

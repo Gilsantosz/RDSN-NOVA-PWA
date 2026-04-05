@@ -86,8 +86,8 @@ export default function BaixaForm({
 
   useEffect(() => {
     if (produtoInfo && !ordemIniciada) {
-      const isDecrescente = reserva.sequencia_decrescente ?? (produtoInfo.ordem_numeracao === 'DECRESCENTE' || setorInfo?.sequencia_decrescente);
-      setOrdemDecrescente(!!isDecrescente);
+      const isDecrescente = reserva.sequencia_decrescente === true;
+      setOrdemDecrescente(isDecrescente);
       setOrdemIniciada(true);
     }
   }, [produtoInfo, ordemIniciada, setorInfo]);
@@ -95,8 +95,10 @@ export default function BaixaForm({
   useEffect(() => {
     if (reserva || usuarioLogado || produtoInfo) {
       const baixada = reserva.quantidade_baixada || 0;
-      const proximoNormalInicial = reserva.numero_inicial + baixada;
-      const proximoDecrescenteInicial = reserva.numero_final - baixada;
+      const minNum = Math.min(Number(reserva.numero_inicial), Number(reserva.numero_final));
+      const maxNum = Math.max(Number(reserva.numero_inicial), Number(reserva.numero_final));
+      const proximoNormalInicial = minNum + baixada;
+      const proximoDecrescenteInicial = maxNum - baixada;
 
       const setorProd = setores.find((s) => s.id === setorAtivo)?.nome || '';
       const operadorNome = usuarioLogado?.full_name || '';
@@ -269,6 +271,22 @@ export default function BaixaForm({
     }));
   };
 
+  const handleToggleOrdem = (novaOrdem) => {
+    setOrdemDecrescente(novaOrdem);
+    
+    // Inteligência: Se o ponto de partida atual estiver em um dos extremos da reserva, 
+    // inverte para o outro extremo ao mudar a ordem.
+    const iniAtual = Number(formData.numero_inicial);
+    const rangeMin = Math.min(Number(reserva.numero_inicial), Number(reserva.numero_final));
+    const rangeMax = Math.max(Number(reserva.numero_inicial), Number(reserva.numero_final));
+    
+    if (novaOrdem && iniAtual === rangeMin) {
+      setFormData(prev => ({ ...prev, numero_inicial: rangeMax.toString() }));
+    } else if (!novaOrdem && iniAtual === rangeMax) {
+      setFormData(prev => ({ ...prev, numero_inicial: rangeMin.toString() }));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <AnimatePresence>
@@ -323,7 +341,7 @@ export default function BaixaForm({
           <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-200 dark:border-white/5 shadow-xl transition-all">
             <div className="flex items-center justify-between mb-4">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">Estratégia</Label>
-              <Switch checked={ordemDecrescente} onCheckedChange={setOrdemDecrescente} className="data-[state=checked]:bg-purple-600" />
+              <Switch checked={ordemDecrescente} onCheckedChange={handleToggleOrdem} className="data-[state=checked]:bg-purple-600" />
             </div>
             <div className="flex items-center gap-4">
               <div className={cn(
@@ -334,7 +352,7 @@ export default function BaixaForm({
               </div>
               <div>
                 <p className="text-[11px] font-black text-slate-900 dark:text-white leading-none uppercase italic">Sentido de Processo</p>
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">{ordemDecrescente ? 'Decrescente (Invertido)' : 'Crescente (Sequencial)'}</p>
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">{ordemDecrescente ? 'NUMERAÇÃO REVERSA' : 'ESTRUTURA SEQUENCIAL'}</p>
               </div>
             </div>
           </div>
@@ -370,7 +388,7 @@ export default function BaixaForm({
                   </h3>
                   <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">
                     {automaticScanCount === 0 ? "Aguardando leitura inicial..." : 
-                     automaticScanCount === 1 ? "Pronto para leitura terminal..." : 
+                     automaticScanCount === 1 ? "Pronto para leitura de coleta..." : 
                      "Ciclo completo. Reinicie para nova sequência."}
                   </p>
                 </div>
@@ -425,7 +443,7 @@ export default function BaixaForm({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               <div className="space-y-3">
                 <div className="flex items-center justify-between px-1">
-                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest italic">{ordemDecrescente ? 'Terminal Partida' : 'Terminal Inicial'}</Label>
+                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest italic">{ordemDecrescente ? 'INÍCIO DA COLETA' : 'INÍCIO DA COLETA'}</Label>
                   <button type="button" onClick={() => { setScannerTarget('inicial'); setShowScanner(true); }} className="text-blue-600 hover:scale-110 transition-transform"><Camera className="w-4 h-4" /></button>
                 </div>
                 <Input
@@ -439,7 +457,7 @@ export default function BaixaForm({
               </div>
               <div className="space-y-3">
                 <div className="flex items-center justify-between px-1">
-                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest italic">{ordemDecrescente ? 'Terminal Final' : 'Terminal Encerramento'}</Label>
+                  <Label className="text-[10px] font-black uppercase text-slate-500 tracking-widest italic">{ordemDecrescente ? 'TÉRMINO DA COLETA' : 'TÉRMINO DA COLETA'}</Label>
                   <button type="button" onClick={() => { setScannerTarget('final'); setShowScanner(true); }} className="text-blue-600 hover:scale-110 transition-transform"><Camera className="w-4 h-4" /></button>
                 </div>
                 <div className="relative">

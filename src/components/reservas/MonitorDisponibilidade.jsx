@@ -1,12 +1,5 @@
-import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { AlertTriangle, CheckCircle, TrendingDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
 
 export default function MonitorDisponibilidade({ letraProduto, ano, setorId }) {
 

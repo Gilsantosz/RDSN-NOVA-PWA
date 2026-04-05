@@ -39,7 +39,7 @@ export default function ProdutosTab() {
     prefixo_padrao: '',
     estoque_minimo: 0,
     setor_id: '',
-    ordem_baixa: 'normal',
+    ordem_numeracao: 'CRESCENTE',
     ativo: true,
     nome_cliente: ''
   });
@@ -60,8 +60,14 @@ export default function ProdutosTab() {
   });
 
   const { data: clientesPCP = [] } = useQuery({
-    queryKey: ['clientes-pcp'],
-    queryFn: () => rdsn.entities.PCPCliente.list()
+    queryKey: ['clientes-pcp', setorAtivo],
+    queryFn: () => {
+      if (!setorAtivo || setorAtivo === 'ALL') {
+        return rdsn.entities.PCPCliente.list();
+      }
+      return rdsn.entities.PCPCliente.filter({ setor_id: setorAtivo });
+    },
+    enabled: !!setorAtivo
   });
 
   const handleCodigoProdutoChange = (codigo) => {
@@ -132,7 +138,7 @@ export default function ProdutosTab() {
         prefixo_padrao: produto.prefixo_padrao || '',
         estoque_minimo: produto.estoque_minimo || 0,
         setor_id: produto.setor_id || '',
-        ordem_baixa: produto.ordem_baixa || 'normal',
+        ordem_numeracao: produto.ordem_numeracao || (produto.ordem_baixa === 'decrescente' ? 'DECRESCENTE' : 'CRESCENTE'),
         ativo: produto.ativo ?? true,
         nome_cliente: produto.nome_cliente || ''
       });
@@ -149,7 +155,7 @@ export default function ProdutosTab() {
         prefixo_padrao: '',
         estoque_minimo: 0,
         setor_id: setorAtivo,
-        ordem_baixa: 'normal',
+        ordem_numeracao: 'CRESCENTE',
         ativo: true,
         nome_cliente: ''
       });
@@ -274,13 +280,13 @@ export default function ProdutosTab() {
                     <TableCell className="text-slate-500 dark:text-slate-400 text-xs italic max-w-[200px] truncate">{produto.descricao || '-'}</TableCell>
                     <TableCell>
                       <div className="flex items-center">
-                        <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${
-                          produto.ordem_baixa === 'decrescente' 
-                            ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' 
-                            : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-                        }`}>
-                          {produto.ordem_baixa === 'decrescente' ? '↓ Decr' : '↑ Norm'}
-                        </span>
+                        <p className="text-[9px] font-black uppercase tracking-widest leading-none mt-1">
+                        {produto.ordem_numeracao === 'DECRESCENTE' ? (
+                          <span className="text-purple-600 dark:text-purple-400">↓ Ordem Reversa</span>
+                        ) : (
+                          <span className="text-blue-600 dark:text-blue-400">↑ Ordem Sequencial</span>
+                        )}
+                      </p>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -577,13 +583,13 @@ export default function ProdutosTab() {
                   </div>
                   <div className="space-y-3 lg:col-span-1">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 whitespace-nowrap">Ordem de Baixa Num.</Label>
-                    <Select value={formData.ordem_baixa || 'normal'} onValueChange={(v) => setFormData(prev => ({ ...prev, ordem_baixa: v }))}>
+                    <Select value={formData.ordem_numeracao || 'CRESCENTE'} onValueChange={(v) => setFormData(prev => ({ ...prev, ordem_numeracao: v }))}>
                       <SelectTrigger className="h-11 dark:bg-slate-900 dark:border-white/10 rounded-xl border-2 transition-all focus:border-purple-500/50 font-bold">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="dark:bg-slate-900 dark:border-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <SelectItem value="normal" className="text-blue-600 dark:text-blue-400">↑ Crescente</SelectItem>
-                        <SelectItem value="decrescente" className="text-purple-600 dark:text-purple-400">↓ Decrescente</SelectItem>
+                        <SelectItem value="CRESCENTE" className="text-blue-600 dark:text-blue-400">↑ SEQUENCIAL</SelectItem>
+                        <SelectItem value="DECRESCENTE" className="text-purple-600 dark:text-purple-400">↓ REVERSA</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

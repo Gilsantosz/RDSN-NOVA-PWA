@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Package, AlertTriangle, CheckCircle } from 'lucide-react';
-import { differenceInDays, format, isPast } from 'date-fns';
+import { differenceInDays, format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -42,8 +42,15 @@ export default function AlertasPrazos({ reservas, userId }) {
   const alertas = reservasComPrazo.map(reserva => {
     const dataPrevista = new Date(reserva.data_prevista);
     const hoje = new Date();
-    const diasRestantes = differenceInDays(dataPrevista, hoje);
-    const atrasado = isPast(dataPrevista) && reserva.status !== 'PRODUZIDO';
+    const dataPrevistaInicio = startOfDay(dataPrevista);
+    const hojeInicio = startOfDay(hoje);
+    
+    // Calcula diferença real de dias ignorando horas
+    const diasRestantes = differenceInDays(dataPrevistaInicio, hojeInicio);
+    
+    // Só está atrasado se for ANTES de hoje
+    const atrasado = diasRestantes < 0 && reserva.status !== 'PRODUZIDO';
+    
     const progresso = reserva.quantidade > 0 ? ((reserva.quantidade_baixada || 0) / reserva.quantidade) * 100 : 0;
 
     let severidade = 'BAIXA';
@@ -68,7 +75,7 @@ export default function AlertasPrazos({ reservas, userId }) {
       severidade,
       tipo
     };
-  }).filter(a => (a.atrasado && Math.abs(a.diasRestantes) > 0) || (a.diasRestantes > 0 && a.diasRestantes <= 7));
+  }).filter(a => a.atrasado || (a.diasRestantes >= 0 && a.diasRestantes <= 7));
 
   // Criar notificações automáticas para prazos críticos
   useEffect(() => {
@@ -79,7 +86,7 @@ export default function AlertasPrazos({ reservas, userId }) {
       const jaNotificado = localStorage.getItem(key);
 
       if (!jaNotificado) {
-        if (alerta.atrasado && Math.abs(alerta.diasRestantes) > 0) {
+        if (alerta.atrasado) {
           criarNotificacaoMutation.mutate({
             titulo: `⏰ Reserva ${alerta.reserva.codigo_completo} ATRASADA`,
             mensagem: `A reserva ${alerta.reserva.codigo_completo} do cliente ${alerta.reserva.cliente || 'N/A'} está ${Math.abs(alerta.diasRestantes)} dia(s) atrasada. Progresso: ${Math.round(alerta.progresso)}%`,
@@ -88,7 +95,7 @@ export default function AlertasPrazos({ reservas, userId }) {
             reservaId: alerta.reserva.id
           });
           localStorage.setItem(key, 'true');
-        } else if (alerta.diasRestantes > 0 && alerta.diasRestantes <= 3) {
+        } else if (alerta.diasRestantes >= 0 && alerta.diasRestantes <= 3) {
           criarNotificacaoMutation.mutate({
             titulo: `🔔 Prazo urgente - ${alerta.reserva.codigo_completo}`,
             mensagem: `Faltam apenas ${alerta.diasRestantes} dia(s) para a data prevista da reserva ${alerta.reserva.codigo_completo}. Progresso atual: ${Math.round(alerta.progresso)}%`,
