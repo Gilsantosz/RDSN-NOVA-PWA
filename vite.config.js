@@ -3,10 +3,20 @@ import { defineConfig } from 'vite'
 import path from 'path'
 import { VitePWA } from 'vite-plugin-pwa'
 
+/**
+ * Detecta se estamos building para web (GitHub Pages / PWA) ou para Electron.
+ * - WEB:      VITE_BUILD_TARGET=web  →  base absoluta '/RDSN-NOVA-PWA/'
+ * - ELECTRON: (padrão)              →  base relativa './' (Electron precisa disso)
+ */
+const isWebBuild = process.env.VITE_BUILD_TARGET === 'web';
+
+// Base path do repositório no GitHub Pages
+const GITHUB_PAGES_BASE = '/RDSN-NOVA-PWA/';
+
 // https://vite.dev/config/
 export default defineConfig({
-  base: './', // CRUCIAL CONFIGURATION: Makes file references relative for Electron build
-  logLevel: 'error', // Suppress warnings, only show errors
+  base: isWebBuild ? GITHUB_PAGES_BASE : './',
+  logLevel: 'error',
   build: {
     rollupOptions: {
       output: {
@@ -24,45 +34,85 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Apenas ativa o PWA no build web, não no Electron
+      disable: !isWebBuild,
       includeAssets: ['logo_v2.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        short_name: "RDSN NOVA",
-        name: "RDSN NOVA v2.0.3",
-        description: "Sistema de Gestão Industrial RDSN NOVA",
+        short_name: 'RDSN NOVA',
+        name: 'RDSN NOVA v2.0.3',
+        description: 'Sistema de Gestão Industrial RDSN NOVA',
         icons: [
+          // Android Chrome exige 192x192 PNG (mínimo obrigatório)
           {
-            src: "pwa-192x192.png",
-            type: "image/png",
-            sizes: "192x192",
-            purpose: "any"
+            src: 'pwa-192x192.png',
+            type: 'image/png',
+            sizes: '192x192',
+            purpose: 'any'
           },
+          // 512x512 para splash screen no Android
           {
-            src: "pwa-512x512.png",
-            type: "image/png",
-            sizes: "512x512",
-            purpose: "any"
+            src: 'pwa-512x512.png',
+            type: 'image/png',
+            sizes: '512x512',
+            purpose: 'any'
           },
+          // Maskable obrigatório para Android (ícone adaptativo)
           {
-            src: "pwa-512x512.png",
-            type: "image/png",
-            sizes: "512x512",
-            purpose: "maskable"
+            src: 'pwa-512x512.png',
+            type: 'image/png',
+            sizes: '512x512',
+            purpose: 'maskable'
           }
         ],
-        start_url: ".",
-        scope: ".",
-        display: "standalone",
-        orientation: "portrait",
-        theme_color: "#0f172a",
-        background_color: "#0f172a",
-        categories: ["productivity", "business"]
+        // Paths absolutos são obrigatórios para Android Chrome aceitar a instalação
+        start_url: isWebBuild ? GITHUB_PAGES_BASE : '/',
+        scope: isWebBuild ? GITHUB_PAGES_BASE : '/',
+        display: 'standalone',
+        // display_override garante compatibilidade com Android mais recente
+        display_override: ['window-controls-overlay', 'standalone'],
+        orientation: 'portrait',
+        theme_color: '#0f172a',
+        background_color: '#0f172a',
+        lang: 'pt-BR',
+        categories: ['productivity', 'business'],
+        // Shortcuts (atalhos que aparecem no long-press do ícone no Android)
+        shortcuts: [
+          {
+            name: 'Dashboard',
+            short_name: 'Dashboard',
+            url: isWebBuild ? `${GITHUB_PAGES_BASE}#/` : './#/',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }]
+          },
+          {
+            name: 'PCP',
+            short_name: 'PCP',
+            url: isWebBuild ? `${GITHUB_PAGES_BASE}#/pcp` : './#/pcp',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }]
+          }
+        ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//]
-      }
+        navigateFallbackAllowlist: [/^(?!\/(api|_)).*$/],
+        // Cache-first para assets estáticos (melhor performance no Android)
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-api',
+              expiration: {
+                maxAgeSeconds: 60 * 60 // 1 hora
+              }
+            }
+          }
+        ]
+      },
+      // Estratégia específica para Android: injectManifest é mais confiável
+      strategies: 'generateSW',
+      injectRegister: 'auto'
     })
   ],
   resolve: {
