@@ -1,5 +1,5 @@
-import { rdsn } from './supabaseClient.js';
-import { checarSobreposicao } from '../core/numeracaoService.js';
+import { rdsn } from './supabaseClient';
+import { checarSobreposicao } from '../core/numeracaoService';
 
 export async function validarIntervalosNumeracao(payload) {
   try {

@@ -200,7 +200,7 @@ export default function NovaProducaoDiaDialog({
                 <div>
                   <DialogTitle className="text-4xl font-black text-white italic uppercase tracking-tighter leading-none">Dispatcher de Produção</DialogTitle>
                   <p className="text-[10px] font-black tracking-[0.4em] uppercase text-blue-400 italic mt-2 flex items-center gap-2">
-                    Protocolo de Lançamento Digital • {setorNome || 'Unidade RDSN'}
+                    Protocolo de Lançamento Digital • {setorNome || 'Unidade Matrix'}
                   </p>
                 </div>
               </div>
@@ -471,7 +471,7 @@ export default function NovaProducaoDiaDialog({
               </Button>
               <div className="mt-6 flex items-center justify-center gap-3 opacity-30 group">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] group-hover:scale-150 transition-transform" />
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] italic">Protocolo de Operação Ativo</span>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] opacity-40 italic">Sistema Matrix • Algoritmo de Alocação v4.2 Pro Ativo</p>
               </div>
             </div>
           </div>

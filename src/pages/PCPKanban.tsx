@@ -1,4 +1,5 @@
 // @ts-nocheck
+// @ts-nocheck
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import {
@@ -204,7 +205,7 @@ export default function PCPKanban() {
                                 Quadro <span className="text-blue-600 dark:text-blue-400">Kanban</span>
                             </h1>
                             <p className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
-                                Gestão Lean • Sistema Puxado • <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1 font-black leading-none uppercase"><Factory className="w-3.5 h-3.5" />RDSN PCP</span>
+                                Gestão Lean • Sistema Puxado • <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1 font-black leading-none uppercase"><Factory className="w-3.5 h-3.5" />MATRIX PCP</span>
                             </p>
                         </div>
                     </div>

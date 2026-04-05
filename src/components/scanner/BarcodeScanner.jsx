@@ -17,7 +17,7 @@ export default function BarcodeScanner({ onScan, onClose, placeholder = "Aponte 
 
   // Criar contexto de áudio
   useEffect(() => {
-    audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    audioContextRef.current = new (window.AudioContext || window['webkitAudioContext'])();
     return () => {
       if (audioContextRef.current) {
         audioContextRef.current.close();

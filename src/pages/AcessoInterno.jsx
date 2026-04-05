@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
-import { validateAdmin } from '@/api/.secure_vault';
+import { validateAdmin } from '@/api/secure_vault';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -164,7 +164,7 @@ export default function AcessoInterno() {
                     PCP <span className="text-blue-500">MATRIX</span>
                   </h1>
                   <p className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
-                    Painel de Controle industrial • <span className="text-blue-500 flex items-center gap-1"><Shield className="w-3.5 h-3.5" />v2.0.3 RDSN FÁBRICA</span>
+                    Painel de Controle industrial • <span className="text-blue-500 flex items-center gap-1"><Shield className="w-3.5 h-3.5" />v2.0.4 PCP MATRIX</span>
                   </p>
                 </div>
               </div>
@@ -188,11 +188,11 @@ export default function AcessoInterno() {
             <Zap className="w-4 h-4" /> Evolução da Produção
           </div>
           <h2 className="text-4xl md:text-7xl font-black text-white leading-[0.85] mb-8 max-w-5xl tracking-tighter italic uppercase">
-            SISTEMA <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 drop-shadow-[0_0_35px_rgba(56,189,248,0.5)]">BLINDADO</span><br />
+            SISTEMA <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 drop-shadow-[0_0_35px_rgba(56,189,248,0.5)] pr-2">BLINDADO</span><br />
             DE ALTO DESEMPENHO
           </h2>
           <p className="text-lg md:text-xl text-slate-400 max-w-2xl mb-12 leading-relaxed font-medium italic opacity-80 uppercase tracking-tight">
-            Interface premium para o chão de fábrica moderno. Precisão cibernética em cada operação de montagem.
+            INTERFACE OTIMIZADA PARA O CHÃO DE FÁBRICA . PRECISÃO EM CADA REGISTRO SEGUINDO PLANO PCP
           </p>
           <div className="flex flex-col sm:flex-row gap-6">
             <Button onClick={scrollToLogin} size="lg"
@@ -288,6 +288,7 @@ export default function AcessoInterno() {
               </div>
 
               <div className="space-y-3">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Origem Matrix</p>
                 <Label htmlFor="senha" className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-1 italic opacity-70">Chave de Segurança</Label>
                 <div className="relative group">
                   <Input
@@ -346,7 +347,7 @@ export default function AcessoInterno() {
             </div>
             <div>
               <span className="font-black text-white tracking-[0.2em] uppercase italic text-lg leading-none block">v2.0.3 RESERVA<span className="text-blue-500">NOVA</span></span>
-              <span className="text-[10px] font-black text-slate-600 tracking-[0.4em] uppercase block mt-1">Intelligence Division</span>
+              <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Sistema de Rastreabilidade Matrix Ativo</span>
             </div>
           </div>
           <div className="space-y-4">

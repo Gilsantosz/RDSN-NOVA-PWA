@@ -1,16 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getEnvConfig } from '../utils/hybridContext';
-import SessionManager from '../lib/sessionManager';
+import SessionManager, { User } from '../lib/sessionManager';
 
 const { supabaseUrl, supabaseAnonKey } = getEnvConfig();
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
-const isStandardColumn = (key) => ['id', 'created_at'].includes(key);
+const isStandardColumn = (key: string) => ['id', 'created_at'].includes(key);
 
-const packData = (payload) => {
-    const std = {};
-    const dyn = {};
+const packData = (payload: Record<string, any>) => {
+    const std: any = {};
+    const dyn: any = {};
     for (const [key, value] of Object.entries(payload)) {
         if (isStandardColumn(key)) {
             std[key] = value;
@@ -24,13 +24,23 @@ const packData = (payload) => {
     return std;
 };
 
-const unpackData = (row) => {
+const unpackData = (row: any) => {
     if (!row) return row;
     const { j_data, ...rest } = row;
     return { ...rest, ...(j_data || {}) };
 };
 
-const createEntityAdapter = (entityName) => ({
+export interface EntityAdapter<T = any> {
+    list: () => Promise<T[]>;
+    filter: (filters: Record<string, any>) => Promise<T[]>;
+    create: (payload: Partial<T>) => Promise<T>;
+    update: (id: string | number, payload: Partial<T>) => Promise<T>;
+    delete: (id: string | number) => Promise<boolean>;
+    bulkCreate: (payloads: Partial<T>[]) => Promise<T[]>;
+    subscribe: (callback: (payload: any) => void) => () => void;
+}
+
+const createEntityAdapter = (entityName: string): EntityAdapter => ({
     list: async () => {
         const { data, error } = await supabase.from(entityName).select('*');
         if (error) throw error;
@@ -46,7 +56,7 @@ const createEntityAdapter = (entityName) => ({
                 if (value.$in) {
                     query = query.in(colName, value.$in);
                 } else if (value.$nin) {
-                    query = query.not(colName, 'in', `(${value.$nin.join(',')})`);
+                    query = (query as any).not(colName, 'in', `(${value.$nin.join(',')})`);
                 } else if (value.$ne) {
                     query = query.neq(colName, value.$ne);
                 }
@@ -97,7 +107,7 @@ const createEntityAdapter = (entityName) => ({
     subscribe: (callback) => {
         const channel = supabase
             .channel(`${entityName}_changes`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: entityName }, payload => {
+            .on('postgres_changes', { event: '*', schema: 'public', table: entityName } as any, (payload: any) => {
                 const newRec = payload.new ? unpackData(payload.new) : null;
                 const oldRec = payload.old ? unpackData(payload.old) : null;
                 callback({ ...payload, new: newRec, old: oldRec });
@@ -110,8 +120,18 @@ const createEntityAdapter = (entityName) => ({
     }
 });
 
+interface IRDSNClient {
+    auth: any;
+    functions: any;
+    entities: Record<string, EntityAdapter>;
+    asServiceRole: {
+        entities: Record<string, EntityAdapter>;
+    };
+    appLogs?: any;
+}
+
 // Mock rdsn client to Supabase bridge
-export const rdsn = {
+export const rdsn: IRDSNClient = {
     auth: {
         ...supabase.auth,
         me: async () => {
@@ -123,7 +143,7 @@ export const rdsn = {
                 console.log('[AUTH] Sessão Supabase ok, buscando perfil estendido:', user.id);
                 const { data: profile } = await supabase.from('usuarios').select('*').eq('id', user.id).single();
                 console.log('[AUTH] Perfil carregado:', profile?.id);
-                const finalUser = { ...user, ...(profile || {}) };
+                const finalUser = { ...user, ...(profile || {}) } as any;
                 // Normaliza role para o Shim
                 if (finalUser.role_custom) finalUser.role = finalUser.role_custom.toLowerCase();
                 return finalUser;
@@ -134,7 +154,7 @@ export const rdsn = {
             try {
                 const sessionUser = SessionManager.getUser();
                 if (sessionUser) {
-                    console.log('[AUTH] Sessão local encontrada:', sessionUser.username);
+                    console.log('[AUTH] Sessão local encontrada:', (sessionUser as any).username);
                     // Normaliza para o Shim (espera 'role' em minúsculo)
                     return {
                         ...sessionUser,
@@ -153,66 +173,59 @@ export const rdsn = {
         }
     },
     functions: {
-        invoke: async (functionName, payloadOrOptions = {}) => {
+        invoke: async (functionName: string, payloadOrOptions: any = {}) => {
             let body = payloadOrOptions;
             if (payloadOrOptions && payloadOrOptions.body) {
                 body = payloadOrOptions.body;
             }
 
             // SIMULADOR LOCAL PARA EDGE FUNCTIONS COMPLEXAS SEM DOCKER/CLI
-            // Se a função estiver na lista de mocks offline (criados devido ao problema de deploy)
-            // ele rodará localmente consumindo a mesma API nativa
             try {
                 if (functionName === 'alocarNumerosAutomatico') {
-                    const module = await import('./alocarNumerosAutomatico.js');
+                    const module = await import('./alocarNumerosAutomatico.js' as any);
                     return await module.alocarNumerosAutomatico(body);
                 }
 
                 if (functionName === 'sincronizarBaixasComPCP') {
-                    const module = await import('./sincronizarBaixasComPCP.js');
+                    const module = await import('./sincronizarBaixasComPCP.js' as any);
                     return await module.sincronizarBaixasComPCP(body);
                 }
 
                 if (functionName === 'registrarEtiqueta') {
-                    const module = await import('./registrarEtiqueta.js');
+                    const module = await import('./registrarEtiqueta.js' as any);
                     return await module.registrarEtiqueta(body);
                 }
 
                 if (functionName === 'enviarWebhook') {
-                    const module = await import('./enviarWebhook.js');
+                    const module = await import('./enviarWebhook.js' as any);
                     return await module.enviarWebhook(body);
                 }
 
                 if (functionName === 'validarIntervalosNumeracao') {
-                    const module = await import('./validarIntervalosNumeracao.js');
+                    const module = await import('./validarIntervalosNumeracao.js' as any);
                     return await module.validarIntervalosNumeracao(body);
                 }
 
                 if (functionName === 'redefinirParaCopia') {
-                    const module = await import('./redefinirParaCopia.js');
-                    return await module.redefinirParaCopia(body, rdsn);
+                    const module = await import('./redefinirParaCopia.js' as any);
+                    return await module.redefinirParaCopia(body, rdsn as any);
                 }
 
                 if (functionName === 'backupDados') {
-                    const module = await import('./backupDados.js');
-                    return await module.backupDados(body, rdsn);
+                    const module = await import('./backupDados.js' as any);
+                    return await module.backupDados(body, rdsn as any);
                 }
 
                 if (functionName === 'restaurarBackup') {
-                    const module = await import('./restaurarBackup.js');
-                    return await module.restaurarBackup(body, rdsn);
+                    const module = await import('./restaurarBackup.js' as any);
+                    return await module.restaurarBackup(body, rdsn as any);
                 }
 
-                // Exemplo fallback se falhar (mantém o envio via network se for as outras que não mapeamos ainda)
                 const { data, error } = await supabase.functions.invoke(functionName, {
                     body: body,
                 });
                 if (error) throw error;
 
-                // RDSN usually returned an object containing { data: { success: true, ... } }
-                // Some code might expect the outer response to have `.data`
-                // and the inner payload to be the actual function response.
-                // Edge functions usually return JSON directly.
                 if (data && data.success !== undefined) {
                     return { data: data };
                 }
@@ -223,24 +236,28 @@ export const rdsn = {
             }
         }
     },
-    /** @type {Record<string, any>} */
     entities: new Proxy({}, {
-        get: (target, prop) => {
+        get: (target: any, prop: string) => {
             if (!target[prop]) {
                 target[prop] = createEntityAdapter(prop);
             }
             return target[prop];
         }
-    }),
+    }) as any,
     asServiceRole: {
-        /** @type {Record<string, any>} */
         entities: new Proxy({}, {
-            get: (target, prop) => {
+            get: (target: any, prop: string) => {
                 if (!target[prop]) {
                     target[prop] = createEntityAdapter(prop);
                 }
                 return target[prop];
             }
-        })
+        }) as any
+    },
+    appLogs: {
+        logUserInApp: async (page: string) => {
+             // Mock para log de atividades se necessário
+             console.log(`[APP-LOG] Usuario na pagina: ${page}`);
+        }
     }
 };

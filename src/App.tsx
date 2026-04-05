@@ -21,47 +21,40 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   : <>{children}</>;
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isAuthenticated } = useAuth();
+  const { isLoadingAuth, isAuthenticated } = useAuth() as { isLoadingAuth: boolean, isAuthenticated: boolean };
   const location = useLocation();
-
-  // BUG SILENCIOSO 2: Memoizar rotas para evitar re-montagens infinitas
-  const routes = React.useMemo(() => {
-    return Object.entries(Pages).map(([path, Page]) => (
-      <Route
-        key={path}
-        path={`/${path}`}
-        element={
-          <LayoutWrapper currentPageName={path}>
-            <Page />
-          </LayoutWrapper>
-        }
-      />
-    ));
-  }, []);
 
   if (isLoadingAuth) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin"></div>
       </div>
     );
   }
 
-  // REDIRECIONAMENTO AUTOMÁTICO: Se não estiver logado, manda para a tela de login
-  const isAuthPage = ['/AcessoInterno', '/Acesso', '/CadastroUsuario'].some(path =>
-    location.pathname === path || location.pathname === path + '/'
-  );
+  // Identifica se é página de autenticação
+  const pathSegment = location.pathname.replace(/^\//, '').split('/')[0];
+  const isAuthPage = ['AcessoInterno', 'Acesso', 'CadastroUsuario'].includes(pathSegment);
 
   if (!isAuthenticated && !isAuthPage) {
     return <Navigate to="/AcessoInterno" replace />;
   }
 
-  return (
+  const PageContent = () => (
     <Routes>
-      <Route path="/" element={<Navigate to="/Dashboard" replace />} />
-      {routes}
+      <Route path="/" element={<Navigate to={`/${mainPageKey}`} replace />} />
+      {Object.entries(Pages).map(([path, Page]) => {
+        const PageComponent = Page as React.ComponentType;
+        return <Route key={path} path={`/${path}`} element={<PageComponent />} />;
+      })}
       <Route path="*" element={<PageNotFound />} />
     </Routes>
+  );
+
+  return (
+    <LayoutWrapper currentPageName={pathSegment}>
+      <PageContent />
+    </LayoutWrapper>
   );
 };
 

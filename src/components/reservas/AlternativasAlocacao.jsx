@@ -133,7 +133,7 @@ export default function AlternativasAlocacao({
         })}
       </div>
       <div className="text-center">
-        <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] opacity-40 italic">Sistema RDSN • Algoritmo de Alocação v4.2 Pro Ativo</p>
+        <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] opacity-40 italic">Sistema Matrix • Algoritmo de Alocação v4.2 Pro Ativo</p>
       </div>
     </div>
   );

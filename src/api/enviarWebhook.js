@@ -1,4 +1,4 @@
-import { rdsn } from './supabaseClient.js';
+import { rdsn } from './supabaseClient';
 
 export async function enviarWebhook(bodyObj) {
   try {

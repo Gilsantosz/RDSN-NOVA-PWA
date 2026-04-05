@@ -1,6 +1,6 @@
 // @ts-nocheck
-import React, { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, ReactNode } from 'react';
+import { Link, Navigate } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { rdsn } from '@/api/supabaseClient';
 import { useQuery } from '@tanstack/react-query';
@@ -23,7 +23,8 @@ import {
   AlertTriangle,
   Settings,
   Zap,
-  ChevronDown
+  ChevronDown,
+  LucideIcon
 } from 'lucide-react';
 import NotificationCenter from '@/components/notifications/NotificationCenter';
 import SetorSelector from '@/components/filters/SetorSelector';
@@ -38,13 +39,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import GlobalSearch from '@/components/search/GlobalSearch';
 import FeedbackToasts from '@/components/feedback/FeedbackToasts';
-// import WelcomeTour from '@/components/onboarding/WelcomeTour';
-// import KeyboardShortcuts from '@/components/shortcuts/KeyboardShortcuts';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useAuth } from '@/lib/AuthContext';
-import SessionManager from '@/lib/sessionManager';
+import SessionManager, { User } from '@/lib/sessionManager';
 
-const navigationConfig = [
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  section: 'principal' | 'pcp' | 'operacoes' | 'analise' | 'admin';
+  permission?: string;
+}
+
+const navigationConfig: NavigationItem[] = [
   { name: 'Dashboard', href: 'Dashboard', icon: LayoutDashboard, section: 'principal', permission: 'dashboard.visualizar' },
   { name: 'Alertas', href: 'Alertas', icon: AlertTriangle, section: 'principal', permission: 'alertas.visualizar' },
   { name: 'Agendamento', href: 'Agendamento', icon: CalendarClock, section: 'principal', permission: 'agendamento.visualizar' },
@@ -70,16 +77,17 @@ const navigationConfig = [
 
 const APP_SESSION_VERSION = '1.0.6';
 
-export default function Layout({ children, currentPageName }) {
-  // const queryClient = useQueryClient();
-  // const navigate = useNavigate();
-  const { logout, user: authUser } = useAuth();
+interface LayoutProps {
+  children: ReactNode;
+  currentPageName: string;
+}
+
+export default function Layout({ children, currentPageName }: LayoutProps) {
+  const { logout, user: authUser } = useAuth() as { logout: () => void, user: User | null };
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-  // Verificação de versão de sessão para evitar "identity leak"
   useEffect(() => {
-    // Não dispara reload em páginas de auth para evitar loops de limpeza
     const isAuthPage = ['GateAuth', 'AcessoInterno', 'Acesso', 'CadastroUsuario'].includes(currentPageName || '');
     if (isAuthPage) return;
 
@@ -90,7 +98,6 @@ export default function Layout({ children, currentPageName }) {
     }
   }, [currentPageName]);
 
-  // Sincronizar user do AuthContext com cache do React Query
   const user = useMemo(() => authUser, [authUser]);
 
   const { data: alertasNaoLidos = 0 } = useQuery({
@@ -106,13 +113,12 @@ export default function Layout({ children, currentPageName }) {
     refetchInterval: 30000,
   });
 
-  // Buscar permissões do role do usuário
   const { data: rolePermissoes } = useQuery({
     queryKey: ['role-permissoes', user?.role_custom],
     queryFn: async () => {
       if (!user?.role_custom) return {};
       const roles = await rdsn.entities.PermissaoRole.filter({ role: user.role_custom });
-      if (roles.length > 0 && roles[0].permissoes) return roles[0].permissoes;
+      if (roles.length > 0 && (roles[0] as any).permissoes) return (roles[0] as any).permissoes;
       return {};
     },
     enabled: !!user?.role_custom,
@@ -120,14 +126,12 @@ export default function Layout({ children, currentPageName }) {
     gcTime: 0
   });
 
-  // Permissões efetivas
   const permissoesEfetivas = useMemo(() => {
-    const rp = rolePermissoes || {};
-    const up = user?.permissoes_customizadas || {};
+    const rp = (rolePermissoes || {}) as Record<string, boolean>;
+    const up = (user?.permissoes_customizadas || {}) as Record<string, boolean>;
     return { ...rp, ...up };
   }, [rolePermissoes, user?.permissoes_customizadas]);
 
-  // Filtrar navegação
   const navigation = useMemo(() => {
     if (!user) return [];
     if (user.role_custom === 'Admin') return navigationConfig;
@@ -137,13 +141,11 @@ export default function Layout({ children, currentPageName }) {
     });
   }, [user?.role_custom, permissoesEfetivas]);
 
-  // Renderizar páginas de autenticação sem verificações
   const isAuthPage = ['GateAuth', 'AcessoInterno', 'Acesso', 'CadastroUsuario'].includes(currentPageName);
   if (isAuthPage) {
     return <>{children}</>;
   }
 
-  // Redirecionamento se não logado
   if (!user && !isAuthPage) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -159,8 +161,6 @@ export default function Layout({ children, currentPageName }) {
   return (
     <SetorProvider>
       <FeedbackToasts />
-      {/* <WelcomeTour /> */}
-      {/* <KeyboardShortcuts /> */}
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
         {sidebarOpen && (
           <div
@@ -179,12 +179,12 @@ export default function Layout({ children, currentPageName }) {
           <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-900 to-slate-800">
             {!collapsed && (
               <div className="flex items-center gap-2 flex-1 overflow-hidden">
-                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shrink-0">
-                  <Factory className="w-5 h-5 text-slate-900" />
+                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20">
+                  <Zap className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1 truncate text-white">
-                  <span className="font-bold text-sm block">Reserva</span>
-                  <span className="text-[10px] opacity-70 block">Numeração</span>
+                  <span className="font-black text-sm block tracking-tighter">PCP <span className="text-blue-400">MATRIX</span></span>
+                  <span className="text-[9px] font-bold opacity-50 block uppercase tracking-widest leading-none">Industrial Systems</span>
                 </div>
               </div>
             )}
@@ -207,7 +207,7 @@ export default function Layout({ children, currentPageName }) {
           </div>
 
           <nav className="p-3 space-y-6">
-            {['principal', 'pcp', 'operacoes', 'analise', 'admin'].map(section => {
+            {(['principal', 'pcp', 'operacoes', 'analise', 'admin'] as const).map(section => {
               const items = navigation.filter(n => n.section === section);
               if (items.length === 0) return null;
               return (
@@ -216,6 +216,7 @@ export default function Layout({ children, currentPageName }) {
                   <div className="space-y-1">
                     {items.map((item) => {
                       const isActive = currentPageName === item.href;
+                      const Icon = item.icon;
                       return (
                         <Link
                           key={item.name}
@@ -228,7 +229,7 @@ export default function Layout({ children, currentPageName }) {
                               : "text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800"
                           )}
                         >
-                          <item.icon className="w-4 h-4 shrink-0" />
+                          <Icon className="w-4 h-4 shrink-0" />
                           {!collapsed && <span className="font-bold text-xs uppercase tracking-wider">{item.name}</span>}
                           {item.href === 'Alertas' && alertasNaoLidos > 0 && (
                             <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{alertasNaoLidos}</span>

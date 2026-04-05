@@ -1,7 +1,7 @@
 {
   "name": "rdsn-app",
   "private": true,
-  "version": "2.0.3",
+  "version": "2.0.4",
   "main": "main.js",
   "type": "module",
   "scripts": {
@@ -15,7 +15,8 @@
     "start": "electron .",
     "electron": "wait-on http://localhost:5173 && electron .",
     "desktop": "concurrently \"npm run dev\" \"npm run electron\"",
-    "build:electron": "vite build && electron-builder"
+    "build:electron": "vite build && electron-builder",
+    "dist": "npm run build:electron"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^17.0.0",

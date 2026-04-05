@@ -87,7 +87,7 @@ function playNotificationSound(prioridade) {
   try {
     const audio = new Audio();
     // Usar diferentes frequências para diferentes prioridades
-    const context = new (window.AudioContext || window.webkitAudioContext)();
+    const context = new (window.AudioContext || window['webkitAudioContext'])();
     const oscillator = context.createOscillator();
     const gainNode = context.createGain();
     

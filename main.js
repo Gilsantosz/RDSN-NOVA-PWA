@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -6,31 +6,69 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function createWindow() {
+    const isDev = !app.isPackaged || process.argv.includes('--dev');
+    
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
-        title: "v2.0.1 RDSN - Industrial Intelligence Hub",
+        title: "PCP Matrix - Industrial Intelligence Suite",
+        icon: path.join(__dirname, isDev ? 'public/pcp-matrix-icon.png' : 'dist/electron-icon.png'),
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            webSecurity: false,
-            devTools: false
+            preload: path.join(__dirname, 'preload.js'),
+            nodeIntegration: false,
+            contextIsolation: true,
+            webSecurity: true,
+            devTools: isDev
         }
     });
 
-    // Desativado: win.webContents.on('dom-ready', () => { ... });
-
-    // Load Vite's dev server if running in development
-    if (process.defaultApp || process.argv.includes('--dev')) {
+    if (isDev) {
         win.loadURL('http://localhost:5173');
     } else {
-        // In production, load the built index.html with absolute path
         const indexPath = path.join(__dirname, 'dist', 'index.html');
-        console.log('Loading production HTML from:', indexPath);
         win.loadFile(indexPath).catch(e => {
-            console.error('Failed to load local HTML:', e);
+            console.error('Failed to load production HTML:', e);
         });
     }
+
+    // NATIVE MENU CONFIGURATION FOR INDUSTRIAL SUITE
+    const template = [
+        {
+            label: 'PCP Matrix',
+            submenu: [
+                { label: 'Voltar ao Login', click: () => win.webContents.send('navigate', '/access') },
+                { type: 'separator' },
+                { label: 'Sair', role: 'quit' }
+            ]
+        },
+        {
+            label: 'Suíte PCP',
+            submenu: [
+                { label: 'Dashboard Industrial', click: () => win.webContents.send('navigate', '/pcp') },
+                { label: 'Kanban Dinâmico', click: () => win.webContents.send('navigate', '/pcp-kanban') },
+                { label: 'Programação Mensal', click: () => win.webContents.send('navigate', '/pcp-programacao-mensal') },
+                { label: 'Simulador de Plano', click: () => win.webContents.send('navigate', '/pcp-simulacao-plano') },
+                { type: 'separator' },
+                { label: 'Agendamentos', click: () => win.webContents.send('navigate', '/agendamento') }
+            ]
+        },
+        {
+            label: 'Visualização',
+            submenu: [
+                { role: 'reload' },
+                { role: 'toggleDevTools' },
+                { type: 'separator' },
+                { role: 'resetZoom' },
+                { role: 'zoomIn' },
+                { role: 'zoomOut' },
+                { type: 'separator' },
+                { role: 'togglefullscreen' }
+            ]
+        }
+    ];
+
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
 }
 
 app.whenReady().then(async () => {

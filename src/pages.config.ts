@@ -28,7 +28,7 @@
  *
  *   import Home from './pages/Home';
  *   import Settings from './pages/Settings';
- *   import __Layout from './Layout.jsx';
+ *   import __Layout from './Layout';
  *
  *   export const PAGES = {
  *       "Home": Home,
@@ -77,10 +77,22 @@ import Setores from './pages/Setores';
 import TarefasAgendadas from './pages/TarefasAgendadas';
 import Usuarios from './pages/Usuarios';
 import PCPKanban from './pages/PCPKanban';
-import __Layout from './Layout.jsx';
+import __Layout from './Layout';
+
+export interface PageComponent extends React.ComponentType<any> {}
+
+export interface Pages {
+    [key: string]: PageComponent;
+}
+
+export interface PagesConfig {
+    mainPage: string;
+    Pages: Pages;
+    Layout?: React.ComponentType<any>;
+}
 
 
-export const PAGES = {
+export const PAGES: Pages = {
     "Acesso": Acesso,
     "AcessoInterno": AcessoInterno,
     "Agendamento": Agendamento,
@@ -113,8 +125,8 @@ export const PAGES = {
     "PCPKanban": PCPKanban,
 }
 
-export const pagesConfig = {
+export const pagesConfig: PagesConfig = {
     mainPage: "AcessoInterno",
     Pages: PAGES,
-    Layout: __Layout,
+    Layout: __Layout as React.ComponentType<any>,
 };

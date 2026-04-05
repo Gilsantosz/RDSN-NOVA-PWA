@@ -1,4 +1,5 @@
 // @ts-nocheck
+// @ts-nocheck
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
@@ -9,11 +10,11 @@ import BotaoImprimir, { imprimirRelatorio } from '@/components/relatorios/BotaoI
 import PCPSetorGuard, { usePCPSetor } from '@/components/pcp/PCPSetorGuard';
 import { toast } from 'sonner';
 import { cn } from "@/lib/utils";
-import PCPNovaOPDialog from '@/components/pcp/PCPNovaOPDialog.jsx';
-import PCPSimulacaoPanel from '@/components/pcp/PCPSimulacaoPanel.jsx';
-import PCPEditarOPDialog from '@/components/pcp/PCPEditarOPDialog.jsx';
-import PCPDistribuirOPDialog from '@/components/pcp/PCPDistribuirOPDialog.jsx';
-import PCPAtrasosAlert from '@/components/pcp/PCPAtrasosAlert.jsx';
+import PCPNovaOPDialog from '@/components/pcp/PCPNovaOPDialog';
+import PCPSimulacaoPanel from '@/components/pcp/PCPSimulacaoPanel';
+import PCPEditarOPDialog from '@/components/pcp/PCPEditarOPDialog';
+import PCPDistribuirOPDialog from '@/components/pcp/PCPDistribuirOPDialog';
+import PCPAtrasosAlert from '@/components/pcp/PCPAtrasosAlert';
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 

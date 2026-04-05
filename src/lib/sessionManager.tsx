@@ -1,7 +1,20 @@
+export interface User {
+    id: string;
+    full_name: string;
+    role_custom?: string;
+    permissoes_customizadas?: Record<string, boolean>;
+    [key: string]: any;
+}
+
+export interface SessionPayload {
+    user: User;
+    createdAt: number;
+}
+
 class SessionManager {
     static SESSION_KEY = "internalUser";
 
-    static getUser() {
+    static getUser(): User | null {
         try {
             const data = localStorage.getItem(this.SESSION_KEY);
             if (!data) return null;
@@ -15,19 +28,19 @@ class SessionManager {
                     this.clear();
                     return null;
                 }
-                return payload.user;
+                return payload.user as User;
             }
 
             // Se for o dado antigo/direto (apenas o objeto user)
-            return payload;
+            return payload as User;
         } catch (err) {
             console.error("Erro no SessionManager.getUser:", err);
             return null;
         }
     }
 
-    static setUser(user) {
-        const payload = {
+    static setUser(user: User): void {
+        const payload: SessionPayload = {
             user,
             createdAt: Date.now()
         };
@@ -36,7 +49,7 @@ class SessionManager {
         localStorage.setItem('internal_token', 'authenticated');
     }
 
-    static clear() {
+    static clear(): void {
         localStorage.removeItem(this.SESSION_KEY);
         localStorage.removeItem('internal_token');
         localStorage.removeItem('setorAtivo');
@@ -44,15 +57,15 @@ class SessionManager {
         sessionStorage.clear();
     }
 
-    static getVersion() {
+    static getVersion(): string | null {
         return localStorage.getItem('session_version');
     }
 
-    static setVersion(version) {
+    static setVersion(version: string): void {
         localStorage.setItem('session_version', version);
     }
 
-    static isAuthenticated() {
+    static isAuthenticated(): boolean {
         return !!this.getUser();
     }
 }

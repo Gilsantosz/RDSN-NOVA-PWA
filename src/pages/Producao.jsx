@@ -567,7 +567,7 @@ export default function Producao() {
 
                 <div className="px-10 py-4 shrink-0 bg-slate-50 dark:bg-black/40 border-t border-slate-100 dark:border-white/5 flex items-center justify-center gap-2 opacity-30">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Sistema de Rastreabilidade RDSN Ativo</span>
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Sistema de Rastreabilidade Matrix Ativo</span>
                 </div>
               </DialogContent>
             </Dialog>

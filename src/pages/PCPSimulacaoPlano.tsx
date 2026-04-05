@@ -1,4 +1,5 @@
 // @ts-nocheck
+// @ts-nocheck
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { cn } from "@/lib/utils";
 import { Zap, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, AlertTriangle, Factory } from 'lucide-react';
-import PCPSimulacaoPanel from '@/components/pcp/PCPSimulacaoPanel.jsx';
+import PCPSimulacaoPanel from '@/components/pcp/PCPSimulacaoPanel';
 import PCPSetorGuard, { usePCPSetor } from '@/components/pcp/PCPSetorGuard';
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];

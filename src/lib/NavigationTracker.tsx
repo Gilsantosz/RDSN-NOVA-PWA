@@ -6,7 +6,7 @@ import { pagesConfig } from '@/pages.config';
 
 export default function NavigationTracker() {
     const location = useLocation();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated } = useAuth() as { isAuthenticated: boolean };
     const { Pages, mainPage } = pagesConfig;
     const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 
@@ -14,7 +14,7 @@ export default function NavigationTracker() {
     useEffect(() => {
         // Extract page name from pathname
         const pathname = location.pathname;
-        let pageName;
+        let pageName: string | null = null;
 
         if (pathname === '/' || pathname === '') {
             pageName = mainPageKey;
@@ -31,8 +31,8 @@ export default function NavigationTracker() {
             pageName = matchedKey || null;
         }
 
-        if (isAuthenticated && pageName && rdsn.appLogs?.logUserInApp) {
-            rdsn.appLogs.logUserInApp(pageName).catch(() => {
+        if (isAuthenticated && pageName && (rdsn as any).appLogs?.logUserInApp) {
+            (rdsn as any).appLogs.logUserInApp(pageName).catch(() => {
                 // Silently fail - logging shouldn't break the app
             });
         }

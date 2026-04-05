@@ -1,4 +1,4 @@
-import { rdsn } from './supabaseClient.js';
+import { rdsn } from './supabaseClient';
 import { 
   checarSobreposicao, 
   calcularFim, 

@@ -1,6 +1,8 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import path from 'path'
+import { fileURLToPath } from 'url'
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 import { VitePWA } from 'vite-plugin-pwa'
 
 /**
@@ -19,6 +21,7 @@ export default defineConfig({
   logLevel: 'error',
   build: {
     rollupOptions: {
+      maxParallelFileOps: 128,
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
@@ -124,5 +127,6 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    extensions: ['.js', '.jsx', '.ts', '.tsx'],
   },
 });

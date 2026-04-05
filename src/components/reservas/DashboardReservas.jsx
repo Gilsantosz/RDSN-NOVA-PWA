@@ -75,9 +75,7 @@ const CustomTooltip = ({ active = false, payload = [], label = "" }) => {
     >
       <div className="flex items-center gap-2 mb-4">
         <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-          {label}
-        </p>
+        <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] opacity-40 italic">PCP Matrix • Algoritmo de Alocação v4.2 Pro Ativo</p>
       </div>
       
       <div className="space-y-3">
@@ -284,7 +282,7 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
           </motion.div>
           <div>
             <h1 className="text-4xl font-black tracking-tighter text-slate-900 dark:text-white leading-tight">
-              RDSN <span className="text-blue-500">Analytics</span>
+              Matrix <span className="text-blue-500">Analytics</span>
             </h1>
             <div className="flex items-center gap-3 mt-1.5">
               <span className="relative flex h-2 w-2">
