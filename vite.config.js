@@ -41,9 +41,9 @@ export default defineConfig({
         // Campo 'id' obrigatório para o Chrome gerar WebAPK moderno (Android 12+)
         // Sem este campo, o Play Protect bloqueia com aviso de "versão antiga"
         id: '/RDSN-NOVA-PWA/',
-        short_name: 'RDSN NOVA',
-        name: 'RDSN NOVA v2.0.3',
-        description: 'Sistema de Gestão Industrial RDSN NOVA',
+        short_name: 'PCPMatrix',
+        name: 'PCP Matrix',
+        description: 'PCP Matrix - Sistema de Gestão Industrial RDSN NOVA',
         icons: [
           // Android Chrome exige 192x192 PNG (mínimo obrigatório)
           {
@@ -74,8 +74,8 @@ export default defineConfig({
         // display_override garante compatibilidade com Android mais recente
         display_override: ['window-controls-overlay', 'standalone'],
         orientation: 'portrait',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        theme_color: '#0a1f6e',
+        background_color: '#0a1f6e',
         lang: 'pt-BR',
         // Impede que o Chrome sugira um app da Play Store no lugar do PWA
         prefer_related_applications: false,

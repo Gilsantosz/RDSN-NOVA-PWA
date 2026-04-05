@@ -89,8 +89,8 @@
     "zod": "^3.24.2"
   },
   "build": {
-    "appId": "com.rdsn.nova",
-    "productName": "RDSN",
+    "appId": "com.pcpmatrix.app",
+    "productName": "PCP Matrix",
     "directories": {
       "output": "release"
     },
@@ -100,15 +100,21 @@
       "package.json"
     ],
     "mac": {
+      "icon": "build/icon.icns",
       "target": [
         "zip"
       ]
     },
     "win": {
+      "icon": "build/icon.png",
       "target": [
         "nsis",
         "zip"
       ]
+    },
+    "linux": {
+      "icon": "build/icons",
+      "target": "AppImage"
     },
     "publish": null
   },
