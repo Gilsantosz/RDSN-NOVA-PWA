@@ -24,37 +24,44 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['logo_v2.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         short_name: "RDSN NOVA",
         name: "RDSN NOVA v2.0.3",
+        description: "Sistema de Gestão Industrial RDSN NOVA",
         icons: [
           {
-            src: "https://base44.com/logo_v2.svg",
-            type: "image/svg+xml",
+            src: "pwa-192x192.png",
+            type: "image/png",
             sizes: "192x192",
-            purpose: "any maskable"
+            purpose: "any"
           },
           {
-            src: "https://base44.com/logo_v2.svg",
-            type: "image/svg+xml",
+            src: "pwa-512x512.png",
+            type: "image/png",
             sizes: "512x512",
-            purpose: "any maskable"
+            purpose: "any"
           },
           {
-            src: "https://base44.com/logo_v2.svg",
-            type: "image/svg+xml",
-            sizes: "any"
+            src: "pwa-512x512.png",
+            type: "image/png",
+            sizes: "512x512",
+            purpose: "maskable"
           }
         ],
-        start_url: "/",
+        start_url: ".",
+        scope: ".",
         display: "standalone",
-        theme_color: "#000000",
-        background_color: "#ffffff"
+        orientation: "portrait",
+        theme_color: "#0f172a",
+        background_color: "#0f172a",
+        categories: ["productivity", "business"]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api\//]
       }
     })
   ],
