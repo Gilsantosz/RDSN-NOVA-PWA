@@ -31,12 +31,13 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm install --no-audit --legacy-peer-deps
 
       - name: Build Web (PWA)
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          CI: false
         run: npm run build:web
 
       - name: Setup Pages
