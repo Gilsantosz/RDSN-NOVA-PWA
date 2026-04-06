@@ -94,23 +94,41 @@ export default function Reservas() {
     queryFn: async () => {
       if (!setorAtivo) return [];
 
-      let clientes = [];
-      let tecnicos = [];
+      let allClientes = [];
+      let allProdutos = [];
 
       if (isAdmin && setorAtivo === 'ALL') {
-        [clientes, tecnicos] = await Promise.all([
+        const [clis, prods] = await Promise.all([
           rdsn.entities.PCPCliente.list(),
           rdsn.entities.Produto.list()
         ]);
+        allClientes = clis;
+        allProdutos = prods;
       } else {
-        [clientes, tecnicos] = await Promise.all([
-          rdsn.entities.PCPCliente.filter({ setor_id: setorAtivo }),
-          rdsn.entities.Produto.filter({ setor_id: setorAtivo })
+        // Para setores específicos, pegamos tudo do setor + itens globais (sem setor_id)
+        // Como o filter do client RDSN é limitado, pegamos listas e filtramos em JS
+        // Isso garante que itens "Gás" apareçam mesmo se marcados como globais ou com IDs variantes
+        const [clis, prods] = await Promise.all([
+          rdsn.entities.PCPCliente.list(),
+          rdsn.entities.Produto.list()
         ]);
+        
+        allClientes = clis.filter(c => !c.setor_id || String(c.setor_id) === String(setorAtivo));
+        allProdutos = prods.filter(p => !p.setor_id || String(p.setor_id) === String(setorAtivo));
+      }
+
+      // Se após o filtro ainda estiver vazio, pegamos tudo como fallback (apenas para Admins)
+      if (isAdmin && allClientes.length === 0 && allProdutos.length === 0 && setorAtivo !== 'ALL') {
+        const [clis, prods] = await Promise.all([
+          rdsn.entities.PCPCliente.list(),
+          rdsn.entities.Produto.list()
+        ]);
+        allClientes = clis;
+        allProdutos = prods;
       }
 
       // Mapear produtos técnicos (Entity: Produto)
-      const listTecnicos = (tecnicos || []).map(p => ({
+      const listTecnicos = (allProdutos || []).map(p => ({
         ...p,
         nome: p.nome_cliente || p.modelo || p.descricao || 'PRODUTO TÉCNICO',
         codigo: p.codigo_produto,
@@ -122,7 +140,7 @@ export default function Reservas() {
       }));
 
       // Mapear clientes PCP (Entity: PCPCliente)
-      const listClientes = (clientes || []).map(c => ({
+      const listClientes = (allClientes || []).map(c => ({
         ...c,
         nome: c.nome,
         codigo: c.codigo,
@@ -197,11 +215,15 @@ export default function Reservas() {
 
   const { data: pcpOps = [] } = useQuery({
     queryKey: ['pcp-ops-all', setorAtivo],
-    queryFn: () => {
-      if (!setorAtivo || setorAtivo === 'ALL') {
-        return rdsn.entities.PCPOrdemProducao.list();
+    queryFn: async () => {
+      if (!setorAtivo) return [];
+      if (isAdmin && setorAtivo === 'ALL') {
+        return await rdsn.entities.PCPOrdemProducao.list('-created_at', 500);
       }
-      return rdsn.entities.PCPOrdemProducao.filter({ setor_id: setorAtivo });
+      
+      const allOps = await rdsn.entities.PCPOrdemProducao.list('-created_at', 1000);
+      // Filtramos por setor_id ou permitimos globais (null) para garantir visibilidade no Gás
+      return allOps.filter(op => !op.setor_id || String(op.setor_id) === String(setorAtivo));
     },
     enabled: !!setorAtivo
   });
@@ -1019,6 +1041,7 @@ export default function Reservas() {
                   key={String(showForm)}
                   produtos={produtos}
                   sequencias={sequencias}
+                  initialSetorId={setorAtivo}
                   pcpOps={pcpOps}
                   onSubmit={(data) => createReservaMutation.mutate(data)}
                   isLoading={createReservaMutation.isPending}

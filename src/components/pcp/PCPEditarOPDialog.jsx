@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2, AlertTriangle, Check, FileText } from 'lucide-react';
 import { usePCPSetor } from '@/components/pcp/PCPSetorGuard';
+import { dispararNotificacoesOP } from '@/api/dispararNotificacoesOP';
 
 export default function PCPEditarOPDialog({ op, mes, ano, onClose }) {
   const [form, setForm] = useState({
@@ -39,12 +40,49 @@ export default function PCPEditarOPDialog({ op, mes, ano, onClose }) {
     enabled: !!setorAtivo
   });
 
+  const { data: reservasAtivas = [] } = useQuery({
+    queryKey: ['reservas-ativas-op', op.codigo_produto || op.codigo_op, op.cliente_nome],
+    queryFn: async () => {
+      const code = op.codigo_produto || op.codigo_op;
+      if (!code) return [];
+      
+      try {
+        const todas = await rdsn.entities.ReservaLote.filter({ codigo_produto: code });
+        return todas.filter(r => 
+          ['RESERVADO', 'EM_PRODUCAO'].includes(r.status) &&
+          (!op.cliente_nome || r.cliente?.toLowerCase() === op.cliente_nome?.toLowerCase())
+        );
+      } catch (err) {
+        console.error("Erro ao carregar reservas vinculadas:", err);
+        return [];
+      }
+    },
+    enabled: !!(op.codigo_produto || op.codigo_op)
+  });
+
   const updateMutation = useMutation({
-    mutationFn: (data) => rdsn.entities.PCPOrdemProducao.update(op.id, {
-      ...data,
-      quantidade_total: Number(data.quantidade_total) || 0,
-      item_num: Number(data.item_num) || op.item_num
-    }),
+    mutationFn: async (data) => {
+      const qtdNova = Number(data.quantidade_total) || 0;
+      const result = await rdsn.entities.PCPOrdemProducao.update(op.id, {
+        ...data,
+        quantidade_total: qtdNova,
+        item_num: Number(data.item_num) || op.item_num
+      });
+
+      // Notificar operadores se a quantidade foi reduzida
+      const qtdAnterior = Number(op.quantidade_total) || 0;
+      if (qtdNova < qtdAnterior && qtdAnterior > 0) {
+        dispararNotificacoesOP({
+          op,
+          tipoAlteracao: 'REDUCAO_QUANTIDADE',
+          dadosAnteriores: { quantidade_total: qtdAnterior },
+          dadosNovos: { quantidade_total: qtdNova },
+          setorId: op.setor_id || setorAtivo,
+        }).catch(err => console.error('[NOTIF] Erro ao notificar redução:', err));
+      }
+
+      return result;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pcp-ops', mes, ano] });
       onClose();
@@ -52,7 +90,18 @@ export default function PCPEditarOPDialog({ op, mes, ano, onClose }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => rdsn.entities.PCPOrdemProducao.update(op.id, { status: 'Cancelado' }),
+    mutationFn: async () => {
+      const result = await rdsn.entities.PCPOrdemProducao.update(op.id, { status: 'Cancelado' });
+
+      // Notificar operadores afetados pelo cancelamento
+      dispararNotificacoesOP({
+        op,
+        tipoAlteracao: 'CANCELAMENTO',
+        setorId: op.setor_id || setorAtivo,
+      }).catch(err => console.error('[NOTIF] Erro ao notificar cancelamento:', err));
+
+      return result;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pcp-ops', mes, ano] });
       onClose();
@@ -104,6 +153,20 @@ export default function PCPEditarOPDialog({ op, mes, ano, onClose }) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar flex flex-col">
+          {reservasAtivas.length > 0 && (
+            <div className="bg-amber-500/10 border border-amber-500/20 p-5 rounded-3xl flex items-center gap-4 animate-in slide-in-from-top-2 duration-300">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-amber-900 dark:text-amber-400 uppercase tracking-widest leading-none">Reservas Ativas Detectadas</p>
+                <p className="text-xs text-slate-600 dark:text-slate-400 font-medium italic">
+                  Esta OP possui <span className="font-black text-amber-600 dark:text-amber-300">{reservasAtivas.length} reserva(s)</span> ativa(s) vinculada(s). O cancelamento ou alteração impactará o fluxo de atendimento.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 space-y-6">
             {/* Identificação Principal */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -225,7 +288,14 @@ export default function PCPEditarOPDialog({ op, mes, ano, onClose }) {
                   <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white animate-pulse">
                     <AlertTriangle className="w-4 h-4" />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-wider leading-tight">Confirmar cancelamento <br /> permanente desta OP?</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider leading-tight">
+                    Confirmar cancelamento <br /> permanente desta OP?
+                    {reservasAtivas.length > 0 && (
+                      <span className="block text-amber-600 dark:text-amber-400 mt-1 animate-pulse">
+                        ⚠️ +{reservasAtivas.length} RESERVAS AFETADAS
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button

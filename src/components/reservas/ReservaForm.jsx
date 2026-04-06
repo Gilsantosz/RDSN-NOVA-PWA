@@ -26,7 +26,7 @@ import { useAuth } from '@/lib/AuthContext';
 import AlternativasAlocacao from './AlternativasAlocacao';
 import { cn } from "@/lib/utils";
 
-export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps = [], hideHeader }) {
+export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps = [], hideHeader, initialSetorId }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
 
@@ -55,8 +55,11 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
   const [showDuplicataDialog, setShowDuplicataDialog] = useState(false);
   const [permitirDuplicata, setPermitirDuplicata] = useState(false);
   const [lacunasSugeridas, setLacunasSugeridas] = useState([]);
-
+  const [showClienteSuggestions, setShowClienteSuggestions] = useState(false);
   const [produtoSearch, setProdutoSearch] = useState('');
+  const [clienteSearch, setClienteSearch] = useState('');
+  // Rastreia quais campos foram preenchidos automaticamente pelo cadastro de produtos
+  const [camposAutoFilled, setCamposAutoFilled] = useState({ letra_produto: false, sufixo: false });
   const [showProdutoSuggestions, setShowProdutoSuggestions] = useState(false);
 
   // Carregar setores e configurar estado inicial
@@ -67,7 +70,7 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
         setSetores(data || []);
 
         if (data?.length > 0) {
-          const inicial = isAdmin ? 'ALL' : data[0].id;
+          const inicial = initialSetorId || (isAdmin ? 'ALL' : data[0].id);
           setSetorAtivo(inicial);
           if (inicial !== 'ALL') {
             setFormData(prev => ({ ...prev, setor_id: inicial }));
@@ -78,7 +81,7 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
       }
     };
     fetchSetores();
-  }, [isAdmin]);
+  }, [isAdmin, initialSetorId]);
 
   // Unificar produtos cadastrados (PCPCliente) com itens da programação (pcpOps)
   const produtosUnificados = useMemo(() => {
@@ -104,15 +107,23 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
 
     return list.map(item => {
       // Cruzar dado com pcpOps para saber se tem programação no mês
-      const temProgramacao = ops.some(op => op.codigo_produto === item.codigo || op.codigo_op === item.codigo);
+      const currentCodigo = String(item.codigo || '');
+      const temProgramacao = ops.some(op => String(op.codigo_produto || op.codigo_op || '') === currentCodigo);
       return { ...item, tem_programacao: temProgramacao };
     });
   }, [produtos, pcpOps]);
 
   // Filtrar produtos pelo setor ativo
   const produtosFiltrados = useMemo(() => {
-    if (isAdmin && setorAtivo === 'ALL') return produtosUnificados;
-    return produtosUnificados.filter(p => p.setor_id === setorAtivo);
+    // Se for admin em visão "TODOS", não filtrar por setor
+    if (isAdmin && (setorAtivo === 'ALL' || !setorAtivo)) return produtosUnificados;
+    
+    // Filtro flexível para setores específicos
+    // Inclui itens do setor e itens globais (sem setor_id)
+    return produtosUnificados.filter(p => {
+      if (!p.setor_id) return true; // itens globais aparecem em todos os setores
+      return String(p.setor_id) === String(setorAtivo);
+    });
   }, [produtosUnificados, setorAtivo, isAdmin]);
 
   // Auto-alocacao com debounce ao digitar quantidade
@@ -201,6 +212,9 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
     if (['letra_produto', 'sufixo', 'ano', 'quantidade', 'codigo_produto'].includes(field)) {
       setPreview(null);
     }
+    // Edição manual remove o badge de auto-preenchido
+    if (field === 'letra_produto') setCamposAutoFilled(prev => ({ ...prev, letra_produto: false }));
+    if (field === 'sufixo') setCamposAutoFilled(prev => ({ ...prev, sufixo: false }));
   };
 
   const handleCodigoProdutoChange = (codigo) => {
@@ -244,8 +258,13 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
         // Prioridade: cadastro técnico > OP principal > estado atual do formulário
         const letraFinal = produto?.letra_padrao || produto?.letra_produto || opPrincipal?.letra_produto || formData.letra_produto;
         const qtdFinal = qtdFaltante > 0 ? qtdFaltante : (qtdPCPTotal > 0 && qtdJaReservada === 0 ? qtdPCPTotal : Number(formData.quantidade));
-        const setorFinal = opPrincipal?.setor_id || produto?.setor_id || formData.setor_id
+        // Resolver setor ANTES do setFormData para evitar closure stale.
+        // Ordem de prioridade: OP > produto cadastrado > estado atual do form > setor ativo da tab > initialSetorId (prop) > primeiro setor da lista
+        const setorFinal = opPrincipal?.setor_id
+          || produto?.setor_id
+          || formData.setor_id
           || (setorAtivo && setorAtivo !== 'ALL' ? setorAtivo : null)
+          || (initialSetorId && initialSetorId !== 'ALL' ? initialSetorId : null)
           || setores[0]?.id;
 
         // Resolver sufixo: cadastro técnico > extrair do prefixo_padrao > OP > estado atual
@@ -253,6 +272,14 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
           || produto?.prefixo_padrao?.replace(/^[A-Z]/i, '')
           || opPrincipal?.sufixo
           || '';
+
+        // Marcar campos como auto-preenchidos se vieram do cadastro de produtos
+        const letraVeioDoExplicit = !!(produto?.letra_padrao || produto?.letra_produto);
+        const sufixoVeioDoExplicit = !!(produto?.sufixo || produto?.prefixo_padrao);
+        setCamposAutoFilled({
+          letra_produto: letraVeioDoExplicit || !!opPrincipal?.letra_produto,
+          sufixo: sufixoVeioDoExplicit || !!opPrincipal?.sufixo,
+        });
 
         setFormData(prev => {
           const newData = {
@@ -306,8 +333,10 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
 
   const handleInputCodigoBlur = () => {
     const val = (produtoSearch || formData.codigo_produto || '').toUpperCase();
-    const pArray = Array.isArray(produtos) ? produtos : [];
-    const produtoMatch = pArray.find(p => p.codigo === val);
+    // Buscar em produtosFiltrados (já filtrado por setor) — garante comportamento idêntico para todos os setores
+    const produtoMatch = produtosFiltrados.find(p => p.codigo === val)
+      // Fallback: buscar em produtosUnificados caso filtro de setor ainda esteja resolvendo
+      || produtosUnificados.find(p => p.codigo === val);
 
     if (produtoMatch) {
       // Forçar atualização mesmo que o código seja o mesmo, para garantir que os dados de OPs foram puxados
@@ -436,11 +465,15 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
       quantidade: parseInputNumber(formData.quantidade),
       numero_inicial: parseInputNumber(formData.numero_inicial),
       numero_final: parseInputNumber(formData.numero_final),
-      codigo_completo: preview?.codigo_completo || `${formData.letra_produto}${formData.ano}${formData.sufixo || ''}`
+      codigo_completo: preview?.codigo_completo || `${formData.letra_produto}${formData.ano}${formData.sufixo || ''}`,
+      informacoes_adicionais: {
+        ...(formData.informacoes_adicionais || {}),
+        origem: formData.origem,
+        descricao: formData.descricao
+      }
     };
 
     onSubmit(dadosFinal);
-    setPendingSubmission(null);
   };
 
   const temProgramacao = useMemo(() => {
@@ -489,12 +522,72 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
           <div className="space-y-6 relative z-10">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1 italic">Entidade Cliente</Label>
-              <Input
-                value={formData.cliente}
-                onChange={(e) => handleChange('cliente', e.target.value.toUpperCase())}
-                placeholder="EX: NOME DO CLIENTE OU OPERAÇÃO"
-                className="h-16 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/5 rounded-2xl px-6 text-lg font-black uppercase italic tracking-tighter focus:bg-white dark:focus:bg-slate-800 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
-              />
+              <div className="relative">
+                <Input
+                  value={formData.cliente}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    setClienteSearch(val);
+                    handleChange('cliente', val);
+                    setShowClienteSuggestions(true);
+                  }}
+                  onFocus={() => setShowClienteSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowClienteSuggestions(false), 200)}
+                  placeholder="EX: NOME DO CLIENTE OU OPERAÇÃO"
+                  className="h-16 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/5 rounded-2xl px-6 text-lg font-black uppercase italic tracking-tighter focus:bg-white dark:focus:bg-slate-800 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-blue-500/10">
+                  <User className="w-5 h-5 text-blue-500" />
+                </div>
+
+                {showClienteSuggestions && (
+                  <div className="absolute z-[200] w-full bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-2xl shadow-2xl mt-2 max-h-60 overflow-y-auto overflow-x-hidden backdrop-blur-xl p-2 animate-in fade-in zoom-in-95 duration-200">
+                    {produtosFiltrados
+                      .filter(p => {
+                        if (!clienteSearch) return true;
+                        const search = clienteSearch.toUpperCase();
+                        return (
+                          p.nome?.toUpperCase().includes(search) || 
+                          p.codigo?.toUpperCase().includes(search) ||
+                          p.modelo?.toUpperCase().includes(search) ||
+                          p.descricao?.toUpperCase().includes(search)
+                        );
+                      })
+                      .slice(0, 15)
+                      .map(p => (
+                        <button
+                          key={`${p.codigo}-cli`}
+                          type="button"
+                          onMouseDown={() => {
+                            setClienteSearch(p.nome || '');
+                            setProdutoSearch(p.codigo || '');
+                            handleCodigoProdutoChange(p.codigo);
+                            setShowClienteSuggestions(false);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-blue-500/5 dark:hover:bg-blue-500/10 rounded-xl border-b border-slate-50 dark:border-white/5 last:border-0 transition-all group/item"
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-slate-900 dark:text-white text-sm group-hover/item:text-blue-600 transition-colors uppercase">
+                                {p.nome || (p.origem === 'pcp_mapa' ? (p.descricao || 'ITEM PCP') : 'PRODUTO TÉCNICO')}
+                              </span>
+                              {p.origem === 'pcp_mapa' && (
+                                <span className="text-[7px] px-1 py-0.5 bg-emerald-500/10 text-emerald-600 rounded uppercase font-black tracking-widest leading-none">Plan</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono font-bold text-slate-500">{p.codigo}</span>
+                              {p.modelo && <span className="text-[9px] text-slate-400 font-bold italic tracking-tighter">({p.modelo})</span>}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    {produtosFiltrados.filter(p => (p.nome || '').toUpperCase().includes(clienteSearch.toUpperCase())).length === 0 && (
+                       <div className="p-4 text-center text-xs text-slate-400 italic">Pesquise o nome do cliente</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -521,7 +614,7 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
 
             {isAdmin && (
               <div className="space-y-2 animate-in fade-in slide-in-from-left-4 duration-500">
-                <Label className="text-[10px) font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1 italic">Unidade Operacional Responsável</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1 italic">Unidade Operacional Responsável</Label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <Button
                     type="button"
@@ -596,10 +689,13 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
                   {produtosFiltrados
                     .filter(p => {
                       if (!produtoSearch) return true;
-                      const search = produtoSearch.toUpperCase();
-                      const codigoMatch = p.codigo?.toUpperCase().includes(search);
-                      const nomeMatch = p.nome?.toUpperCase().includes(search);
-                      return codigoMatch || nomeMatch;
+                      const search = String(produtoSearch).toUpperCase();
+                      return (
+                        p.codigo?.toUpperCase().includes(search) ||
+                        p.nome?.toUpperCase().includes(search) ||
+                        p.modelo?.toUpperCase().includes(search) ||
+                        p.descricao?.toUpperCase().includes(search)
+                      );
                     })
                     .map(p => (
                       <button
@@ -613,9 +709,33 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
                         className="w-full text-left px-4 py-3 hover:bg-indigo-500/5 dark:hover:bg-indigo-500/10 rounded-xl border-b border-slate-50 dark:border-white/5 last:border-0 transition-all group/item"
                       >
                         <div className="flex items-center justify-between gap-4">
-                          <div className="flex flex-col">
-                            <span className="font-black text-slate-900 dark:text-white text-sm group-hover/item:text-indigo-600 transition-colors uppercase">{p.nome || p.modelo || 'SEM NOME'}</span>
-                            <span className="text-[10px] font-mono font-bold text-slate-400 group-hover/item:text-slate-500">{p.codigo}</span>
+                          <div className="flex flex-col gap-0.5 font-sans">
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-slate-900 dark:text-white text-sm group-hover/item:text-blue-600 transition-colors uppercase">{p.codigo}</span>
+                              {p.origem === 'pcp_mapa' && (
+                                <span className="text-[7px] px-1 py-0.5 bg-emerald-500/10 text-emerald-600 rounded uppercase font-black tracking-widest leading-none">Plan</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 leading-none">
+                              <span className="text-[10px] font-bold text-slate-500 truncate max-w-[200px]">{p.nome}</span>
+                              {p.modelo && <span className="text-[9px] text-slate-400 font-bold italic tracking-tighter">({p.modelo})</span>}
+                            </div>
+                            {/* Preview de letra + sufixo direto na dropdown */}
+                            {(p.letra_padrao || p.letra_produto || p.sufixo) && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 italic">Prefixo:</span>
+                                {(p.letra_padrao || p.letra_produto) && (
+                                  <span className="px-1.5 py-0.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded text-[9px] font-black leading-none">
+                                    {p.letra_padrao || p.letra_produto}
+                                  </span>
+                                )}
+                                {p.sufixo && (
+                                  <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded text-[9px] font-black italic leading-none">
+                                    {p.sufixo}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           {p.tem_programacao ? (
                             <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-0 font-black text-[9px] uppercase shrink-0">Mapa Mensal</Badge>
@@ -671,21 +791,42 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
                 <span className="text-xl">🔠</span>
               </div>
               <div>
-                <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest italic block mb-1">Letra / Sufixo de Série</Label>
+                <div className="flex items-center gap-2 mb-1">
+                  <Label className="text-[9px] font-black uppercase text-slate-400 tracking-widest italic">Letra / Sufixo de Série</Label>
+                  {(camposAutoFilled.letra_produto || camposAutoFilled.sufixo) && (
+                    <span className="px-1.5 py-0.5 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded text-[7px] font-black uppercase tracking-widest leading-none border border-emerald-500/20 animate-in fade-in duration-300">
+                      ⚡ AUTO
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
-                  <Input
-                    value={formData.letra_produto}
-                    onChange={(e) => handleChange('letra_produto', e.target.value.toUpperCase().slice(0, 1))}
-                    placeholder="A"
-                    className="w-14 h-10 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-white/5 rounded-lg text-center font-black text-lg focus:border-indigo-500 transition-all"
-                  />
+                  <div className="relative">
+                    <Input
+                      value={formData.letra_produto}
+                      onChange={(e) => handleChange('letra_produto', e.target.value.toUpperCase().slice(0, 1))}
+                      placeholder="A"
+                      className={cn(
+                        "w-14 h-10 border-2 rounded-lg text-center font-black text-lg transition-all",
+                        camposAutoFilled.letra_produto
+                          ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-400 dark:border-emerald-500/50 text-emerald-700 dark:text-emerald-300 focus:border-emerald-500"
+                          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-white/5 focus:border-indigo-500"
+                      )}
+                    />
+                  </div>
                   <span className="text-slate-300 dark:text-slate-600 font-black text-sm">+</span>
-                  <Input
-                    value={formData.sufixo}
-                    onChange={(e) => handleChange('sufixo', e.target.value.toUpperCase().slice(0, 4))}
-                    placeholder="LM"
-                    className="w-20 h-10 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-white/5 rounded-lg text-center font-black text-base italic text-blue-500 dark:text-blue-400 focus:border-indigo-500 transition-all"
-                  />
+                  <div className="relative">
+                    <Input
+                      value={formData.sufixo}
+                      onChange={(e) => handleChange('sufixo', e.target.value.toUpperCase().slice(0, 4))}
+                      placeholder="LM"
+                      className={cn(
+                        "w-20 h-10 border-2 rounded-lg text-center font-black text-base italic transition-all",
+                        camposAutoFilled.sufixo
+                          ? "bg-blue-50 dark:bg-blue-900/20 border-blue-400 dark:border-blue-500/50 text-blue-600 dark:text-blue-300 focus:border-blue-500"
+                          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-white/5 text-blue-500 dark:text-blue-400 focus:border-indigo-500"
+                      )}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

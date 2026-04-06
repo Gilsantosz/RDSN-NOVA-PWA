@@ -18,7 +18,7 @@ export function useNotifications(userId) {
       );
     },
     enabled: !!userId,
-    refetchInterval: 10000, // Atualiza a cada 10 segundos
+    refetchInterval: 30000, // Polling de backup — o realtime cuida da atualização imediata
   });
 
   // Notificações não lidas
@@ -59,13 +59,28 @@ export function useNotifications(userId) {
     },
   });
 
-  // Reproduzir som para novas notificações
+  // Subscribe em tempo real — atualiza o NotificationCenter instantaneamente
+  useEffect(() => {
+    if (!userId) return;
+    const unsubscribe = rdsn.entities.Notificacao.subscribe((event) => {
+      const rec = event.new;
+      // Só reage a registros deste usuário que não foram arquivados
+      if (rec && rec.usuario_id === userId && !rec.arquivada) {
+        queryClient.invalidateQueries({ queryKey: ['notificacoes', userId] });
+        // Toca o som apenas em INSERTs (notificação nova chegando)
+        if (event.eventType === 'INSERT' || event.type === 'INSERT') {
+          playNotificationSound(rec.prioridade);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [userId, queryClient]);
+
+  // Reproduzir som para novas notificações detectadas via polling (fallback)
   useEffect(() => {
     if (naoLidas.length > 0) {
       const ultimaNotificacao = naoLidas[0];
       const tempoDesdeNotificacao = Date.now() - new Date(ultimaNotificacao.created_at).getTime();
-      
-      // Se a notificação foi criada há menos de 5 segundos, é nova
       if (tempoDesdeNotificacao < 5000) {
         playNotificationSound(ultimaNotificacao.prioridade);
       }
@@ -85,8 +100,7 @@ export function useNotifications(userId) {
 // Função para reproduzir som de notificação
 function playNotificationSound(prioridade) {
   try {
-    const audio = new Audio();
-    // Usar diferentes frequências para diferentes prioridades
+    // Sintetiza o som diretamente via Web Audio API (sem arquivo de áudio externo)
     const context = new (window.AudioContext || window['webkitAudioContext'])();
     const oscillator = context.createOscillator();
     const gainNode = context.createGain();
