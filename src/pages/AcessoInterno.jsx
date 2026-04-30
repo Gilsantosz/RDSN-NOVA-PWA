@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { validateAdmin } from '@/api/secure_vault';
+import SessionManager from '@/lib/sessionManager';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,20 +36,12 @@ export default function AcessoInterno() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // LIMPEZA TOTAL AO ENTRAR NA TELA DE LOGIN
-    async function clearAll() {
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-        queryClient.clear();
-        const { rdsn: b44 } = await import('@/api/supabaseClient');
-        if (b44.auth) await (b44.auth.logout ? b44.auth.logout() : b44.auth.signOut());
-      } catch (e) {
-        console.warn('Erro ao limpar sessão:', e);
-      }
-    }
-    clearAll();
-  }, [queryClient]);
+    // Limpeza local ao entrar na tela de login.
+    // IMPORTANTE: NÃO chamar supabase.signOut() aqui — é async e pode
+    // chegar depois do login completar, apagando a sessão recém criada.
+    SessionManager.clear();
+    queryClient.clear();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scrollToLogin = () => {
     loginRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,88 +52,90 @@ export default function AcessoInterno() {
     setLoading(true);
     setError('');
 
-    // LIMPEZA PREVENTIVA: Garantir que não existam restos de sessões anteriores
-    localStorage.clear();
-    sessionStorage.clear();
-    queryClient.clear();
-
-    console.group('Processo de Login');
+    console.group('🔐 Processo de Login');
     console.log('Iniciando login para:', username);
 
     try {
+      // ── CAMINHO 1: Admin local (Vault) ─────────────────────────────
+      // Validação 100% local, sem rede, sem edge function.
+      if (validateAdmin(username, senha)) {
+        console.log('✅ Admin autenticado via Vault local');
+        const adminUser = {
+          id: 'admin-vault',
+          full_name: 'Administrador',
+          email: 'admin@system.local',
+          username: 'admin',
+          role_custom: 'Admin',
+          celula: null,
+          setores_permitidos: ['TODOS'],
+          permissoes_customizadas: {},
+        };
+        login(adminUser);
+        localStorage.setItem('setorAtivo', 'ALL');
+        console.log('🚀 Redirecionando para Dashboard...');
+        console.groupEnd();
+        navigate('/Dashboard', { replace: true });
+        return;
+      }
+
+      // ── CAMINHO 2: Usuários do Supabase ────────────────────────────
       const { rdsn } = await import('@/api/supabaseClient');
-      let response;
+      let user = null;
+
+      // 2a. Tenta via Edge Function
       try {
-        response = await rdsn.functions.invoke('loginUser', { username, password: senha });
-      } catch (err) {
-        console.warn('Edge function falhou, tentando login direto...', err);
-        // Fallback local caso as funções Deno não estejam ativas
-        if (validateAdmin(username, senha)) {
-          response = {
-            data: {
-              success: true,
-              user: {
-                id: 'admin',
-                full_name: 'Administrador',
-                email: 'admin@system.local',
-                username: 'admin',
-                role_custom: 'Admin',
-                celula: null,
-                setores_permitidos: ['TODOS'],
-                permissoes_customizadas: {}
-              }
-            }
-          };
-        } else {
-          // Tenta buscar no bd direto pelo cliente da rdsn (que traduz o j_data adequadamente)
-          const usuarios = await rdsn.entities.UsuarioInterno.filter({ username: username });
-          if (usuarios && usuarios.length > 0) {
-            const user = usuarios[0];
-            const passwordHash = btoa(senha);
-            if (user.ativo !== false && user.password_hash === passwordHash) {
-              response = {
-                data: {
-                  success: true,
-                  user
-                }
-              };
+        const res = await rdsn.functions.invoke('loginUser', {
+          username,
+          password: senha,
+        });
+        if (res?.data?.success && res?.data?.user) {
+          user = res.data.user;
+          console.log('✅ Usuário autenticado via Edge Function');
+        } else if (res?.data?.error) {
+          // Edge Function respondeu com erro explícito de credenciais
+          throw new Error(res.data.error);
+        }
+      } catch (edgeErr) {
+        console.warn('⚠️ Edge Function falhou, tentando busca direta...', edgeErr.message);
+
+        // 2b. Fallback: busca direta no banco pelo username
+        try {
+          const rows = await rdsn.entities.UsuarioInterno.filter({ username });
+          if (rows?.length > 0) {
+            const candidate = rows[0];
+            // Suporte a hash base64 simples (legado)
+            const hashMatch = candidate.password_hash === btoa(senha);
+            if (candidate.ativo !== false && hashMatch) {
+              user = candidate;
+              console.log('✅ Usuário autenticado via banco direto (fallback)');
             }
           }
-        }
-
-        if (!response) {
-          response = { data: { success: false, error: 'Usuário ou senha incorretos' } };
+        } catch (dbErr) {
+          console.error('❌ Falha no fallback de banco:', dbErr.message);
         }
       }
 
-      if (!response.data || !response.data.success) {
-        setError(response?.data?.error || 'Login inválido');
+      if (!user) {
+        setError('Usuário ou senha incorretos.');
         setLoading(false);
         console.groupEnd();
         return;
       }
 
-      const user = response.data.user;
-      console.log('Usuário autenticado com sucesso:', user.full_name, 'Role:', user.role_custom);
-
-      // RESET DE SESSÃO PROFISSIONAL
-      queryClient.clear();
+      // ── Sessão aprovada ────────────────────────────────────────────
       login(user);
-
       if (user.role_custom === 'Admin') {
         localStorage.setItem('setorAtivo', 'ALL');
       } else if (user.setores_permitidos?.length > 0) {
         localStorage.setItem('setorAtivo', user.setores_permitidos[0]);
       }
-
-      console.log('Redirecionando para Dashboard via React Router...');
+      console.log('🚀 Redirecionando para Dashboard...');
       console.groupEnd();
-
-      // Navegação controlada pelo React Router
       navigate('/Dashboard', { replace: true });
+
     } catch (err) {
-      console.error('Falha no login:', err);
-      setError('Erro ao fazer login: ' + err.message);
+      console.error('❌ Erro inesperado no login:', err);
+      setError(err.message || 'Erro ao fazer login. Tente novamente.');
       setLoading(false);
       console.groupEnd();
     }

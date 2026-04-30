@@ -79,9 +79,9 @@ function App() {
       <AuthProvider>
         <QueryClientProvider client={queryClientInstance}>
           <AuthGate>
-            <GlobalRealtimeSync />
             <Router>
               <NavigationTracker />
+              <GlobalRealtimeSync />
               <AuthenticatedApp />
             </Router>
           </AuthGate>

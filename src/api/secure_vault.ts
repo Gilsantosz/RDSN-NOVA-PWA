@@ -6,7 +6,7 @@
  */
 
 // Simple obfuscation for internal use
-const _dob = (s: string) => atob(s.split('').reverse().join(''));
+const _dob = (s: string) => atob(s).split('').reverse().join('');
 
 export interface VaultData {
   ADMIN_USER: string;
@@ -20,7 +20,7 @@ export interface VaultData {
 const VAULT: VaultData = {
   // admin / admin123
   ADMIN_USER: 'admin',
-  ADMIN_HASH: 'MTIzbmlkbWE=', // 'admin123' obfuscated
+  ADMIN_HASH: 'MzIxbmltZGE=', // 'admin123' obfuscated
   
   // Internal access keys
   INTERNAL_ROLES: ['admin', 'manager', 'pcp_manager'],

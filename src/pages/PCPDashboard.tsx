@@ -234,7 +234,7 @@ export default function PCPDashboard() {
               </div>
               <div className="space-y-1">
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-none">
-                  PCP<span className="text-blue-600 dark:text-blue-400">MATRIX</span>
+                  RDSN<span className="text-blue-600 dark:text-blue-400"> · PCP</span>
                 </h1>
                 <p className="text-xs sm:text-sm font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] italic opacity-80 flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5 text-blue-500 animate-pulse" />

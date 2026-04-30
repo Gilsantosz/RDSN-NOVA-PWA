@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
-import { Plus, Edit, Trash2, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Building2, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -28,9 +28,11 @@ export default function Setores() {
     sequencia_decrescente: false
   });
 
-  const { data: setores = [] } = useQuery({
+  const { data: setores = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['setores'],
-    queryFn: () => rdsn.entities.Setor.list()
+    queryFn: () => rdsn.entities.Setor.list(),
+    retry: 1,
+    staleTime: 30_000,
   });
 
   const createMutation = useMutation({
@@ -121,6 +123,15 @@ export default function Setores() {
               </div>
             </div>
             <div className="flex flex-wrap gap-3 w-full xl:w-auto items-center">
+              {isError && (
+                <Button
+                  onClick={() => refetch()}
+                  variant="outline"
+                  className="h-12 px-6 rounded-2xl font-black uppercase text-xs tracking-widest gap-2 border-orange-300 text-orange-600 hover:bg-orange-50"
+                >
+                  <RefreshCw className="w-4 h-4" /> Tentar novamente
+                </Button>
+              )}
               <Button
                 onClick={() => setShowForm(true)}
                 className="h-12 px-6 rounded-2xl bg-slate-900 dark:bg-emerald-600 text-white font-black uppercase text-xs tracking-widest gap-2 shadow-xl hover:scale-[1.02] active:scale-95 transition-all border-0 shadow-emerald-500/20"
@@ -131,65 +142,108 @@ export default function Setores() {
           </div>
         </div>
 
-        {/* Lista de Setores */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {setores.map(setor => (
-            <PremiumCard
-              key={setor.id}
-              title={setor.nome}
-              icon={Building2}
-              iconColor={setor.cor || '#3b82f6'}
-              badge={
-                <Badge variant={setor.ativo ? "default" : "secondary"} className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${setor.ativo ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}`}>
-                  {setor.ativo ? 'ATIVO' : 'INATIVO'}
-                </Badge>
-              }
+        {/* Estado de loading */}
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <div className="w-12 h-12 border-4 border-slate-200 dark:border-slate-700 border-t-emerald-500 rounded-full animate-spin" />
+            <p className="text-slate-500 dark:text-slate-400 font-bold text-sm uppercase tracking-widest">Carregando setores...</p>
+          </div>
+        )}
+
+        {/* Estado de erro (Supabase offline / pausado) */}
+        {isError && !isLoading && (
+          <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+            <div className="w-20 h-20 bg-orange-100 dark:bg-orange-900/30 rounded-3xl flex items-center justify-center">
+              <Building2 className="w-10 h-10 text-orange-500" />
+            </div>
+            <div>
+              <p className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-xl">Banco de dados temporariamente indisponível</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+                O servidor Supabase estava pausado e está sendo restaurado agora.<br />
+                Aguarde <strong>1 a 3 minutos</strong> e clique em "Tentar novamente".
+              </p>
+            </div>
+            <button
+              onClick={() => refetch()}
+              className="px-8 py-3 bg-emerald-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-emerald-500 transition-colors flex items-center gap-2 shadow-lg shadow-emerald-500/20"
             >
-              <div className="space-y-4">
-                <p className="text-sm font-mono text-slate-500 dark:text-slate-400">
-                  Centro de Custo: <span className="font-bold text-slate-900 dark:text-slate-300">{setor.codigo}</span>
-                </p>
-                {setor.descricao && (
-                  <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed min-h-[40px] italic">"{setor.descricao}"</p>
-                )}
-                {setor.responsavel && (
-                  <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-600 dark:text-slate-400 uppercase text-xs">
-                      {setor.responsavel.charAt(0)}
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-500">
-                      <span className="font-semibold dark:text-slate-400 tracking-wide uppercase text-[9px]">Responsável:</span><br />
-                      <span className="font-bold dark:text-slate-200">{setor.responsavel}</span>
-                    </p>
-                  </div>
-                )}
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(setor)}
-                    className="flex-1 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-bold text-[11px] uppercase tracking-wider h-10"
-                  >
-                    <Edit className="w-3.5 h-3.5 mr-2" />
-                    Editar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      if (confirm(`Deseja remover o setor ${setor.nome}?`)) {
-                        deleteMutation.mutate(setor.id);
-                      }
-                    }}
-                    className="h-10 w-10 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 dark:border-slate-800 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+              <RefreshCw className="w-4 h-4" /> Tentar novamente
+            </button>
+          </div>
+        )}
+
+        {/* Lista de Setores */}
+        {!isLoading && !isError && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {setores.length === 0 && (
+              <div className="col-span-3 flex flex-col items-center justify-center py-24 gap-4 text-center">
+                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center">
+                  <Building2 className="w-8 h-8 text-slate-400" />
+                </div>
+                <div>
+                  <p className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Nenhum setor cadastrado</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Clique em "Novo Setor" para começar.</p>
                 </div>
               </div>
-            </PremiumCard>
-          ))}
-        </div>
+            )}
+            {setores.map(setor => (
+              <PremiumCard
+                key={setor.id}
+                title={setor.nome}
+                icon={Building2}
+                iconColor={setor.cor || '#3b82f6'}
+                badge={
+                  <Badge variant={setor.ativo ? "default" : "secondary"} className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${setor.ativo ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}`}>
+                    {setor.ativo ? 'ATIVO' : 'INATIVO'}
+                  </Badge>
+                }
+              >
+                <div className="space-y-4">
+                  <p className="text-sm font-mono text-slate-500 dark:text-slate-400">
+                    Centro de Custo: <span className="font-bold text-slate-900 dark:text-slate-300">{setor.codigo}</span>
+                  </p>
+                  {setor.descricao && (
+                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed min-h-[40px] italic">"{setor.descricao}"</p>
+                  )}
+                  {setor.responsavel && (
+                    <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-600 dark:text-slate-400 uppercase text-xs">
+                        {setor.responsavel.charAt(0)}
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-500">
+                        <span className="font-semibold dark:text-slate-400 tracking-wide uppercase text-[9px]">Responsável:</span><br />
+                        <span className="font-bold dark:text-slate-200">{setor.responsavel}</span>
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(setor)}
+                      className="flex-1 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors font-bold text-[11px] uppercase tracking-wider h-10"
+                    >
+                      <Edit className="w-3.5 h-3.5 mr-2" />
+                      Editar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        if (confirm(`Deseja remover o setor ${setor.nome}?`)) {
+                          deleteMutation.mutate(setor.id);
+                        }
+                      }}
+                      className="h-10 w-10 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 dark:border-slate-800 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </PremiumCard>
+            ))}
+          </div>
+        )}
 
         {/* Form Dialog */}
         <Dialog open={showForm} onOpenChange={(open) => !open && resetForm()}>
@@ -341,9 +395,12 @@ export default function Setores() {
                 </Button>
                 <Button
                   type="submit"
-                  className="flex-[1.5] h-14 bg-slate-900 dark:bg-emerald-600 text-white hover:bg-slate-800 dark:hover:bg-emerald-500 transition-all font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl shadow-xl shadow-emerald-500/10 active:scale-95 border-0"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                  className="flex-[1.5] h-14 bg-slate-900 dark:bg-emerald-600 text-white hover:bg-slate-800 dark:hover:bg-emerald-500 transition-all font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl shadow-xl shadow-emerald-500/10 active:scale-95 border-0 disabled:opacity-60"
                 >
-                  {editingSetor ? 'Efetivar Alterações' : 'Confirmar Registro'}
+                  {createMutation.isPending || updateMutation.isPending
+                    ? 'Salvando...'
+                    : editingSetor ? 'Efetivar Alterações' : 'Confirmar Registro'}
                 </Button>
               </div>
             </form>

@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   Package,
+  Box,
   AlertCircle,
   User,
   Zap,
@@ -126,6 +127,13 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
     });
   }, [produtosUnificados, setorAtivo, isAdmin]);
 
+  // Produto selecionado no momento (para exibir informações de contexto)
+  const produtoSelecionado = useMemo(() => {
+    const cod = formData.codigo_produto?.toUpperCase();
+    if (!cod) return null;
+    return produtosUnificados.find(p => p.codigo === cod);
+  }, [formData.codigo_produto, produtosUnificados]);
+
   // Auto-alocacao com debounce ao digitar quantidade
   useEffect(() => {
     const qtd = Number(formData.quantidade);
@@ -170,8 +178,15 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
   }, [formData.quantidade, formData.letra_produto, formData.ano, formData.manual, setorAtivo, formData.setor_id, setores]); // setores adicionado para reagir quando carregarem
 
   const handleChange = (field, value) => {
+    let finalValue = value;
+    
+    // Forçar maiúsculas para campos técnicos
+    if (['codigo_produto', 'letra_produto', 'sufixo'].includes(field) && typeof value === 'string') {
+      finalValue = value.toUpperCase();
+    }
+
     setFormData(prev => {
-      const newData = { ...prev, [field]: value };
+      const newData = { ...prev, [field]: finalValue };
       
       const parseInputNumber = (val) => {
         if (typeof val === 'number') return val;
@@ -256,7 +271,8 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
 
         // Calcular os valores finais para alocação automática ANTES de setFormData
         // Prioridade: cadastro técnico > OP principal > estado atual do formulário
-        const letraFinal = produto?.letra_padrao || produto?.letra_produto || opPrincipal?.letra_produto || formData.letra_produto;
+        const letraRaw = produto?.letra_padrao || produto?.letra_produto || opPrincipal?.letra_produto || formData.letra_produto;
+        const letraFinal = String(letraRaw || '').toUpperCase();
         const qtdFinal = qtdFaltante > 0 ? qtdFaltante : (qtdPCPTotal > 0 && qtdJaReservada === 0 ? qtdPCPTotal : Number(formData.quantidade));
         // Resolver setor ANTES do setFormData para evitar closure stale.
         // Ordem de prioridade: OP > produto cadastrado > estado atual do form > setor ativo da tab > initialSetorId (prop) > primeiro setor da lista
@@ -268,10 +284,11 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
           || setores[0]?.id;
 
         // Resolver sufixo: cadastro técnico > extrair do prefixo_padrao > OP > estado atual
-        const sufixoFinal = produto?.sufixo
+        const sufixoRaw = produto?.sufixo
           || produto?.prefixo_padrao?.replace(/^[A-Z]/i, '')
           || opPrincipal?.sufixo
           || '';
+        const sufixoFinal = String(sufixoRaw || '').toUpperCase();
 
         // Marcar campos como auto-preenchidos se vieram do cadastro de produtos
         const letraVeioDoExplicit = !!(produto?.letra_padrao || produto?.letra_produto);
@@ -697,54 +714,78 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
                         p.descricao?.toUpperCase().includes(search)
                       );
                     })
-                    .map(p => (
-                      <button
-                        key={p.codigo}
-                        type="button"
-                        onMouseDown={() => {
-                          setProdutoSearch(p.codigo);
-                          handleCodigoProdutoChange(p.codigo);
-                          setShowProdutoSuggestions(false);
-                        }}
-                        className="w-full text-left px-4 py-3 hover:bg-indigo-500/5 dark:hover:bg-indigo-500/10 rounded-xl border-b border-slate-50 dark:border-white/5 last:border-0 transition-all group/item"
-                      >
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex flex-col gap-0.5 font-sans">
+                    .map(p => {
+                      const letra     = (p.letra_padrao || p.letra_produto || '').toUpperCase();
+                      const sufixo    = (p.sufixo || '').toUpperCase();
+                      const temPrefixo = letra || sufixo;
+
+                      return (
+                        <button
+                          key={p.codigo}
+                          type="button"
+                          onMouseDown={() => {
+                            setProdutoSearch(p.codigo);
+                            handleCodigoProdutoChange(p.codigo);
+                            setShowProdutoSuggestions(false);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-indigo-500/5 dark:hover:bg-indigo-500/10 rounded-xl border-b border-slate-50 dark:border-white/5 last:border-0 transition-all group/item"
+                        >
+                          {/* LINHA SUPERIOR: código + badge de programação */}
+                          <div className="flex items-center justify-between gap-3 mb-0.5">
                             <div className="flex items-center gap-2">
-                              <span className="font-black text-slate-900 dark:text-white text-sm group-hover/item:text-blue-600 transition-colors uppercase">{p.codigo}</span>
-                              {p.origem === 'pcp_mapa' && (
-                                <span className="text-[7px] px-1 py-0.5 bg-emerald-500/10 text-emerald-600 rounded uppercase font-black tracking-widest leading-none">Plan</span>
+                              <span className="font-black text-base text-slate-900 dark:text-white group-hover/item:text-blue-600 transition-colors uppercase tracking-tight">
+                                {p.codigo}
+                              </span>
+                              {p.tem_programacao && (
+                                <span className="text-[7px] px-1.5 py-0.5 bg-blue-500/15 text-blue-600 dark:text-blue-400 rounded-full uppercase font-black tracking-widest leading-none border border-blue-400/20">
+                                  Mapa Mensal
+                                </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 leading-none">
-                              <span className="text-[10px] font-bold text-slate-500 truncate max-w-[200px]">{p.nome}</span>
-                              {p.modelo && <span className="text-[9px] text-slate-400 font-bold italic tracking-tighter">({p.modelo})</span>}
-                            </div>
-                            {/* Preview de letra + sufixo direto na dropdown */}
-                            {(p.letra_padrao || p.letra_produto || p.sufixo) && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 italic">Prefixo:</span>
-                                {(p.letra_padrao || p.letra_produto) && (
-                                  <span className="px-1.5 py-0.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded text-[9px] font-black leading-none">
-                                    {p.letra_padrao || p.letra_produto}
-                                  </span>
-                                )}
-                                {p.sufixo && (
-                                  <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded text-[9px] font-black italic leading-none">
-                                    {p.sufixo}
-                                  </span>
-                                )}
-                              </div>
+                            {/* Badge de origem: direita */}
+                            <span className={`shrink-0 text-[8px] px-2 py-0.5 rounded font-black uppercase tracking-widest leading-none border ${
+                              p.tem_programacao
+                                ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                                : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700'
+                            }`}>
+                              {p.tem_programacao ? '📅 Programado' : 'Cadastro Geral'}
+                            </span>
+                          </div>
+
+                          {/* LINHA DO NOME / MODELO */}
+                          <div className="flex items-center gap-2 leading-none mb-1">
+                            <span className="text-[10px] font-bold text-slate-500 truncate max-w-[200px] uppercase">
+                              {p.nome}
+                            </span>
+                            {p.modelo && (
+                              <span className="text-[9px] text-slate-400 font-bold italic tracking-tighter">({p.modelo})</span>
                             )}
                           </div>
-                          {p.tem_programacao ? (
-                            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-0 font-black text-[9px] uppercase shrink-0">Mapa Mensal</Badge>
-                          ) : (
-                            <Badge variant="outline" className="font-black text-[9px] text-slate-400 border-slate-200 uppercase shrink-0">Cadastro Geral</Badge>
-                          )}
-                        </div>
-                      </button>
-                    ))}
+
+                          {/* LINHA DO PREFIXO: sempre visível */}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Prefixo:</span>
+                            {letra ? (
+                              <span className="px-2 py-0.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded text-[9px] font-black leading-none">
+                                {letra}
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 text-slate-300 dark:text-slate-600 text-[9px] font-black italic leading-none">—</span>
+                            )}
+                            {sufixo ? (
+                              <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded text-[9px] font-black italic leading-none border border-blue-200/50 dark:border-blue-700/30">
+                                {sufixo}
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 text-slate-300 dark:text-slate-600 text-[9px] font-black italic leading-none">—</span>
+                            )}
+                            {!temPrefixo && (
+                              <span className="text-[8px] text-amber-500 font-bold italic">· sem dados no cadastro</span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   {produtosFiltrados.filter(p => {
                     if (!produtoSearch) return true;
                     const search = produtoSearch.toUpperCase();
@@ -756,6 +797,51 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
                         <p className="text-[10px] font-black uppercase text-slate-400 italic">Nenhum produto correspondente</p>
                       </div>
                     )}
+                </div>
+              )}
+              {/* Card de Contexto: Exibido quando um produto é identificado */}
+              {produtoSelecionado && (
+                <div className="absolute -bottom-14 left-1 w-full z-10 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between gap-4 shadow-lg backdrop-blur-sm ${
+                    produtoSelecionado.tem_programacao 
+                      ? 'bg-blue-50/90 dark:bg-blue-900/40 border-blue-200 dark:border-blue-700'
+                      : 'bg-slate-50/90 dark:bg-slate-800/90 border-slate-200 dark:border-slate-700'
+                  }`}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                        produtoSelecionado.tem_programacao 
+                          ? 'bg-blue-500/10 text-blue-600'
+                          : 'bg-slate-500/10 text-slate-500'
+                      }`}>
+                        {produtoSelecionado.tem_programacao ? <Package className="w-5 h-5" /> : <Box className="w-5 h-5" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-[9px] font-black uppercase tracking-tight leading-none mb-0.5 truncate ${
+                          produtoSelecionado.tem_programacao ? 'text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400'
+                        }`}>
+                          {produtoSelecionado.modelo || produtoSelecionado.nome || 'PRODUTO IDENTIFICADO'}
+                        </p>
+                        <p className="text-[8px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-tighter truncate">
+                          {produtoSelecionado.cliente || produtoSelecionado.nome || 'CLIENTE GERAL'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className={`shrink-0 flex items-center gap-2 px-2 py-1 rounded-lg border text-[7px] font-black uppercase tracking-widest leading-none ${
+                        produtoSelecionado.tem_programacao 
+                          ? 'bg-blue-600/10 text-blue-600 border-blue-200 dark:border-blue-500/30'
+                          : 'bg-slate-600/10 text-slate-500 border-slate-200 dark:border-slate-500/30'
+                    }`}>
+                      {produtoSelecionado.tem_programacao ? (
+                        <>
+                          <div className="w-1 h-1 rounded-full bg-blue-600 animate-pulse" />
+                          Mapa Mensal
+                        </>
+                      ) : (
+                        'Cadastro Geral'
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

@@ -4,7 +4,11 @@ import SessionManager, { User } from '../lib/sessionManager';
 
 const { supabaseUrl, supabaseAnonKey } = getEnvConfig();
 
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+        storageKey: 'rdsn-auth-token'
+    }
+});
 
 const isStandardColumn = (key: string) => ['id', 'created_at'].includes(key);
 

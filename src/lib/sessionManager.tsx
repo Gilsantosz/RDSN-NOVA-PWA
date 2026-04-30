@@ -12,7 +12,7 @@ export interface SessionPayload {
 }
 
 class SessionManager {
-    static SESSION_KEY = "internalUser";
+    static SESSION_KEY = "rdsn_internalUser";
 
     static getUser(): User | null {
         try {

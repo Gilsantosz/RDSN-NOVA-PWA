@@ -17,6 +17,11 @@ const GITHUB_PAGES_BASE = '/RDSN-NOVA-PWA/';
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: false,
+  },
   base: isWebBuild ? GITHUB_PAGES_BASE : './',
   logLevel: 'error',
   build: {
@@ -44,9 +49,9 @@ export default defineConfig({
         // Campo 'id' obrigatório para o Chrome gerar WebAPK moderno (Android 12+)
         // Sem este campo, o Play Protect bloqueia com aviso de "versão antiga"
         id: '/RDSN-NOVA-PWA/',
-        short_name: 'PCPMatrix',
-        name: 'PCP Matrix',
-        description: 'PCP Matrix - Sistema de Gestão Industrial RDSN NOVA',
+        short_name: 'RDSN',
+        name: 'RDSN NOVA',
+        description: 'RDSN NOVA - Sistema de Gestão Industrial de Produção e Reservas',
         icons: [
           // Android Chrome exige 192x192 PNG (mínimo obrigatório)
           {
