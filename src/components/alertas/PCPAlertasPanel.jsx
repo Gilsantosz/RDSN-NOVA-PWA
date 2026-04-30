@@ -170,7 +170,7 @@ function NovoAlertaDialog({ ops, clientes, onClose, onSalvar }) {
               <Select value={form.op_codigo} onValueChange={v => set('op_codigo', v)}>
                 <SelectTrigger className="h-8 text-sm mt-1 bg-background"><SelectValue placeholder="Selecionar" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={null}>Nenhuma</SelectItem>
+                  <SelectItem value="">Nenhuma</SelectItem>
                   {ops.map(op => <SelectItem key={op.id} value={op.codigo_op}>{op.codigo_op}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -181,7 +181,7 @@ function NovoAlertaDialog({ ops, clientes, onClose, onSalvar }) {
             <Select value={form.cliente} onValueChange={v => set('cliente', v)}>
               <SelectTrigger className="h-8 text-sm mt-1 bg-background"><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value={null}>Nenhum</SelectItem>
+                <SelectItem value="">Nenhum</SelectItem>
                 {clientes.map(c => <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}
               </SelectContent>
             </Select>

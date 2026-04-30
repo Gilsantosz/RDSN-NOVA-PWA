@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rdsn } from '@/api/supabaseClient';
 import { useSetor } from '@/components/context/SetorContext';
-import { Bell, CircleCheck, CircleX, AlertTriangle, TrendingDown, Package, Activity, Info, Trash2, ExternalLink, Clock, MessageSquare, BarChart3, XCircle } from 'lucide-react';
+import { Bell, CircleCheck, CheckCircle, CircleX, AlertTriangle, TrendingDown, Package, Activity, Info, Trash2, ExternalLink, Clock, MessageSquare, BarChart3, XCircle } from 'lucide-react';
 import PCPAlertasPanel from '@/components/alertas/PCPAlertasPanel';
 import { PremiumCard } from '@/components/ui/PremiumCard';
 import { Badge } from "@/components/ui/badge";
