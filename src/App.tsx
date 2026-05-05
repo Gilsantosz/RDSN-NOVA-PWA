@@ -8,6 +8,7 @@ import { HashRouter as Router, Route, Routes, Navigate, useLocation } from 'reac
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { ThemeProvider } from '@/lib/ThemeContext';
+import { RealtimeProvider } from '@/lib/RealtimeContext';
 
 import { GlobalRealtimeSync } from '@/components/GlobalRealtimeSync';
 
@@ -77,16 +78,18 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <QueryClientProvider client={queryClientInstance}>
-          <AuthGate>
-            <Router>
-              <NavigationTracker />
-              <GlobalRealtimeSync />
-              <AuthenticatedApp />
-            </Router>
-          </AuthGate>
-          <Toaster />
-        </QueryClientProvider>
+        <RealtimeProvider>
+          <QueryClientProvider client={queryClientInstance}>
+            <AuthGate>
+              <Router>
+                <NavigationTracker />
+                <GlobalRealtimeSync />
+                <AuthenticatedApp />
+              </Router>
+            </AuthGate>
+            <Toaster />
+          </QueryClientProvider>
+        </RealtimeProvider>
       </AuthProvider>
     </ThemeProvider>
   )

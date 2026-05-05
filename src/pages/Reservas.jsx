@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { rdsn } from '@/api/supabaseClient';
 import { useSetor } from '@/components/context/SetorContext';
-import { createPageUrl } from '../utils';
+import { createPageUrl, normalizeYear } from '../utils';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Plus, Package, Eye, History, BarChart3, RefreshCw, ScanLine, Calendar, X } from 'lucide-react';
@@ -147,6 +147,7 @@ export default function Reservas() {
         letra_padrao: c.letra_produto || '',
         sufixo: c.sufixo || '',
         prefixo_padrao: c.prefixo_padrao || '',
+        prefixo_lote: c.prefixo_lote || '',   // NOVO: prefixo de lote (L / LM)
         modelo: c.modelo || c.descricao_produto || '',
         origem: 'comercial'
       }));
@@ -168,6 +169,10 @@ export default function Reservas() {
           }
           if (!exist.prefixo_padrao && c.prefixo_padrao) {
             exist.prefixo_padrao = c.prefixo_padrao;
+          }
+          // Propagar prefixo_lote se ausente
+          if (!exist.prefixo_lote && c.prefixo_lote) {
+            exist.prefixo_lote = c.prefixo_lote;
           }
         }
       });
@@ -647,7 +652,7 @@ export default function Reservas() {
     }
 
     if (filters.ano) {
-      result = result.filter(r => String(r.ano) === String(filters.ano));
+      result = result.filter(r => normalizeYear(r.ano) === normalizeYear(filters.ano));
     }
 
     if (filters.status) {
@@ -745,7 +750,7 @@ export default function Reservas() {
     if (filters.codigoProduto) f['Cód. Produto'] = filters.codigoProduto;
     if (filters.modelo) f['Modelo'] = filters.modelo;
     if (filters.letra) f['Letra'] = filters.letra;
-    if (filters.ano) f['Ano'] = filters.ano;
+    if (filters.ano) f['Ano'] = `20${normalizeYear(filters.ano)}`;
     if (filters.status) f['Status'] = filters.status;
     if (filters.dataInicio) f['Data Início'] = filters.dataInicio;
     if (filters.dataFim) f['Data Fim'] = filters.dataFim;
@@ -804,14 +809,14 @@ export default function Reservas() {
 
                 <div className="flex items-center gap-2 px-3 py-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200/50 dark:border-white/5">
                   <Calendar className="w-4 h-4 text-blue-500" />
-                  <Select value={filters.ano || 'all'} onValueChange={(v) => setFilters(prev => ({ ...prev, ano: v === 'all' ? '' : v }))}>
+                  <Select value={filters.ano ? normalizeYear(filters.ano) : 'all'} onValueChange={(v) => setFilters(prev => ({ ...prev, ano: v === 'all' ? '' : v }))}>
                     <SelectTrigger className="w-[110px] bg-transparent border-0 focus:ring-0 font-black uppercase text-[10px] tracking-widest h-7 px-0">
                       <SelectValue placeholder="Safra" />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border-white/10 backdrop-blur-xl">
                       <SelectItem value="all" className="font-bold uppercase text-[10px]">Todas</SelectItem>
                       {anos.map(ano => (
-                        <SelectItem key={ano} value={String(ano)} className="font-bold uppercase text-[10px]">20{ano}</SelectItem>
+                        <SelectItem key={ano} value={normalizeYear(ano)} className="font-bold uppercase text-[10px]">20{normalizeYear(ano)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -857,12 +862,10 @@ export default function Reservas() {
           <TabsContent value="dashboard">
             <PageTransition>
               <DashboardReservas
-                filtroAno={filters.ano ? Number(filters.ano) : null}
-                setFiltroAno={(ano) => setFilters(prev => ({ ...prev, ano: ano?.toString() || '' }))}
-                sequencias={sequencias}
+                filtroAno={filters.ano && filters.ano !== '' ? filters.ano : null}
+                setFiltroAno={(ano) => setFilters(prev => ({ ...prev, ano: ano ? ano.toString() : '' }))}
                 setActiveTab={setActiveTab}
                 setFilters={setFilters}
-                pcpOps={pcpOps}
               />
             </PageTransition>
           </TabsContent>
@@ -921,14 +924,14 @@ export default function Reservas() {
                     </Select>
 
                     {/* Ano */}
-                    <Select value={filters.ano || 'all'} onValueChange={(v) => setFilters(prev => ({ ...prev, ano: v === 'all' ? '' : v }))}>
+                    <Select value={filters.ano ? normalizeYear(filters.ano) : 'all'} onValueChange={(v) => setFilters(prev => ({ ...prev, ano: v === 'all' ? '' : v }))}>
                       <SelectTrigger className="w-auto min-w-[100px] h-8 text-[10px] font-bold uppercase tracking-widest bg-white/50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl hover:bg-white/80 dark:hover:bg-white/10 transition-colors px-3 gap-1.5">
                         <SelectValue placeholder="Ano" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-slate-200 dark:border-white/10 shadow-2xl bg-white/95 dark:bg-[#0c0c0e]/95 backdrop-blur-xl">
                         <SelectItem value="all" className="rounded-lg cursor-pointer text-xs">Todos os Anos</SelectItem>
                         {anos.map(a => (
-                          <SelectItem key={a} value={String(a)} className="rounded-lg cursor-pointer text-xs">{a}</SelectItem>
+                          <SelectItem key={a} value={normalizeYear(a)} className="rounded-lg cursor-pointer text-xs">20{normalizeYear(a)}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

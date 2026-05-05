@@ -466,17 +466,24 @@ export default function Producao() {
                                                     NUMERAÇÃO REVERSA
                                                   </Badge>
                                                 )}
-                                                <Button
-                                                  onClick={() => {
-                                                    setSelectedReserva(reserva);
-                                                    setShowBaixa(true);
-                                                  }}
-                                                  disabled={isReadonly}
-                                                  className="h-11 px-6 rounded-2xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-blue-500/10 transition-all active:scale-95 disabled:grayscale w-full"
-                                                >
-                                                  <ScanLine className="w-4 h-4 mr-2" />
-                                                  Coletar Baixa
-                                                </Button>
+                                                {isReadonly ? (
+                                                  <div className="h-11 flex items-center justify-center bg-slate-100 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700/50 px-4">
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic text-center">
+                                                      Selecione um setor para baixar
+                                                    </p>
+                                                  </div>
+                                                ) : (
+                                                  <Button
+                                                    onClick={() => {
+                                                      setSelectedReserva(reserva);
+                                                      setShowBaixa(true);
+                                                    }}
+                                                    className="h-11 px-6 rounded-2xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-blue-500/10 transition-all active:scale-95 disabled:grayscale w-full"
+                                                  >
+                                                    <ScanLine className="w-4 h-4 mr-2" />
+                                                    Coletar Baixa
+                                                  </Button>
+                                                )}
                                               </>
                                             );
                                           })()}

@@ -29,6 +29,9 @@ export default function Dashboard() {
     const unsubMov = rdsn.entities.MovimentacaoEstoque.subscribe(() => {
       queryClient.invalidateQueries({ queryKey: ['movimentacoes-dashboard'] });
     });
+    const unsubBaixas = rdsn.entities.BaixaLote.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['baixas-dashboard'] });
+    });
     const unsubOps = rdsn.entities.PCPOrdemProducao.subscribe(() => {
       queryClient.invalidateQueries({ queryKey: ['pcp-ops-dashboard'] });
     });
@@ -43,6 +46,7 @@ export default function Dashboard() {
       if (unsubReservas) unsubReservas();
       if (unsubSeq) unsubSeq();
       if (unsubMov) unsubMov();
+      if (unsubBaixas) unsubBaixas();
       if (unsubOps) unsubOps();
       if (unsubProd) unsubProd();
       if (unsubAud) unsubAud();
@@ -108,6 +112,18 @@ export default function Dashboard() {
         return rdsn.entities.PCPProducaoDiaria.filter({ ano: filtroAno }, '-created_at', 5000);
       }
       return rdsn.entities.PCPProducaoDiaria.filter({ setor_id: setorAtivo, ano: filtroAno }, '-created_at', 5000);
+    },
+    enabled: !!setorAtivo
+  });
+
+  const { data: baixasDashboard = [] } = useQuery({
+    queryKey: ['baixas-dashboard', setorAtivo, isAdmin],
+    queryFn: async () => {
+      if (!setorAtivo) return [];
+      if (isAdmin && (setorAtivo === 'ALL' || setorAtivo === 'TODOS')) {
+        return await rdsn.entities.BaixaLote.list('-created_at', 1000);
+      }
+      return await rdsn.entities.BaixaLote.filter({ setor_id: setorAtivo }, '-created_at', 1000);
     },
     enabled: !!setorAtivo
   });
@@ -201,8 +217,27 @@ export default function Dashboard() {
         }
     }
 
+    // Gargalos: BaixaLote por setor/celula como fonte primária (MovimentacaoEstoque.celula costuma ser nulo)
+    const hoje2 = new Date();
+    const ultimos30dias = new Date(hoje2.getTime() - 30 * 24 * 60 * 60 * 1000);
+    for (let i = 0; i < baixasDashboard.length; i++) {
+        const b = baixasDashboard[i];
+        // Agrupa por setor (nome do setor ou setor_id)
+        const chave = b.setor_nome || b.setor_id || b.celula || null;
+        if (chave && new Date(b.created_at) >= ultimos30dias) {
+            const qtd = Number(b.quantidade || 0);
+            // Só soma se ainda não foi capturado de MovimentacaoEstoque (evita dupla contagem)
+            if (!gargalosMap[chave]) {
+                gargalosMap[chave] = qtd;
+            } else {
+                gargalosMap[chave] += qtd;
+            }
+        }
+    }
+
     const gargalos = Object.entries(gargalosMap)
-        .sort((a, b) => b[1] - a[1]) // highest first
+        .filter(([, qtd]) => Number(qtd) > 0)
+        .sort((a, b) => Number(b[1]) - Number(a[1]))
         .slice(0, 3)
         .map(([celula, quantidade]) => ({ celula, quantidade }));
 
@@ -300,7 +335,7 @@ export default function Dashboard() {
       taxaProducao: Math.round(taxaProducao),
       gargalos
     };
-  }, [reservas, movimentacoes, auditoria, pcpOps, pcpProducoes, filtroAno]);
+  }, [reservas, movimentacoes, baixasDashboard, auditoria, pcpOps, pcpProducoes, filtroAno]);
 
   const anosDisponiveis = useMemo(() => {
     return [...new Set(sequencias.filter(s => s && s.ano).map(s => s.ano))]
@@ -439,8 +474,9 @@ export default function Dashboard() {
           </div>
 
 
-          {/* Top Clientes e Sequências */}
+          {/* Sequências Ativas + Lotes em Atraso — lado a lado */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Sequências Ativas */}
             <SlideIn direction="up" delay={0.9}>
               <PremiumCard
                 title="Sequências Ativas"
@@ -448,7 +484,7 @@ export default function Dashboard() {
                 noPadding
                 badge={<Badge className="bg-slate-950 dark:bg-white text-white dark:text-slate-900 font-black text-[9px] px-2 py-0.5 rounded-md italic">ANUAL_LOG</Badge>}
               >
-                <div className="divide-y divide-slate-100 dark:divide-slate-800/10">
+                <div className="divide-y divide-slate-100 dark:divide-slate-800/10 max-h-[520px] overflow-y-auto">
                   {sequencias.filter(s => s.ano === filtroAno).map(seq => (
                     <div key={seq.id} className="flex items-center justify-between p-6 hover:bg-slate-50 dark:hover:bg-white/5 transition-all group relative">
                       <div className="absolute top-0 left-0 w-1 h-0 group-hover:h-full transition-all duration-300 bg-blue-600" />
@@ -485,67 +521,66 @@ export default function Dashboard() {
                 </div>
               </PremiumCard>
             </SlideIn>
-          </div>
 
-
-          {/* Lotes Não Finalizados - Destaque */}
-          <SlideIn direction="up" delay={1.1}>
-            <PremiumCard
-              title="Lotes em Atraso / Pendentes"
-              icon={Clock}
-              noPadding
-              badge={<Badge className="bg-amber-500 text-slate-950 font-black uppercase text-[10px] tracking-widest px-3 py-1 rounded-full shadow-lg shadow-amber-500/20">{stats.lotesNaoFinalizados.length} ALERTAS</Badge>}
-            >
-              {stats.lotesNaoFinalizados.length === 0 ? (
-                <div className="text-center py-12">
-                  <CircleCheck className="w-12 h-12 mx-auto mb-3 text-emerald-500 opacity-20" />
-                  <p className="text-slate-500 dark:text-slate-400 font-medium">Toda operação está em dia!</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100 dark:divide-slate-800/50 max-h-[450px] overflow-y-auto">
-                  {stats.lotesNaoFinalizados.slice(0, 15).map(lote => {
-                    const progresso = ((lote.quantidade_baixada || 0) / lote.quantidade) * 100;
-                    return (
-                      <div key={lote.id} className="p-4 sm:p-6 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-all group">
-                        <div className="flex items-start justify-between mb-4 gap-4">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-black text-slate-900 dark:text-white text-lg sm:text-xl truncate tracking-tight italic uppercase">{lote.codigo_completo}</p>
-                            <div className="flex items-center gap-3 mt-2">
-                              <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full">
-                                <Users className="w-3 h-3 text-slate-400" />
-                                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{lote.cliente || 'Ocasional'}</span>
+            {/* Lotes em Atraso / Pendentes */}
+            <SlideIn direction="up" delay={1.1}>
+              <PremiumCard
+                title="Lotes em Atraso / Pendentes"
+                icon={Clock}
+                noPadding
+                badge={<Badge className="bg-amber-500 text-slate-950 font-black uppercase text-[10px] tracking-widest px-3 py-1 rounded-full shadow-lg shadow-amber-500/20">{stats.lotesNaoFinalizados.length} ALERTAS</Badge>}
+              >
+                {stats.lotesNaoFinalizados.length === 0 ? (
+                  <div className="text-center py-12">
+                    <CircleCheck className="w-12 h-12 mx-auto mb-3 text-emerald-500 opacity-20" />
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">Toda operação está em dia!</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800/50 max-h-[520px] overflow-y-auto">
+                    {stats.lotesNaoFinalizados.slice(0, 15).map(lote => {
+                      const progresso = ((lote.quantidade_baixada || 0) / lote.quantidade) * 100;
+                      return (
+                        <div key={lote.id} className="p-4 sm:p-6 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-all group">
+                          <div className="flex items-start justify-between mb-4 gap-4">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-black text-slate-900 dark:text-white text-lg sm:text-xl truncate tracking-tight italic uppercase">{lote.codigo_completo}</p>
+                              <div className="flex items-center gap-3 mt-2">
+                                <div className="flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full">
+                                  <Users className="w-3 h-3 text-slate-400" />
+                                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{lote.cliente || 'Ocasional'}</span>
+                                </div>
                               </div>
                             </div>
+                            <Badge variant="outline" className={cn(
+                              "px-3 py-1 rounded-full text-[9px] font-black tracking-[0.2em] uppercase border-0 shadow-sm",
+                              lote.status === 'EM_PRODUCAO' ? 'bg-blue-600/20 text-blue-400' : 'bg-amber-500/20 text-amber-500'
+                            )}>
+                              {lote.status === 'EM_PRODUCAO' ? 'PRODUÇÃO' : 'RESERVADO'}
+                            </Badge>
                           </div>
-                          <Badge variant="outline" className={cn(
-                            "px-3 py-1 rounded-full text-[9px] font-black tracking-[0.2em] uppercase border-0 shadow-sm",
-                            lote.status === 'EM_PRODUCAO' ? 'bg-blue-600/20 text-blue-400' : 'bg-amber-500/20 text-amber-500'
-                          )}>
-                            {lote.status === 'EM_PRODUCAO' ? 'PRODUÇÃO' : 'RESERVADO'}
-                          </Badge>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-end">
-                            <div className="space-y-0.5">
-                              <span className="text-[10px] uppercase font-black text-slate-400 tracking-tighter">Status de Entrega</span>
-                              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{(lote.quantidade_baixada || 0).toLocaleString()} <span className="text-slate-400 font-normal">/ {lote.quantidade.toLocaleString()}</span></p>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-end">
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] uppercase font-black text-slate-400 tracking-tighter">Status de Entrega</span>
+                                <p className="text-sm font-black text-slate-900 dark:text-slate-100">{(lote.quantidade_baixada || 0).toLocaleString()} <span className="text-slate-400 font-normal">/ {lote.quantidade.toLocaleString()}</span></p>
+                              </div>
+                              <span className={`text-sm font-black ${progresso > 75 ? 'text-emerald-500' : 'text-blue-500'}`}>{progresso.toFixed(0)}%</span>
                             </div>
-                            <span className={`text-sm font-black ${progresso > 75 ? 'text-emerald-500' : 'text-blue-500'}`}>{progresso.toFixed(0)}%</span>
-                          </div>
-                          <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full transition-all duration-1000 ease-out ${progresso > 75 ? 'bg-emerald-500' : 'bg-blue-500'}`}
-                              style={{ width: `${progresso}%` }}
-                            />
+                            <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all duration-1000 ease-out ${progresso > 75 ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                                style={{ width: `${progresso}%` }}
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </PremiumCard>
-          </SlideIn>
+                      );
+                    })}
+                  </div>
+                )}
+              </PremiumCard>
+            </SlideIn>
+          </div>
 
           {/* Alertas e Gargalos Column */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

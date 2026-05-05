@@ -13,7 +13,7 @@
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
     "start": "electron .",
-    "electron": "wait-on http://localhost:5173 && electron .",
+    "electron": "wait-on http://127.0.0.1:5173 && electron .",
     "desktop": "concurrently \"npm run dev\" \"npm run electron\"",
     "build:electron": "vite build && electron-builder",
     "dist": "npm run build:electron"

@@ -9,6 +9,7 @@ import { CheckCircle, XCircle, Clock, Loader2, Settings2, CheckCircle2, ArrowUpD
 import { formatarNumeracao, extrairPrefixo } from '../formatacao/FormatacaoNumeracao';
 import { estaContido, calcularQuantidade } from '../../core/numeracaoService';
 import { cn } from "@/lib/utils";
+import { useSetorReadonly } from '@/components/pcp/SetorReadonlyBanner';
 
 const statusColors = {
   ABERTO: 'bg-blue-500/10 text-blue-500 border-blue-500/20 shadow-[0_0_15px_rgba(56,189,248,0.1)]',
@@ -51,6 +52,15 @@ export default function ProducaoDiaCard({
   useEffect(() => {
     setOrdemDecrescente(ordemPadrao);
   }, [ordemPadrao]);
+
+  // Fechar o painel de baixa quando o lote for finalizado
+  useEffect(() => {
+    if (lote.status === 'FECHADO') {
+      setShowFechar(false);
+      setNumFinal('');
+      setErro('');
+    }
+  }, [lote.status]);
 
   const prefixo = extrairPrefixo(reserva?.codigo_completo || '');
   const restanteLote = (reserva?.quantidade || 0) - (reserva?.quantidade_baixada || 0);
@@ -299,13 +309,26 @@ export default function ProducaoDiaCard({
           <div className="pt-6 border-t border-slate-200 dark:border-white/5">
             {!showFechar ? (
               <div className="flex gap-4">
-                <Button
-                  onClick={() => setShowFechar(true)}
-                  className="flex-1 h-14 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl shadow-xl transition-all active:scale-95 group"
-                >
-                  <CheckCircle className="w-5 h-5 mr-3 group-hover:rotate-12 transition-transform" />
-                  Concluir Operação
-                </Button>
+                {(() => {
+                  const isReadonly = useSetorReadonly();
+                  if (isReadonly) return (
+                    <div className="flex-1 h-14 flex items-center justify-center bg-slate-100 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic text-center px-4">
+                        Selecione um setor específico para registrar baixa
+                      </p>
+                    </div>
+                  );
+
+                  return (
+                    <Button
+                      onClick={() => setShowFechar(true)}
+                      className="flex-1 h-14 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl shadow-xl transition-all active:scale-95 group"
+                    >
+                      <CheckCircle className="w-5 h-5 mr-3 group-hover:rotate-12 transition-transform" />
+                      Concluir Operação
+                    </Button>
+                  );
+                })()}
                 {isSupervisor && (
                   <Button
                     variant="outline"

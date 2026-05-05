@@ -77,23 +77,25 @@ export default function ConfiguracaoAlertas() {
   const [editando, setEditando] = useState(null);
   const [novoAlerta, setNovoAlerta] = useState(null);
 
-  const { data: user } = useQuery({
+  const { data: user, isLoading: loadingUser } = useQuery({
     queryKey: ['internalUser'],
     queryFn: () => {
       const data = localStorage.getItem('internalUser');
       if (!data) return null;
       const parsed = JSON.parse(data);
       return (parsed && parsed.user) ? parsed.user : parsed;
-    }
+    },
+    retry: false,
+    staleTime: 30_000
   });
 
   const { data: configuracoes = [], isLoading } = useQuery({
     queryKey: ['configuracoes-alerta', user?.id],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user?.id) return [];
       return await rdsn.entities.ConfiguracaoAlerta.filter({ usuario_id: user.id });
     },
-    enabled: !!user
+    enabled: !loadingUser // roda assim que o user for resolvido (null ou objeto)
   });
 
   const { data: setores = [] } = useQuery({
@@ -244,7 +246,8 @@ export default function ConfiguracaoAlertas() {
     );
   };
 
-  if (!user) {
+  // Mostra loading APENAS enquanto a query de user ainda está executando
+  if (loadingUser) {
     return <div className="p-6 dark:text-slate-100">Carregando...</div>;
   }
 

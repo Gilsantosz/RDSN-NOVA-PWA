@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from 'sonner';
 import { usePCPSetor } from '@/components/pcp/PCPSetorGuard';
 import { cn } from '@/lib/utils';
+import { broadcastPCPInvalidate } from '@/lib/pcpTabSync';
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -28,7 +29,7 @@ function isWeekend(ano, mes, dia) {
   return d === 0 || d === 6;
 }
 
-export default function PCPDistribuirOPDialog({ op, mes, ano, producoes, onClose }) {
+export default function PCPDistribuirOPDialog({ op, mes, ano, producoes: producoesProp = [], onClose }) {
   const queryClient = useQueryClient();
   const { setorAtivo } = usePCPSetor();
   const totalDias = getDiasNoMes(mes, ano);
@@ -36,14 +37,43 @@ export default function PCPDistribuirOPDialog({ op, mes, ano, producoes, onClose
 
   const diasUteis = useMemo(() => dias.filter(d => !isWeekend(ano, mes, d)), [dias, mes, ano]);
 
+  // Busca as produções internas para garantir dados frescos para OPs recém-criadas
+  const { data: producoesInternas = [], isLoading: loadingProducoes } = useQuery({
+    queryKey: ['pcp-producoes-op', op.id, mes, ano],
+    queryFn: () => rdsn.entities.PCPProducaoDiaria.filter({ op_id: op.id, mes, ano }, null, 500),
+    enabled: !!op.id,
+    // Não usa cache antigo — garante dados frescos
+    staleTime: 0,
+  });
+
+  // Mescla: produções internas têm prioridade sobre a prop
+  const producoes = producoesInternas.length > 0 ? producoesInternas : producoesProp.filter(p => p.op_id === op.id);
+
   const [valores, setValores] = useState(() => {
     const m = {};
     for (const d of dias) {
-      const existing = producoes.find(p => p.op_id === op.id && p.dia === d);
+      const existing = producoesProp.find(p => p.op_id === op.id && p.dia === d);
       m[d] = existing?.previsto || 0;
     }
     return m;
   });
+
+  // Re-inicializa valores quando as produções internas carregam (caso OP recém-criada)
+  React.useEffect(() => {
+    if (!loadingProducoes && producoesInternas.length >= 0) {
+      setValores(prev => {
+        const temValor = Object.values(prev).some(v => (v || 0) > 0);
+        // Só re-inicializa se ainda não há valores definidos pelo usuário
+        if (temValor) return prev;
+        const m = { ...prev };
+        for (const d of dias) {
+          const existing = producoesInternas.find(p => p.dia === d);
+          m[d] = existing?.previsto || 0;
+        }
+        return m;
+      });
+    }
+  }, [producoesInternas, loadingProducoes]);
 
   const [modo, setModo] = useState('uniforme');
   const [diasSelecionados, setDiasSelecionados] = useState(() =>
@@ -156,9 +186,19 @@ export default function PCPDistribuirOPDialog({ op, mes, ano, producoes, onClose
       }
     },
     onSuccess: () => {
+      // Invalida queries localmente nesta aba
       queryClient.invalidateQueries({ queryKey: ['pcp-producoes'] });
+      queryClient.invalidateQueries({ queryKey: ['pcp-producoes-op', op.id, mes, ano] });
       queryClient.invalidateQueries({ queryKey: ['reservas'] });
       queryClient.invalidateQueries({ queryKey: ['todasReservas'] });
+      // ✨ Sincroniza produção em todas as outras abas abertas
+      broadcastPCPInvalidate([
+        ['pcp-producoes'],
+        ['pcp-producoes-op', op.id, mes, ano],
+        ['pcp-ops', mes, ano],
+        ['reservas'],
+        ['todasReservas'],
+      ]);
       const qtdReservas = reservasOP.length;
       toast.success(`Distribuição salva! ${qtdReservas > 0 ? `${qtdReservas} reserva(s) agendada(s) automaticamente.` : ''}`);
       onClose();

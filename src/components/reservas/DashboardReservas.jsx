@@ -40,6 +40,8 @@ import NotificacoesReserva from './NotificacoesReserva';
 import AlertasPrazos from './AlertasPrazos';
 import SessionManager from '@/lib/sessionManager';
 import { cn } from "@/lib/utils";
+import { normalizeYear } from '@/utils';
+import { useRealtime } from '@/lib/RealtimeContext';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -98,27 +100,13 @@ const CustomTooltip = ({ active = false, payload = [], label = "" }) => {
   );
 };
 
-export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTab, setFilters, pcpOps = [] }) {
+export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTab, setFilters }) {
   const { setorAtivo, isAdmin } = useSetor();
   const queryClient = useQueryClient();
+  const { status: realtimeStatus } = useRealtime();
 
-  useEffect(() => {
-    const unsubReservas = rdsn.entities.ReservaLote.subscribe(() => {
-      queryClient.invalidateQueries({ queryKey: ['reservas'] });
-    });
-    const unsubMov = rdsn.entities.MovimentacaoEstoque.subscribe(() => {
-      queryClient.invalidateQueries({ queryKey: ['movimentacoes-dashboard'] });
-    });
-    const unsubAud = rdsn.entities.Auditoria.subscribe(() => {
-      queryClient.invalidateQueries({ queryKey: ['auditoria-dashboard'] });
-    });
-
-    return () => {
-      unsubReservas();
-      unsubMov();
-      unsubAud();
-    };
-  }, [queryClient]);
+  // Sincronismo agora é gerenciado pelo GlobalRealtimeSync de forma centralizada
+  // Isso remove redundância e garante que todos os componentes atualizem juntos
 
   // Membros do time/sessão
   const { data: user } = useQuery({
@@ -127,57 +115,98 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
     staleTime: Infinity
   });
 
-  // Consultas de dados
-  const { data: reservas = [] } = useQuery({
-    queryKey: ['reservas', setorAtivo, isAdmin],
-    queryFn: async () => {
-      if (!setorAtivo) return [];
-      if (isAdmin && setorAtivo === 'ALL') {
-        return await rdsn.entities.ReservaLote.list('-created_at', 2000);
-      }
-      return await rdsn.entities.ReservaLote.filter({ setor_id: setorAtivo }, '-created_at', 2000);
-    },
-    enabled: !!setorAtivo,
-    staleTime: 5 * 60 * 1000
+  // Buscar lista de setores para exibir nomes amigáveis
+  const { data: setores = [] } = useQuery({
+    queryKey: ['setores-dashboard'],
+    queryFn: () => rdsn.entities.Setor.list(),
+    staleTime: Infinity
   });
 
-  const { data: movimentacoes = [] } = useQuery({
-    queryKey: ['movimentacoes-dashboard', setorAtivo, isAdmin],
+  const setorNome = useMemo(() => {
+    if (setorAtivo === 'ALL') return 'Global';
+    const setor = setores.find(s => s.id === setorAtivo);
+    return setor?.nome || `Setor ${setorAtivo}`;
+  }, [setores, setorAtivo]);
+
+  // Consultas de dados — filtradas por setor quando um setor específico está ativo
+  const isGlobal = !setorAtivo || setorAtivo === 'ALL';
+
+  const { data: reservas = [] } = useQuery({
+    queryKey: ['reservas-dashboard', setorAtivo],
     queryFn: async () => {
-      if (!setorAtivo) return [];
-      if (isAdmin && setorAtivo === 'ALL') {
-        return await rdsn.entities.MovimentacaoEstoque.list('-created_at', 500);
-      }
-      const produtos = await rdsn.entities.Produto.filter({ setor_id: setorAtivo });
-      const produtoIds = new Set(produtos.map(p => p.id));
-      const todas = await rdsn.entities.MovimentacaoEstoque.list('-created_at', 500);
-      return todas.filter(m => produtoIds.has(m.produto_id));
+      const data = isGlobal
+        ? await rdsn.entities.ReservaLote.list('-created_at', 5000)
+        : await rdsn.entities.ReservaLote.filter({ setor_id: setorAtivo }, '-created_at', 5000);
+      console.log("[DASHBOARD] Dados de Reservas:", data?.length || 0, '| Setor:', setorAtivo);
+      return data;
     },
     enabled: !!setorAtivo,
-    staleTime: 5 * 60 * 1000
+    staleTime: 0,
+    refetchOnWindowFocus: true
   });
+
+  // MovimentacaoEstoque removida: producaoDia agora usa apenas BaixaLote (evita dupla contagem)
 
   const { data: auditoria = [] } = useQuery({
-    queryKey: ['auditoria-dashboard', setorAtivo, isAdmin],
+    queryKey: ['auditoria-dashboard', setorAtivo],
     queryFn: async () => {
-      if (!setorAtivo) return [];
-      if (isAdmin && setorAtivo === 'ALL') {
+      if (isGlobal) {
         return await rdsn.entities.Auditoria.list('-created_at', 50);
       }
-      const todas = await rdsn.entities.Auditoria.list('-created_at', 50);
+      // Para setor específico: filtra pela letra do produto ligada ao setor
       const seqs = await rdsn.entities.SequenciaAnual.filter({ setor_id: setorAtivo });
-      const letras = new Set(seqs.map(s => s.letra_produto));
-      return todas.filter(a => letras.has(a.letra_produto));
+      const letras = [...new Set(seqs.map(s => s.letra_produto))];
+      const todas = await rdsn.entities.Auditoria.list('-created_at', 50);
+      return todas.filter(a => letras.includes(a.letra_produto));
     },
     enabled: !!setorAtivo,
-    staleTime: 5 * 60 * 1000
+    staleTime: 0
   });
 
-  // Estatísticas calculadas
+  const { data: pcpOps = [] } = useQuery({
+    queryKey: ['pcp-ops-dashboard', setorAtivo],
+    queryFn: async () => {
+      const data = isGlobal
+        ? await rdsn.entities.PCPOrdemProducao.list('-created_at', 3000)
+        : await rdsn.entities.PCPOrdemProducao.filter({ setor_id: setorAtivo }, '-created_at', 3000);
+      console.log("[DASHBOARD] Dados de PCP OPs:", data?.length || 0, '| Setor:', setorAtivo);
+      return data;
+    },
+    enabled: !!setorAtivo,
+    staleTime: 0
+  });
+
+  const { data: sequencias = [] } = useQuery({
+    queryKey: ['sequencias-dashboard', setorAtivo],
+    queryFn: async () => {
+      return isGlobal
+        ? await rdsn.entities.SequenciaAnual.list()
+        : await rdsn.entities.SequenciaAnual.filter({ setor_id: setorAtivo });
+    },
+    enabled: !!setorAtivo,
+    staleTime: Infinity
+  });
+
+  const { data: baixas = [] } = useQuery({
+    queryKey: ['baixas-dashboard', setorAtivo],
+    queryFn: async () => {
+      const data = isGlobal
+        ? await rdsn.entities.BaixaLote.list('-created_at', 3000)
+        : await rdsn.entities.BaixaLote.filter({ setor_id: setorAtivo }, '-created_at', 3000);
+      console.log("[DASHBOARD] Dados de Baixas:", data?.length || 0, '| Setor:', setorAtivo);
+      return data;
+    },
+    enabled: !!setorAtivo,
+    staleTime: 0
+  });
+
   // Estatísticas calculadas de forma otimizada para lidar com grandes volumes
   const stats = useMemo(() => {
-    // 1. Otimização de filtros básicos
-    const preFiltradas = filtroAno ? reservas.filter(r => r.ano === filtroAno) : reservas;
+    console.log("[DASHBOARD] Recalculando estatísticas...");
+    // 1. Otimização de filtros básicos - Comparação flexível (String ou Number)
+    const preFiltradas = filtroAno 
+      ? reservas.filter(r => normalizeYear(r.ano) === normalizeYear(filtroAno)) 
+      : reservas;
     
     // Filtro para ignorar reservas canceladas e reservas com OPs Canceladas
     const filtradas = preFiltradas.filter(r => {
@@ -201,9 +230,11 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
 
     // 2. Loop único para movimentações (evita filter seguido de reduce e recriação de Date)
     let producaoDia = 0;
-    for (const m of movimentacoes) {
-      if (m.tipo === 'PRODUCAO' && new Date(m.created_at).toDateString() === hojeString) {
-        producaoDia += (m.quantidade || 0);
+    // Usar APENAS BaixaLote como fonte de verdade para produção do dia
+    // (MovimentacaoEstoque tipo=PRODUCAO é sempre criada junto com BaixaLote, gerando dupla contagem)
+    for (const b of baixas) {
+      if (new Date(b.created_at).toDateString() === hojeString) {
+        producaoDia += Number(b.quantidade || 0);
       }
     }
 
@@ -217,31 +248,55 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
     let totalProduzido = 0;
     const lotesEmProducao = [];
     const porMes = {};
+    const mesesOrdenados = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    
+    // Mapa de índice de mês (0-11) → nome pt-BR para lookup rápido
+    const mesNomes = mesesOrdenados;
 
     for (const r of filtradas) {
       if (r.status === 'EM_PRODUCAO') {
         lotesEmProducao.push(r);
       }
-      totalReservado += (r.quantidade || 0);
-      totalProduzido += (r.quantidade_baixada || 0);
+      
+      const q = Number(r.quantidade || 0);
+      const qb = Number(r.quantidade_baixada || 0);
+      
+      totalReservado += q;
+      totalProduzido += qb;
 
-      const mes = r.mes_producao || 'Sem Mês';
-      if (!porMes[mes]) porMes[mes] = { reservado: 0, produzido: 0 };
-      porMes[mes].reservado += r.quantidade || 0;
-      porMes[mes].produzido += r.quantidade_baixada || 0;
+      // Prioriza mes_producao; se ausente, usa o mês de criação da reserva
+      let mes = null;
+      if (r.mes_producao && r.mes_producao.trim() !== '') {
+        // Normaliza capitalização (ex: "janeiro" → "Janeiro")
+        const mesCap = r.mes_producao.trim().charAt(0).toUpperCase() + r.mes_producao.trim().slice(1).toLowerCase();
+        if (mesesOrdenados.includes(mesCap)) {
+          mes = mesCap;
+        } else {
+          mes = r.mes_producao.trim(); // mantém original se for outro formato
+        }
+      } else if (r.created_at) {
+        // Fallback: extrai mês do timestamp de criação
+        mes = mesNomes[new Date(r.created_at).getMonth()];
+      }
+      
+      if (mes) {
+        if (!porMes[mes]) porMes[mes] = { reservado: 0, produzido: 0 };
+        porMes[mes].reservado += q;
+        porMes[mes].produzido += qb;
+      }
     }
 
-    const mesesOrdenados = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro', 'Sem Mês'];
-
-    const dadosMensais = mesesOrdenados
-      .filter(mes => porMes[mes])
-      .map(mes => ({
-        mes,
-        reservado: porMes[mes].reservado,
-        produzido: porMes[mes].produzido,
-        eficiencia: porMes[mes].reservado > 0 ? (porMes[mes].produzido / porMes[mes].reservado) * 100 : 0
-      }));
+    // Ordena pelos meses do calendário e inclui qualquer mês extra encontrado ao final
+    const dadosMensais = [
+      ...mesesOrdenados.filter(mes => porMes[mes]),
+      ...Object.keys(porMes).filter(mes => !mesesOrdenados.includes(mes))
+    ].map(mes => ({
+      mes,
+      reservado: porMes[mes].reservado,
+      produzido: porMes[mes].produzido,
+      eficiencia: porMes[mes].reservado > 0 ? Math.round((porMes[mes].produzido / porMes[mes].reservado) * 100) : 0
+    }));
 
     const rawPercentual = totalReservado > 0 ? Math.round((totalProduzido / totalReservado) * 100) : 0;
     const percentualProduzido = Math.min(100, rawPercentual); // Impede o overflow visual na barra se for > 100%
@@ -254,14 +309,26 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
       totalProduzido,
       dadosMensais,
       rawPercentual,
-      percentualProduzido
+      percentualProduzido,
+      lastUpdate: new Date().toLocaleTimeString('pt-BR')
     };
-  }, [reservas, filtroAno, movimentacoes, auditoria, pcpOps]);
+  }, [reservas, filtroAno, auditoria, baixas, pcpOps, setorAtivo]);
+
+  useEffect(() => {
+    console.log("[DASHBOARD] Stats atualizado:", stats.lastUpdate, {
+      totalReservado: stats.totalReservado,
+      totalProduzido: stats.totalProduzido,
+      producaoDia: stats.producaoDia
+    });
+  }, [stats]);
 
   const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['reservas'] });
-    queryClient.invalidateQueries({ queryKey: ['movimentacoes-dashboard'] });
-    queryClient.invalidateQueries({ queryKey: ['auditoria-dashboard'] });
+    queryClient.invalidateQueries({ queryKey: ['reservas-dashboard', setorAtivo] });
+    queryClient.invalidateQueries({ queryKey: ['auditoria-dashboard', setorAtivo] });
+    queryClient.invalidateQueries({ queryKey: ['baixas-dashboard', setorAtivo] });
+    queryClient.invalidateQueries({ queryKey: ['pcp-ops-dashboard', setorAtivo] });
+    queryClient.invalidateQueries({ queryKey: ['sequencias-dashboard', setorAtivo] });
+    queryClient.invalidateQueries({ queryKey: ['setores-dashboard'] });
   };
 
   return (
@@ -286,11 +353,26 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
             </h1>
             <div className="flex items-center gap-3 mt-1.5">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span className={cn(
+                  "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                  realtimeStatus === 'CONNECTED' ? "bg-emerald-400" : (realtimeStatus === 'ERROR' ? "bg-rose-400" : "bg-amber-400")
+                )}></span>
+                <span className={cn(
+                  "relative inline-flex rounded-full h-2 w-2",
+                  realtimeStatus === 'CONNECTED' ? "bg-emerald-500" : (realtimeStatus === 'ERROR' ? "bg-rose-500" : "bg-amber-500")
+                )}></span>
               </span>
-              <p className="text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] text-[10px]">
-                {setorAtivo === 'ALL' ? 'Monitoramento Global Ativo' : `Setor ${setorAtivo} • Tempo Real`}
+              <p className="text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] text-[10px] flex items-center gap-2">
+                <span className={cn(
+                  "w-2 h-2 rounded-full animate-pulse",
+                  realtimeStatus === 'CONNECTED' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : (realtimeStatus === 'ERROR' ? "bg-rose-500" : "bg-amber-500")
+                )} />
+                {realtimeStatus === 'CONNECTED' 
+                  ? (setorAtivo === 'ALL' ? 'Monitoramento Global Ativo' : `${setorNome} • Tempo Real`)
+                  : (realtimeStatus === 'CONNECTING' ? 'Conectando ao Matrix...' : 'Matrix Offline')}
+                <span className="bg-slate-200 dark:bg-white/10 px-2 py-0.5 rounded text-[9px] text-slate-500 dark:text-slate-400">
+                  Sincronizado: {stats.lastUpdate}
+                </span>
               </p>
             </div>
           </div>
@@ -301,14 +383,20 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
               <History size={12} /> Período Fiscal
             </span>
-            <Select value={filtroAno?.toString()} onValueChange={(v) => setFiltroAno(parseInt(v))}>
+            <Select 
+              value={filtroAno ? normalizeYear(filtroAno) : 'all'} 
+              onValueChange={(v) => setFiltroAno(v === 'all' ? null : normalizeYear(v))}
+            >
               <SelectTrigger className="w-[180px] h-14 rounded-2xl border-white/20 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 backdrop-blur-2xl font-black text-slate-900 dark:text-white shadow-xl ring-1 ring-black/5 hover:bg-white dark:hover:bg-slate-800 transition-all text-base px-6">
                 <SelectValue placeholder="Ano" />
               </SelectTrigger>
               <SelectContent className="rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl backdrop-blur-3xl bg-white/95 dark:bg-slate-950/95 p-2 overflow-hidden">
-                {[2024, 2025, 2026, 2027].map(ano => (
-                  <SelectItem key={ano} value={ano.toString()} className="font-extrabold cursor-pointer py-4 rounded-2xl focus:bg-blue-500/10 dark:text-white text-base">
-                    Fiscal {ano}
+                <SelectItem value="all" className="font-extrabold cursor-pointer py-4 rounded-2xl focus:bg-blue-500/10 dark:text-white text-base">
+                  Todos os Anos
+                </SelectItem>
+                {[...new Set(sequencias.map(s => normalizeYear(s.ano)))].sort((a, b) => Number(b) - Number(a)).map(ano => (
+                  <SelectItem key={ano} value={ano} className="font-extrabold cursor-pointer py-4 rounded-2xl focus:bg-blue-500/10 dark:text-white text-base">
+                    Fiscal 20{ano}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -538,7 +626,7 @@ export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTa
           <NotificacoesReserva userId={user?.id || 'GLOBAL'} />
         </div>
         <div className="lg:col-span-2">
-          <AlertasPrazos reservas={reservas.filter(r => !filtroAno || r.ano === filtroAno)} userId={user?.id || 'GLOBAL'} />
+          <AlertasPrazos reservas={reservas.filter(r => !filtroAno || normalizeYear(r.ano) === normalizeYear(filtroAno))} userId={user?.id || 'GLOBAL'} />
         </div>
       </motion.div>
     </motion.div>

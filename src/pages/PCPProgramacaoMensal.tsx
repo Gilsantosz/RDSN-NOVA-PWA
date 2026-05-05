@@ -15,6 +15,7 @@ import PCPSimulacaoPanel from '@/components/pcp/PCPSimulacaoPanel';
 import PCPEditarOPDialog from '@/components/pcp/PCPEditarOPDialog';
 import PCPDistribuirOPDialog from '@/components/pcp/PCPDistribuirOPDialog';
 import PCPAtrasosAlert from '@/components/pcp/PCPAtrasosAlert';
+import { usePCPTabSync } from '@/hooks/usePCPTabSync';
 
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -44,6 +45,9 @@ export default function PCPProgramacaoMensal() {
   const [sincronizando, setSincronizando] = useState(false);
 
   const queryClient = useQueryClient();
+  // Sincronização cross-tab: quando outra aba faz uma mutação PCP,
+  // esta aba invalida automaticamente as queries afetadas
+  usePCPTabSync();
   const { bloqueado, nomeSetor, setorAtivo } = usePCPSetor();
   const totalDias = getDiasNoMes(mes, ano);
   const dias = Array.from({ length: totalDias }, (_, i) => i + 1);
@@ -110,7 +114,9 @@ export default function PCPProgramacaoMensal() {
       }
       return rdsn.entities.PCPProducaoDiaria.filter({ mes, ano, setor_id: setorAtivo }, null, 5000);
     },
-    enabled: ops.length > 0
+    // Sempre busca — independente de ter OPs normais (pode ter só OPs de Atraso)
+    enabled: !!setorAtivo,
+    staleTime: 0,
   });
 
   // Sincronização automática ao mudar mês/ano ou quando OPs são carregadas
@@ -210,6 +216,42 @@ export default function PCPProgramacaoMensal() {
   const opsNormais = ops.filter(op => op.tipo === 'Normal');
   const opsAtraso = ops.filter(op => op.tipo === 'Atraso');
 
+  // Nomes dos meses para badges de origem
+  const MESES_CURTO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const getOrigemLabel = (op) => {
+    if (!op.mes_origem || !op.ano_origem) return null;
+    return `${MESES_CURTO[(op.mes_origem || 1) - 1]}/${op.ano_origem}`;
+  };
+
+  // Fila de OPs para abrir distribuição sequencialmente após regularização
+  const [filaDistribuicao, setFilaDistribuicao] = useState<any[]>([]);
+
+  const handleRegularizado = async (criadas: any[]) => {
+    if (!criadas || criadas.length === 0) return;
+    // Força refetch imediato: garante que a OP aparece na tabela antes de abrir o dialog
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ['pcp-ops', mes, ano, setorAtivo] }),
+      queryClient.refetchQueries({ queryKey: ['pcp-producoes', mes, ano, setorAtivo] }),
+    ]);
+    // Abre o diálogo de distribuição para a PRIMEIRA OP e enfileira o restante
+    setDistribuindoOP(criadas[0]);
+    if (criadas.length > 1) {
+      setFilaDistribuicao(criadas.slice(1));
+    }
+  };
+
+  // Quando fechar a distribuição, invalida e abre a próxima da fila
+  const handleFecharDistribuicao = () => {
+    setDistribuindoOP(null);
+    // Força atualização da tabela ao fechar qualquer dialog de distribuição
+    queryClient.invalidateQueries({ queryKey: ['pcp-producoes', mes, ano, setorAtivo] });
+    if (filaDistribuicao.length > 0) {
+      const [proxima, ...resto] = filaDistribuicao;
+      setFilaDistribuicao(resto);
+      setTimeout(() => setDistribuindoOP(proxima), 200);
+    }
+  };
+
   const resumo = useMemo(() => {
     // Inclui todas as OPs (normais + atraso) nos totais
     const allOps = ops;
@@ -264,27 +306,47 @@ export default function PCPProgramacaoMensal() {
     ));
   };
 
-  const renderOPRows = (opsList) => opsList.map((op, idx) => {
+  const renderOPRows = (opsList, isAtrasado = false) => opsList.map((op, idx) => {
     const totalPrev = getTotalOP(op.id, 'previsto');
     const totalReal = getTotalOP(op.id, 'realizado');
     const totalSaldo = totalReal - totalPrev;
     const qtdTotal = op.quantidade_total || 0;
+    const origemLabel = isAtrasado ? getOrigemLabel(op) : null;
+
+    // Estilo diferenciado para atrasos
+    const rowBg = isAtrasado
+      ? 'border-b border-red-100 dark:border-red-900/30 hover:bg-red-50/30 dark:hover:bg-red-900/10 group transition-colors'
+      : 'border-b border-slate-100 dark:border-slate-800 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 group transition-colors';
+    const stickyBg = isAtrasado
+      ? 'bg-red-50/60 dark:bg-red-950/20'
+      : 'bg-white dark:bg-slate-900';
 
     return (
       <React.Fragment key={op.id}>
         {/* Linha Previsto */}
-        <tr className="border-b border-slate-100 dark:border-slate-800 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 group transition-colors">
-          <td rowSpan={3} className="sticky left-0 z-20 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-slate-500 dark:text-slate-400 px-2 min-w-[40px] group-hover:bg-blue-50 dark:group-hover:bg-slate-800 transition-colors">{op.item_num || idx + 1}</td>
-          <td rowSpan={3} className="sticky left-[40px] z-20 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300 px-2 min-w-[125px] group-hover:bg-blue-50 dark:group-hover:bg-slate-800 transition-colors">
-            <div className="flex items-center justify-between gap-1 w-full">
-              <span className="truncate" title={op.codigo_op}>{op.codigo_op}</span>
-              <div className="flex items-center shrink-0">
-                <button type="button" onClick={() => setEditingOP(op)} className="opacity-70 hover:opacity-100 transition-all p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700" title="Editar OP">
-                  <Pencil className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                </button>
-                <button type="button" onClick={() => setDistribuindoOP(op)} className="opacity-70 hover:opacity-100 transition-all p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700" title="Distribuir quantidade">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                </button>
+        <tr className={rowBg}>
+          <td rowSpan={3} className={`sticky left-0 z-20 ${stickyBg} border-r border-slate-200 dark:border-slate-800 text-center text-xs font-bold text-slate-500 dark:text-slate-400 px-2 min-w-[40px] group-hover:bg-blue-50 dark:group-hover:bg-slate-800 transition-colors`}>
+            {isAtrasado ? (
+              <span className="text-red-500 font-black text-[9px]">⚠</span>
+            ) : (op.item_num || idx + 1)}
+          </td>
+          <td rowSpan={3} className={`sticky left-[40px] z-20 ${stickyBg} border-r border-slate-200 dark:border-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300 px-2 min-w-[125px] group-hover:bg-blue-50 dark:group-hover:bg-slate-800 transition-colors`}>
+            <div className="flex flex-col gap-0.5">
+              {origemLabel && (
+                <span className="text-[8px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 rounded px-1 py-0.5 leading-none w-fit">
+                  Origem: {origemLabel}
+                </span>
+              )}
+              <div className="flex items-center justify-between gap-1 w-full">
+                <span className="truncate" title={op.codigo_op}>{op.codigo_op}</span>
+                <div className="flex items-center shrink-0">
+                  <button type="button" onClick={() => setEditingOP(op)} className="opacity-70 hover:opacity-100 transition-all p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700" title="Editar OP">
+                    <Pencil className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                  </button>
+                  <button type="button" onClick={() => setDistribuindoOP(op)} className="opacity-70 hover:opacity-100 transition-all p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700" title="Distribuir produção do mês">
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  </button>
+                </div>
               </div>
             </div>
           </td>
@@ -497,6 +559,8 @@ export default function PCPProgramacaoMensal() {
         opsAtual={ops}
         opsAnterior={opsAnterior}
         producoesMesAnterior={producoesMesAnterior}
+        setorAtivo={setorAtivo}
+        onRegularizado={handleRegularizado}
       />
 
       <PremiumCard title="Quadro de Programação PCP" icon={Layers} contentClassName="p-0">
@@ -551,7 +615,7 @@ export default function PCPProgramacaoMensal() {
                     <button className="text-blue-600 underline" onClick={() => setShowNovaOP(true)}>Adicionar OP</button>
                   </td>
                 </tr>
-              ) : renderOPRows(opsNormais)}
+              ) : renderOPRows(opsNormais, false)}
 
               {/* Total Geral */}
               {opsNormais.length > 0 && (
@@ -570,15 +634,18 @@ export default function PCPProgramacaoMensal() {
                 </tr>
               )}
 
-              {/* Bloco de Atrasos */}
+              {/* Bloco de Atrasos Produtivos */}
               {opsAtraso.length > 0 && (
                 <>
                   <tr>
                     <td colSpan={6 + totalDias + COMP_COLS.length} className="bg-red-700 text-white font-bold text-xs px-4 py-2 sticky left-0">
-                      ⚠ ATRASOS
+                      ⚠ ATRASOS PRODUTIVOS
+                      <span className="ml-3 text-red-200 font-normal text-[10px] italic">
+                        — Distribuição e simulação disponíveis por OP
+                      </span>
                     </td>
                   </tr>
-                  {renderOPRows(opsAtraso)}
+                  {renderOPRows(opsAtraso, true)}
                 </>
               )}
             </tbody>
@@ -637,7 +704,18 @@ export default function PCPProgramacaoMensal() {
       </div>
 
       {showNovaOP && <PCPNovaOPDialog mes={mes} ano={ano} onClose={() => setShowNovaOP(false)} />}
-      {showSimulacao && <PCPSimulacaoPanel mes={mes} ano={ano} ops={opsNormais} producaoMap={producaoMap} dias={dias} onClose={() => setShowSimulacao(false)} />}
+      {showSimulacao && (
+        <PCPSimulacaoPanel
+          mes={mes}
+          ano={ano}
+          // Passa TODAS as OPs (normais + atraso) para o simulador ter visão completa da carga
+          ops={ops}
+          opsAtraso={opsAtraso}
+          producaoMap={producaoMap}
+          dias={dias}
+          onClose={() => setShowSimulacao(false)}
+        />
+      )}
       {editingOP && <PCPEditarOPDialog op={editingOP} mes={mes} ano={ano} onClose={() => setEditingOP(null)} />}
       {distribuindoOP && (
         <PCPDistribuirOPDialog
@@ -645,7 +723,7 @@ export default function PCPProgramacaoMensal() {
           mes={mes}
           ano={ano}
           producoes={producoes}
-          onClose={() => setDistribuindoOP(null)}
+          onClose={handleFecharDistribuicao}
         />
       )}
     </div>

@@ -1,6 +1,4 @@
-import { rdsn } from './supabaseClient';
-
-export async function enviarWebhook(bodyObj) {
+export async function enviarWebhook(bodyObj, rdsn) {
   try {
     const { integracao_id, evento, dados, payload } = bodyObj;
 

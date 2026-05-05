@@ -163,9 +163,9 @@ export default function BarcodeScanner({ onScan, onClose, placeholder = "Aponte 
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100000] overflow-y-auto flex items-start sm:items-center justify-center p-4 sm:p-6"
     >
-      <Card className="w-full max-w-2xl bg-white shadow-2xl overflow-hidden">
+      <Card className="w-full max-w-2xl bg-white shadow-2xl overflow-hidden my-auto shrink-0">
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

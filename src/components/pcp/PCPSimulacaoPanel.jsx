@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Zap, TrendingUp, TrendingDown, Calculator, Target, Activity, ShieldAlert, CheckCircle2, SlidersHorizontal } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
-export default function PCPSimulacaoPanel({ _mes, _ano, ops, producaoMap, dias, onClose, onResult }) {
+export default function PCPSimulacaoPanel({ _mes, _ano, ops, opsAtraso = [], producaoMap, dias, onClose, onResult }) {
   const [params, setParams] = useState({
     percAumento: 0,
     opsExtra: 0,
@@ -35,8 +35,10 @@ export default function PCPSimulacaoPanel({ _mes, _ano, ops, producaoMap, dias, 
 
   const baseStats = useMemo(() => {
     let totalPrev = 0, totalReal = 0;
+    let totalPrevAtraso = 0, totalRealAtraso = 0;
     const diasFiltrados = dias.filter(d => d >= filtrosBase.diaInicio && d <= filtrosBase.diaFim);
-    const opsFiltradas = ops.filter(op => opsSelecionadas.includes(op.id));
+    const opsFiltradas = ops.filter(op => opsSelecionadas.includes(op.id) && op.tipo !== 'Atraso');
+    const opsAtrasadas = opsAtraso.filter(op => opsSelecionadas.includes(op.id));
 
     for (const op of opsFiltradas) {
       for (const d of diasFiltrados) {
@@ -44,13 +46,22 @@ export default function PCPSimulacaoPanel({ _mes, _ano, ops, producaoMap, dias, 
         totalReal += producaoMap[`${op.id}-${d}`]?.realizado || 0;
       }
     }
+
+    for (const op of opsAtrasadas) {
+      for (const d of diasFiltrados) {
+        totalPrevAtraso += producaoMap[`${op.id}-${d}`]?.previsto || 0;
+        totalRealAtraso += producaoMap[`${op.id}-${d}`]?.realizado || 0;
+      }
+    }
     
     return { 
       totalPrev: totalPrev * filtrosBase.mesesMultiplicador, 
       totalReal: totalReal * filtrosBase.mesesMultiplicador,
+      totalPrevAtraso: totalPrevAtraso * filtrosBase.mesesMultiplicador,
+      totalRealAtraso: totalRealAtraso * filtrosBase.mesesMultiplicador,
       diasCorridos: diasFiltrados.length * filtrosBase.mesesMultiplicador
     };
-  }, [ops, producaoMap, dias, filtrosBase, opsSelecionadas]);
+  }, [ops, opsAtraso, producaoMap, dias, filtrosBase, opsSelecionadas]);
 
   const calcular = () => {
     const { percAumento, opsExtra, percReducao, percCapacidade, custoUnitario, vendaUnitario } = params;
@@ -58,8 +69,10 @@ export default function PCPSimulacaoPanel({ _mes, _ano, ops, producaoMap, dias, 
     const fatorEficiencia = 1 - percReducao / 100;
     const fatorCapacidade = 1 + percCapacidade / 100;
 
-    const novoPrevisto = Math.round(baseStats.totalPrev * fatorDemanda + opsExtra * 1000);
-    const novoRealizado = Math.round(baseStats.totalReal * fatorEficiencia * fatorCapacidade);
+    // Previsto total = normais + atrasos (carga completa do mês)
+    const baseTotal = baseStats.totalPrev + baseStats.totalPrevAtraso;
+    const novoPrevisto = Math.round(baseTotal * fatorDemanda + opsExtra * 1000);
+    const novoRealizado = Math.round((baseStats.totalReal + baseStats.totalRealAtraso) * fatorEficiencia * fatorCapacidade);
     const novoSaldo = novoRealizado - novoPrevisto;
     const percAtendimento = novoPrevisto > 0 ? ((novoRealizado / novoPrevisto) * 100).toFixed(1) : '0.0';
     const mediaDiaria = baseStats.diasCorridos > 0 ? Math.round(novoRealizado / baseStats.diasCorridos) : 0;
@@ -187,14 +200,36 @@ export default function PCPSimulacaoPanel({ _mes, _ano, ops, producaoMap, dias, 
             </p>
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Demanda Prevista Original</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Demanda Prevista Normal</p>
                 <p className="text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tighter">{baseStats.totalPrev.toLocaleString()}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Coleta Realizada Original</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Coleta Realizada Normal</p>
                 <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter">{baseStats.totalReal.toLocaleString()}</p>
               </div>
             </div>
+            {/* Seção de Atrasos */}
+            {(baseStats.totalPrevAtraso > 0 || opsAtraso.length > 0) && (
+              <div className="mt-4 pt-4 border-t border-red-200 dark:border-red-800/40 grid grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
+                    <span>⚠</span> Demanda Atraso Produtivo
+                  </p>
+                  <p className="text-xl font-black text-red-600 dark:text-red-400 tracking-tighter">{baseStats.totalPrevAtraso.toLocaleString()}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
+                    <span>⚠</span> Realizado Atraso
+                  </p>
+                  <p className="text-xl font-black text-red-500 dark:text-red-400 tracking-tighter">{baseStats.totalRealAtraso.toLocaleString()}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-[9px] text-red-400/80 italic">
+                    Carga de atraso inclusa na simulação — {opsAtraso.length} OP(s) realocada(s)
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Parâmetros */}

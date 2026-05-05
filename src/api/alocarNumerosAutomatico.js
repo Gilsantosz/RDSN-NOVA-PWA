@@ -1,4 +1,3 @@
-import { rdsn } from './supabaseClient';
 import { 
   checarSobreposicao, 
   calcularFim, 
@@ -8,7 +7,7 @@ import {
   eApos
 } from '../core/numeracaoService.js';
 
-export async function alocarNumerosAutomatico(payload) {
+export async function alocarNumerosAutomatico(payload, rdsn) {
   try {
     const { letra_produto, ano, quantidade, setor_id, criterio } = payload;
 

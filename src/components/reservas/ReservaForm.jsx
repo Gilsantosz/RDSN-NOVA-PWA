@@ -283,8 +283,9 @@ export default function ReservaForm({ onSubmit, isLoading, produtos = [], pcpOps
           || (initialSetorId && initialSetorId !== 'ALL' ? initialSetorId : null)
           || setores[0]?.id;
 
-        // Resolver sufixo: cadastro técnico > extrair do prefixo_padrao > OP > estado atual
+        // Resolver sufixo: cadastro técnico > prefixo_lote do cliente > extrair do prefixo_padrao > OP > estado atual
         const sufixoRaw = produto?.sufixo
+          || produto?.prefixo_lote                              // NOVO: prefixo de lote do cliente (L ou LM)
           || produto?.prefixo_padrao?.replace(/^[A-Z]/i, '')
           || opPrincipal?.sufixo
           || '';

@@ -43,11 +43,13 @@ export default function EtiquetasLotePage() {
     queryKey: ['reservasParaEtiquetas', setorAtivo],
     queryFn: async () => {
       let todasReservas;
-      if (isAdmin && setorAtivo === 'ALL') {
+      const isAdminGlobal = isAdmin && (setorAtivo === 'ALL' || setorAtivo === 'TODOS');
+      if (isAdminGlobal) {
         todasReservas = await rdsn.entities.ReservaLote.list('-created_at');
       } else {
         todasReservas = await rdsn.entities.ReservaLote.filter({ setor_id: setorAtivo }, '-created_at');
       }
+      console.debug('[Etiquetas] reservas brutas carregadas:', todasReservas.length, '| setorAtivo:', setorAtivo, '| isAdmin:', isAdmin);
 
       // Buscar produtos para join de sequencia_decrescente
       const todosProdutos = await rdsn.entities.Produto.list();
@@ -84,29 +86,42 @@ export default function EtiquetasLotePage() {
       // Buscar todas as baixas para verificar progresso
       const todasBaixas = await rdsn.entities.BaixaLote.list();
 
-      // Filtrar apenas reservas com números ainda pendentes de registrar etiquetas
-      return todasReservas.filter(r => {
-        // Rejeitar canceladas e liberadas
-        if (r.status === 'CANCELADO' || r.status === 'LIBERADO') {
+      const resultado = todasReservas.filter(r => {
+        // Status terminais: cancelada ou já totalmente produzida/baixada
+        // LIBERADO = aprovada para produção = DEVE aparecer
+        if (r.status === 'CANCELADO' || r.status === 'PRODUZIDO' || r.status === 'BAIXADO') {
           return false;
         }
 
-        // Manter se houver quantidade pendente
-        const quantidadeRestante = r.quantidade - (r.quantidade_baixada || 0);
-        if (quantidadeRestante <= 0) {
-          return false;
+        // Sem quantidade definida → sempre mostrar (dados incompletos)
+        if (!r.quantidade || r.quantidade <= 0) return true;
+
+        // Manter se houver quantidade pendente baseada em quantidade_baixada
+        const quantidadeBaixada = r.quantidade_baixada || 0;
+        if (quantidadeBaixada > 0 && quantidadeBaixada >= r.quantidade) {
+          return false; // 100% baixada
         }
 
-        // Validar progresso de baixas reais no banco (redundância de segurança)
+        // Verificação secundária via baixas reais (só aplica quando há baixas com dados completos)
         const baixasDele = todasBaixas.filter(b => b.reserva_id === r.id);
         if (baixasDele.length === 0) return true;
 
-        const sumBaixadoCircular = baixasDele.reduce((sum, b) => {
-          return sum + calcularQuantidade(b.numero_inicial, b.numero_final, r.sequencia_decrescente);
+        // Só usa calcularQuantidade em baixas com numero_inicial e numero_final válidos
+        const baixasValidas = baixasDele.filter(
+          b => b.numero_inicial != null && b.numero_final != null
+        );
+        if (baixasValidas.length === 0) return true;
+
+        const sumBaixadoCircular = baixasValidas.reduce((sum, b) => {
+          const qtd = calcularQuantidade(b.numero_inicial, b.numero_final, r.sequencia_decrescente);
+          return sum + (isNaN(qtd) ? 0 : qtd);
         }, 0);
 
         return sumBaixadoCircular < r.quantidade;
       });
+
+      console.debug('[Etiquetas] após filtro:', resultado.length, '| status presentes:', [...new Set(todasReservas.map(r => r.status))]);
+      return resultado;
     },
     enabled: !reservaId && !!setorAtivo
   });
@@ -323,6 +338,28 @@ export default function EtiquetasLotePage() {
       setOrdemAutomatica(true);
     }
   }, [contexto?.sequenciaDecrescente]);
+
+  // Sincronização em tempo real com Supabase
+  useEffect(() => {
+    const unsubReserva = rdsn.entities.ReservaLote.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['reservasParaEtiquetas'] });
+      queryClient.invalidateQueries({ queryKey: ['contextoEtiqueta'] });
+    });
+
+    const unsubEtiqueta = rdsn.entities.Etiqueta.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['etiquetasReserva'] });
+    });
+
+    const unsubBaixa = rdsn.entities.BaixaLote.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ['reservasParaEtiquetas'] });
+    });
+
+    return () => {
+      unsubReserva();
+      unsubEtiqueta();
+      unsubBaixa();
+    };
+  }, [queryClient]);
 
   // Mutation para registrar etiqueta
   const registrarMutation = useMutation({

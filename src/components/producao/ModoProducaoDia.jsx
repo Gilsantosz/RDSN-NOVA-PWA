@@ -329,10 +329,11 @@ export default function ModoProducaoDia({ reservas, produtos, setorInfo }) {
         </div>
         <Button
           onClick={() => setShowNova(true)}
-          className="w-full sm:w-auto h-14 px-8 rounded-2xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-[0.2em] gap-3 shadow-xl transition-all active:scale-95"
+          disabled={setorAtivo === 'ALL'}
+          className="w-full sm:w-auto h-14 px-8 rounded-2xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-[0.2em] gap-3 shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="w-5 h-5" />
-          Nova Produção
+          {setorAtivo === 'ALL' ? 'Selecione um Setor' : 'Nova Produção'}
         </Button>
       </div>
 
@@ -365,12 +366,7 @@ export default function ModoProducaoDia({ reservas, produtos, setorInfo }) {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {lotesAbertos
-            .sort((a, b) => {
-              // Abertos primeiro, depois fechados
-              if (a.status === 'ABERTO' && b.status !== 'ABERTO') return -1;
-              if (a.status !== 'ABERTO' && b.status === 'ABERTO') return 1;
-              return 0;
-            })
+            .filter(l => l.status === 'ABERTO')
             .map(lote => (
               <ProducaoDiaCard
                 key={lote.id}

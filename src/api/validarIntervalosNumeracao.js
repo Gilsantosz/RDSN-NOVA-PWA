@@ -1,7 +1,6 @@
-import { rdsn } from './supabaseClient';
 import { checarSobreposicao } from '../core/numeracaoService';
 
-export async function validarIntervalosNumeracao(payload) {
+export async function validarIntervalosNumeracao(payload, rdsn) {
   try {
     const { letra_produto, ano, numero_inicial, numero_final, reserva_id_ignorar, setor_id } = payload;
 

@@ -1,6 +1,4 @@
-import { rdsn } from './supabaseClient';
-
-export async function registrarEtiqueta(payload) {
+export async function registrarEtiqueta(payload, rdsn) {
   try {
     const { reservaId, reservaIds, pallet, caixas, isMultiple } = payload;
 

@@ -31,7 +31,7 @@ function Field({ label, icon: Icon, children }) {
 function ClienteForm({ cliente, onSave, onClose }) {
   const [form, setForm] = useState({
     codigo: '', nome: '', cnpj: '', cidade: '', estado: 'SP', contato: '', telefone: '', email: '', status: 'Ativo',
-    descricao_produto: '', kit: '', carcaca: '', plaqueta: '', turbina: '', letra_produto: '',
+    descricao_produto: '', kit: '', carcaca: '', plaqueta: '', turbina: '', letra_produto: '', prefixo_lote: '',
     ...(cliente || {})
   });
 
@@ -136,9 +136,47 @@ function ClienteForm({ cliente, onSave, onClose }) {
             <Field label="Inserção / Turbina">
               <Input value={form.turbina} onChange={e => set('turbina', e.target.value)} className="h-12 bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl" placeholder="Código Turbina" />
             </Field>
-            <Field label="Letra Padrão">
-              <Input value={form.letra_produto} onChange={e => set('letra_produto', e.target.value)} className="h-12 bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl font-bold uppercase" placeholder="Ex: G" maxLength={1} />
-            </Field>
+            <div className="md:col-span-2">
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Letra Padrão">
+                  <Input
+                    value={form.letra_produto}
+                    onChange={e => set('letra_produto', e.target.value.toUpperCase().slice(0, 1))}
+                    className="h-12 bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl font-bold uppercase text-center text-xl tracking-widest"
+                    placeholder="G"
+                    maxLength={1}
+                  />
+                </Field>
+                <Field label="Prefixo de Lote (L ou LM)">
+                  <Select
+                    value={form.prefixo_lote || 'NONE'}
+                    onValueChange={v => set('prefixo_lote', v === 'NONE' ? '' : v)}
+                  >
+                    <SelectTrigger className="h-12 bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl font-black text-blue-600 dark:text-blue-400">
+                      <SelectValue placeholder="Sem prefixo" />
+                    </SelectTrigger>
+                    <SelectContent className="dark:bg-slate-900 dark:border-white/10 rounded-xl">
+                      <SelectItem value="NONE" className="font-bold text-slate-400">— Sem prefixo</SelectItem>
+                      <SelectItem value="L" className="font-black text-blue-600">L — Lote padrão</SelectItem>
+                      <SelectItem value="LM" className="font-black text-indigo-600">LM — Lote múltiplo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+              {/* Preview ao vivo da numeração */}
+              {(form.letra_produto || form.prefixo_lote) && (
+                <div className="mt-3 px-4 py-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-dashed border-slate-200 dark:border-white/10 flex items-center gap-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Preview numeração:</span>
+                  <code className="text-sm font-black tracking-widest text-slate-700 dark:text-white">
+                    {form.letra_produto || '?'}
+                    <span className="text-blue-500">26</span>
+                    {form.prefixo_lote && <span className="text-indigo-500">{form.prefixo_lote}</span>}
+                    <span className="text-slate-400">001</span>
+                  </code>
+                  <span className="ml-auto text-[8px] text-slate-400 italic">⚡ auto-preenchido na reserva</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

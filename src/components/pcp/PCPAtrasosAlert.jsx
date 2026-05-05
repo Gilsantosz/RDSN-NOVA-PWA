@@ -7,15 +7,25 @@ import { AlertTriangle, ChevronDown, ChevronUp, X, Package } from 'lucide-react'
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { broadcastPCPInvalidate } from '@/lib/pcpTabSync';
 
 /**
  * Componente que detecta OPs do mês anterior ainda não concluídas
  * e oferece importá-las como "Atraso" no mês atual.
  */
-export default function PCPAtrasosAlert({ mesAtual, anoAtual, opsAtual, opsAnterior, producoesMesAnterior }) {
+export default function PCPAtrasosAlert({ mesAtual, anoAtual, opsAtual, opsAnterior, producoesMesAnterior, onRegularizado, setorAtivo }) {
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(true);
-  const [dismissed, setDismissed] = useState(false);
+  // Persiste o estado de descartado por mês/ano no localStorage
+  // assim um reload não reapresenta o alerta de um mês que o usuário já descartou
+  const dismissKey = `pcp-atraso-dismissed-${mesAtual}-${anoAtual}`;
+  const [dismissed, setDismissedState] = useState(() => {
+    try { return localStorage.getItem(dismissKey) === '1'; } catch { return false; }
+  });
+  const setDismissed = (val) => {
+    setDismissedState(val);
+    try { if (val) localStorage.setItem(dismissKey, '1'); else localStorage.removeItem(dismissKey); } catch {}
+  };
 
   // Buscar baixas do mês anterior agrupadas por codigo_produto das OPs
   const mesAnt = mesAtual === 1 ? 12 : mesAtual - 1;
@@ -24,13 +34,25 @@ export default function PCPAtrasosAlert({ mesAtual, anoAtual, opsAtual, opsAnter
   const inicioMesAnt = new Date(anoCompletoAnt, mesAnt - 1, 1).toISOString();
   const fimMesAnt = new Date(anoCompletoAnt, mesAnt, 0, 23, 59, 59).toISOString();
 
+  const getCodigoOP = (op) => (op.codigo_produto && op.codigo_produto.trim()) || op.codigo_op;
+
   const codigosProdutoAnt = React.useMemo(() =>
-    [...new Set((opsAnterior || []).map(o => o.codigo_produto).filter(Boolean))],
+    [...new Set((opsAnterior || []).map(getCodigoOP).filter(Boolean))],
     [opsAnterior]
   );
 
+  // ── Busca TODAS as OPs de Atraso do mês atual SEM filtro de setor ──────────
+  // Necessário para evitar duplicatas quando a OP foi criada sem setor_id
+  const { data: opsAtualTodas = [] } = useQuery({
+    queryKey: ['pcp-ops-atraso-sem-setor', mesAtual, anoAtual],
+    queryFn: () => rdsn.entities.PCPOrdemProducao.filter(
+      { mes: mesAtual, ano: anoAtual, tipo: 'Atraso', status: 'Ativo' }, null, 500
+    ),
+    staleTime: 0,
+  });
+
   // Buscar reservas dos produtos anteriores para achar baixas reais
-  const { data: reservasAnt = [] } = useQuery({
+  const { data: reservasAnt = [], isLoading: isLoadingReservas } = useQuery({
     queryKey: ['reservas-pcp-atraso', codigosProdutoAnt.join(',')],
     queryFn: async () => {
       if (!codigosProdutoAnt.length) return [];
@@ -44,7 +66,7 @@ export default function PCPAtrasosAlert({ mesAtual, anoAtual, opsAtual, opsAnter
 
   // Baixas do mês anterior agrupadas por reserva_id
   const reservaIdsAnt = reservasAnt.map(r => r.id);
-  const { data: baixasAnt = [] } = useQuery({
+  const { data: baixasAnt = [], isLoading: isLoadingBaixas } = useQuery({
     queryKey: ['baixas-pcp-atraso', reservaIdsAnt.join(',')],
     queryFn: async () => {
       if (!reservaIdsAnt.length) return [];
@@ -57,6 +79,9 @@ export default function PCPAtrasosAlert({ mesAtual, anoAtual, opsAtual, opsAnter
     },
     enabled: reservaIdsAnt.length > 0
   });
+
+  // TRUE enquanto as baixas ainda não chegaram → impede regularizar com quantidade errada
+  const isBaixasLoading = isLoadingReservas || (reservaIdsAnt.length > 0 && isLoadingBaixas);
 
   // Calcular total baixado por codigo_produto no mês anterior
   const baixadoPorCodigo = React.useMemo(() => {
@@ -83,49 +108,88 @@ export default function PCPAtrasosAlert({ mesAtual, anoAtual, opsAtual, opsAnter
     if (!opsAnterior || !opsAnterior.length) return [];
     return opsAnterior.filter(op => {
       if (op.status !== 'Ativo') return false;
-      if (op.tipo === 'Atraso') return false;
-      const jaExiste = (opsAtual || []).some(o => o.codigo_op === op.codigo_op && o.tipo === 'Atraso');
-      if (jaExiste) return false;
       const qtdTotal = op.quantidade_total || 0;
       if (qtdTotal === 0) return false;
-      const realizadoReal = op.codigo_produto
-        ? (baixadoPorCodigo[op.codigo_produto] || 0)
+
+      // ─── Verificar se já foi regularizada (usa lista SEM filtro de setor) ──
+      // Importante: opsAtual filtra por setor_id, então pode não achar OPs criadas
+      // sem setor (bug anterior). opsAtualTodas não tem esse filtro.
+      const fonteVerificacao = opsAtualTodas.length > 0 ? opsAtualTodas : (opsAtual || []);
+
+      // 1. Pelo campo mes_origem/ano_origem + codigo_produto (sinal canônico)
+      const jaRegularizadaPorOrigem = fonteVerificacao.some(o =>
+        o.tipo === 'Atraso' &&
+        Number(o.mes_origem) === Number(mesAnt) &&
+        Number(o.ano_origem) === Number(anoAnt) &&
+        (o.codigo_op === op.codigo_op || o.codigo_produto === op.codigo_produto)
+      );
+      if (jaRegularizadaPorOrigem) return false;
+
+      // 2. Fallback: pelo codigo_op direto
+      const jaExistePorCodigo = fonteVerificacao.some(o =>
+        o.tipo === 'Atraso' && o.codigo_op === op.codigo_op
+      );
+      if (jaExistePorCodigo) return false;
+
+      // ─── Verificar saldo pendente ─────────────────────────────────────────
+      const codigoMatch = getCodigoOP(op);
+      const realizadoReal = codigoMatch
+        ? (baixadoPorCodigo[codigoMatch] || 0)
         : (realizadoPorOp[op.id] || 0);
+        
       return realizadoReal < qtdTotal;
     });
   }, [opsAnterior, opsAtual, baixadoPorCodigo, realizadoPorOp]);
 
+
   // Estado de edição local
   const [editValues, setEditValues] = useState({});
 
+  // Recalcula editValues SEMPRE que baixas ou opsAtrasadas mudam
+  // (sem o "if (m[op.id]) return" que impedia atualização quando baixas chegavam depois)
   React.useEffect(() => {
     if (!opsAtrasadas.length) return;
     setEditValues(prev => {
       const m = { ...prev };
+      let changed = false;
       opsAtrasadas.forEach(op => {
-        if (m[op.id]) return;
-        const realizadoReal = op.codigo_produto
-          ? (baixadoPorCodigo[op.codigo_produto] || 0)
+        const codigoMatch = getCodigoOP(op);
+        const realizadoReal = codigoMatch
+          ? (baixadoPorCodigo[codigoMatch] || 0)
           : (realizadoPorOp[op.id] || 0);
-        const saldo = (op.quantidade_total || 0) - realizadoReal;
-        m[op.id] = {
-          codigo_op: op.codigo_op,
-          descricao: op.descricao || '',
-          cliente_nome: op.cliente_nome || '',
-          codigo_produto: op.codigo_produto || '',
-          quantidade_total: saldo > 0 ? saldo : op.quantidade_total || 0,
-          item_num: op.item_num || '',
-          selected: true,
-        };
+
+        const qtdTotal = op.quantidade_total || 0;
+        const saldo = Math.max(0, qtdTotal - realizadoReal);
+        // Usa saldo se >0, senão quantidade total (nunca 0)
+        const qtdFinal = saldo > 0 ? saldo : qtdTotal;
+
+        // Só preserva o valor editado manualmente pelo usuário se a entrada já existia
+        // E só se o realizadoReal ainda era 0 (baixas não tinham chegado) — reavalia
+        const jaExistia = !!prev[op.id];
+        const eraCalculoSemBaixas = jaExistia && prev[op.id]?.quantidade_total === qtdTotal && realizadoReal > 0;
+
+        if (!jaExistia || eraCalculoSemBaixas) {
+          changed = true;
+          m[op.id] = {
+            ...(prev[op.id] || {}),
+            codigo_op: op.codigo_op,
+            descricao: op.descricao || '',
+            cliente_nome: op.cliente_nome || '',
+            codigo_produto: op.codigo_produto || '',
+            quantidade_total: qtdFinal,
+            item_num: op.item_num || '',
+            selected: prev[op.id]?.selected !== false, // mantém seleção do usuário
+          };
+        }
       });
-      return m;
+      return changed ? m : prev;
     });
-  }, [opsAtrasadas.length, baixadoPorCodigo, realizadoPorOp]);
+  }, [opsAtrasadas, baixadoPorCodigo, realizadoPorOp]);
 
   const importMutation = useMutation({
     mutationFn: async () => {
       const toImport = opsAtrasadas.filter(op => editValues[op.id]?.selected);
-      await Promise.all(toImport.map(op => {
+      const created = await Promise.all(toImport.map(op => {
         const ev = editValues[op.id];
         return rdsn.entities.PCPOrdemProducao.create({
           codigo_op: ev.codigo_op,
@@ -139,22 +203,41 @@ export default function PCPAtrasosAlert({ mesAtual, anoAtual, opsAtual, opsAnter
           status: 'Ativo',
           mes: mesAtual,
           ano: anoAtual,
-          mes_origem: mesAnt,
-          ano_origem: anoAnt,
+          mes_origem: op.mes_origem || mesAnt,
+          ano_origem: op.ano_origem || anoAnt,
+          // ← setor_id é CRÍTICO: sem ele, a query que filtra por setor nunca acha a OP
+          setor_id: setorAtivo && setorAtivo !== 'ALL' ? setorAtivo : (op.setor_id || null),
         });
       }));
+      return created;
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
+      // Invalida queries nesta aba
+      qc.invalidateQueries({ queryKey: ['pcp-ops', mesAtual, anoAtual, setorAtivo] });
       qc.invalidateQueries({ queryKey: ['pcp-ops', mesAtual, anoAtual] });
-      toast.success('OPs em atraso importadas com sucesso!');
-      setDismissed(true);
+      qc.invalidateQueries({ queryKey: ['pcp-ops-atraso-sem-setor', mesAtual, anoAtual] });
+      // ✨ Sincroniza todas as outras abas abertas na mesma página
+      broadcastPCPInvalidate([
+        ['pcp-ops', mesAtual, anoAtual, setorAtivo],
+        ['pcp-ops', mesAtual, anoAtual],
+        ['pcp-ops-atraso-sem-setor', mesAtual, anoAtual],
+      ]);
+      const mesesNome = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      toast.success(
+        `✅ ${created.length} OP(s) realocada(s) para ${mesesNome[mesAtual-1]}/${anoAtual} como Atraso Produtivo (origem: ${mesesNome[mesAnt-1]}/${anoAnt}). Distribua a produção diária em cada OP.`,
+        { duration: 6000 }
+      );
+      if (onRegularizado && created.length > 0) {
+        setTimeout(() => onRegularizado(created), 600);
+      }
     },
     onError: e => toast.error('Erro ao importar: ' + e.message),
   });
 
   if (dismissed || opsAtrasadas.length === 0) return null;
 
-  const selectedCount = Object.values(editValues).filter(v => v.selected).length;
+  // Conta apenas OPs na lista atual (ignora entradas antigas no editValues)
+  const selectedCount = opsAtrasadas.filter(op => editValues[op.id]?.selected).length;
 
   return (
     <div className="mb-6 rounded-[2rem] border border-amber-200/50 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/20 backdrop-blur-xl shadow-xl overflow-hidden transition-all duration-500 animate-in fade-in slide-in-from-top-4">
@@ -303,11 +386,13 @@ export default function PCPAtrasosAlert({ mesAtual, anoAtual, opsAtual, opsAnter
               <Button
                 size="sm"
                 onClick={() => importMutation.mutate()}
-                disabled={selectedCount === 0 || importMutation.isPending}
+                disabled={selectedCount === 0 || importMutation.isPending || isBaixasLoading}
                 className="h-10 px-6 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-lg shadow-amber-600/20 border-0"
               >
                 {importMutation.isPending ? (
                   <>Sincronizando...</>
+                ) : isBaixasLoading ? (
+                  <>Calculando saldo...</>
                 ) : (
                   <>
                     <Package className="w-3.5 h-3.5" />

@@ -1,6 +1,4 @@
-import { rdsn } from './supabaseClient';
-
-export async function sincronizarBaixasComPCP(payload) {
+export async function sincronizarBaixasComPCP(payload, rdsn) {
   try {
     const { mes, ano, op_id, setor_id } = payload;
 

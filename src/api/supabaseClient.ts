@@ -35,8 +35,8 @@ const unpackData = (row: any) => {
 };
 
 export interface EntityAdapter<T = any> {
-    list: () => Promise<T[]>;
-    filter: (filters: Record<string, any>) => Promise<T[]>;
+    list: (sort?: string, limit?: number) => Promise<T[]>;
+    filter: (filters: Record<string, any>, sort?: string) => Promise<T[]>;
     create: (payload: Partial<T>) => Promise<T>;
     update: (id: string | number, payload: Partial<T>) => Promise<T>;
     delete: (id: string | number) => Promise<boolean>;
@@ -45,33 +45,53 @@ export interface EntityAdapter<T = any> {
 }
 
 const createEntityAdapter = (entityName: string): EntityAdapter => ({
-    list: async () => {
-        const { data, error } = await supabase.from(entityName).select('*');
+    list: async (sort, limitCount) => {
+        let query = supabase.from(entityName).select('*');
+        if (sort) {
+            const isDesc = sort.startsWith('-');
+            const column = isDesc ? sort.substring(1) : sort;
+            const sortColumn = isStandardColumn(column) ? column : `j_data->>${column}`;
+            query = query.order(sortColumn, { ascending: !isDesc });
+        }
+        if (limitCount) {
+            query = query.limit(limitCount);
+        }
+        const { data, error } = await query;
         if (error) throw error;
         return data ? data.map(unpackData) : [];
     },
-    filter: async (filters) => {
+    filter: async (filters, sort) => {
         let query = supabase.from(entityName).select('*');
         for (const [key, value] of Object.entries(filters)) {
-            const colName = isStandardColumn(key) ? key : `j_data->>${key}`;
+            const isStd = isStandardColumn(key);
+            // ->> extrai como text; -> extrai como JSONB (incompatível com .eq() direto)
+            const colName = isStd ? key : `j_data->>${key}`;
 
             if (value && typeof value === 'object' && !Array.isArray(value)) {
-                // Tratamento para operadores como $in, $nin
+                // Operadores especiais: $in, $nin, $ne, $null
                 if (value.$in) {
                     query = query.in(colName, value.$in);
                 } else if (value.$nin) {
                     query = (query as any).not(colName, 'in', `(${value.$nin.join(',')})`);
                 } else if (value.$ne) {
                     query = query.neq(colName, value.$ne);
+                } else if (value.$null === true) {
+                    query = query.is(colName, null);
+                } else if (value.$null === false) {
+                    query = (query as any).not(colName, 'is', null);
                 }
+            } else if (typeof value === 'boolean') {
+                // Booleanos em JSONB: ->> retorna "true"/"false" como texto
+                query = query.eq(colName, value.toString());
             } else {
-                if (typeof value === 'boolean') {
-                    const isStd = isStandardColumn(key);
-                    query = query.eq(isStd ? key : `j_data->${key}`, value);
-                } else {
-                    query = query.eq(colName, value);
-                }
+                query = query.eq(colName, value);
             }
+        }
+        if (sort) {
+            const isDesc = sort.startsWith('-');
+            const column = isDesc ? sort.substring(1) : sort;
+            const sortColumn = isStandardColumn(column) ? column : `j_data->>${column}`;
+            query = query.order(sortColumn, { ascending: !isDesc });
         }
         const { data, error } = await query;
         if (error) throw error;
@@ -187,27 +207,27 @@ export const rdsn: IRDSNClient = {
             try {
                 if (functionName === 'alocarNumerosAutomatico') {
                     const module = await import('./alocarNumerosAutomatico.js' as any);
-                    return await module.alocarNumerosAutomatico(body);
+                    return await module.alocarNumerosAutomatico(body, rdsn as any);
                 }
 
                 if (functionName === 'sincronizarBaixasComPCP') {
                     const module = await import('./sincronizarBaixasComPCP.js' as any);
-                    return await module.sincronizarBaixasComPCP(body);
+                    return await module.sincronizarBaixasComPCP(body, rdsn as any);
                 }
 
                 if (functionName === 'registrarEtiqueta') {
                     const module = await import('./registrarEtiqueta.js' as any);
-                    return await module.registrarEtiqueta(body);
+                    return await module.registrarEtiqueta(body, rdsn as any);
                 }
 
                 if (functionName === 'enviarWebhook') {
                     const module = await import('./enviarWebhook.js' as any);
-                    return await module.enviarWebhook(body);
+                    return await module.enviarWebhook(body, rdsn as any);
                 }
 
                 if (functionName === 'validarIntervalosNumeracao') {
                     const module = await import('./validarIntervalosNumeracao.js' as any);
-                    return await module.validarIntervalosNumeracao(body);
+                    return await module.validarIntervalosNumeracao(body, rdsn as any);
                 }
 
                 if (functionName === 'redefinirParaCopia') {

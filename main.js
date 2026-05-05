@@ -11,11 +11,11 @@ function createWindow() {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
-        title: "PCP Matrix - Industrial Intelligence Suite",
+        title: "RDSN NOVA - Sistema Industrial",
         vibrancy: 'under-window',
         visualEffectState: 'active',
         trafficLightPosition: { x: 15, y: 15 },
-        icon: path.join(__dirname, isDev ? 'public/pcp-matrix-icon.png' : 'dist/electron-icon.png'),
+        icon: path.join(__dirname, isDev ? 'build/icon.png' : 'dist/electron-icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
@@ -37,7 +37,7 @@ function createWindow() {
     // NATIVE MENU CONFIGURATION FOR INDUSTRIAL SUITE
     const template = [
         {
-            label: 'PCP Matrix',
+            label: 'RDSN NOVA',
             submenu: [
                 { label: 'Voltar ao Login', click: () => win.webContents.send('navigate', '/access') },
                 { type: 'separator' },
@@ -45,12 +45,12 @@ function createWindow() {
             ]
         },
         {
-            label: 'Suíte PCP',
+            label: 'Módulos',
             submenu: [
-                { label: 'Dashboard Industrial', click: () => win.webContents.send('navigate', '/pcp') },
-                { label: 'Kanban Dinâmico', click: () => win.webContents.send('navigate', '/pcp-kanban') },
+                { label: 'Dashboard', click: () => win.webContents.send('navigate', '/') },
+                { label: 'Produção / Baixas', click: () => win.webContents.send('navigate', '/producao') },
+                { label: 'PCP Kanban', click: () => win.webContents.send('navigate', '/pcp-kanban') },
                 { label: 'Programação Mensal', click: () => win.webContents.send('navigate', '/pcp-programacao-mensal') },
-                { label: 'Simulador de Plano', click: () => win.webContents.send('navigate', '/pcp-simulacao-plano') },
                 { type: 'separator' },
                 { label: 'Agendamentos', click: () => win.webContents.send('navigate', '/agendamento') }
             ]

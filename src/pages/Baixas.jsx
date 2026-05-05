@@ -166,6 +166,12 @@ export default function BaixasPage() {
       if (filtros.dataInicio && new Date(baixa.created_at) < new Date(filtros.dataInicio)) return false;
       if (filtros.dataFim && new Date(baixa.created_at) > new Date(filtros.dataFim)) return false;
       return true;
+    }).sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (timeB !== timeA) return timeB - timeA;
+      // Fallback para ID caso o timestamp seja idêntico (baixas em lote)
+      return Number(b.id) - Number(a.id);
     });
   }, [baixasEnriquecidas, filtros, filtroData, dataEspecifica]);
 
@@ -416,164 +422,170 @@ export default function BaixasPage() {
           </PremiumCard>
         </div>
 
-        {/* Gráfico de Baixas por Dia */}
-        <PremiumCard
-          title="Analítico de Produtividade Diária"
-          icon={BarChart3}
-          className="hover:shadow-blue-500/10"
-        >
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={baixasPorDia} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8} />
-                    <stop offset="100%" stopColor="#2563eb" stopOpacity={0.4} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="opacity-50 dark:opacity-5" vertical={false} />
-                <XAxis
-                  dataKey="data"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fontWeight: 'bold', fill: '#94a3b8' }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fontWeight: 'bold', fill: '#94a3b8' }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    border: '1px solid rgba(51, 65, 85, 0.5)',
-                    borderRadius: '16px',
-                    backdropFilter: 'blur(10px)',
-                    color: '#f8fafc',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                  }}
-                  itemStyle={{ color: '#60a5fa', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '10px' }}
-                  cursor={{ fill: 'rgba(59, 130, 246, 0.05)', radius: 10 }}
-                  formatter={(value) => [`${value.toLocaleString()} un`, 'Produção']}
-                />
-                <Bar
-                  dataKey="quantidade"
-                  fill="url(#barGradient)"
-                  radius={[10, 10, 0, 0]}
-                  barSize={40}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </PremiumCard>
+        {/* Gráficos de Produtividade */}
+        <div className="grid grid-cols-1 gap-6 mb-6">
+          {/* Gráfico de Baixas por Dia */}
+          <PremiumCard
+            title="Analítico de Produtividade Diária"
+            icon={BarChart3}
+            className="hover:shadow-blue-500/10"
+          >
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={baixasPorDia} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8} />
+                      <stop offset="100%" stopColor="#2563eb" stopOpacity={0.4} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="opacity-50 dark:opacity-5" vertical={false} />
+                  <XAxis
+                    dataKey="data"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fontWeight: 'bold', fill: '#94a3b8' }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fontWeight: 'bold', fill: '#94a3b8' }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                      border: '1px solid rgba(51, 65, 85, 0.5)',
+                      borderRadius: '16px',
+                      backdropFilter: 'blur(10px)',
+                      color: '#f8fafc',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                    }}
+                    itemStyle={{ color: '#60a5fa', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '10px' }}
+                    cursor={{ fill: 'rgba(59, 130, 246, 0.05)', radius: 10 }}
+                    formatter={(value) => [`${value.toLocaleString()} un`, 'Produção']}
+                  />
+                  <Bar
+                    dataKey="quantidade"
+                    fill="url(#barGradient)"
+                    radius={[10, 10, 0, 0]}
+                    barSize={40}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </PremiumCard>
 
-        {/* Gráficos Analíticos de Apoio */}
+          {/* Gráficos Analíticos de Apoio */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <PremiumCard
+              title="Distribuição por Tipo"
+              icon={Layers}
+              className="hover:shadow-indigo-500/10"
+            >
+              <div className="h-[250px] w-full flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={baixasPorTipo}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {baixasPorTipo.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        border: '1px solid rgba(51, 65, 85, 0.5)',
+                        borderRadius: '16px',
+                        color: '#f8fafc'
+                      }}
+                    />
+                    <Legend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </PremiumCard>
+
+            <PremiumCard
+              title="TOP 5 Operadores"
+              icon={User}
+              className="hover:shadow-emerald-500/10"
+            >
+              <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    layout="vertical"
+                    data={baixasPorOperador}
+                    margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} className="opacity-10" />
+                    <XAxis type="number" hide />
+                    <YAxis
+                      dataKey="operador"
+                      type="category"
+                      tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }}
+                      width={80}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        border: '1px solid rgba(51, 65, 85, 0.5)',
+                        borderRadius: '12px',
+                      }}
+                      cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }}
+                    />
+                    <Bar dataKey="quantidade" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </PremiumCard>
+          </div>
+        </div>
+
+        {/* Journal Operacional */}
+        <PremiumCard
+          title="Journal Operacional"
+          icon={Activity}
+          className="mb-6 shadow-blue-500/10 border-blue-500/20"
+          badge={
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['baixas'] })}
+              className="h-10 px-4 rounded-xl border border-slate-200 dark:border-white/10 dark:bg-white/5 text-[10px] font-black uppercase tracking-[0.2em] italic transition-all hover:bg-slate-50 dark:hover:bg-white/10 text-slate-900 dark:text-white"
+            >
+              <ArrowUpDown className="w-4 h-4 mr-2" />
+              Sync Order
+            </Button>
+          }
+        >
+          <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest italic mb-6 opacity-70">
+            Rastreabilidade Coleta • {baixasFiltradas.length} Eventos • Última Atualização: {new Date().toLocaleTimeString()}
+          </p>
+          {isLoading ? (
+            <div className="text-center py-12 text-slate-500 dark:text-slate-400 italic font-bold uppercase tracking-widest text-xs">Carregando Fluxos...</div>
+          ) : baixasFiltradas.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 dark:text-slate-400 italic">Nenhum evento registrado no período selecionado</div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {baixasFiltradas.map((baixa) => (
+                <BaixaCard
+                  key={baixa.id}
+                  baixa={baixa}
+                  setores={setores}
+                />
+              ))}
+            </div>
+          )}
+        </PremiumCard>
       </div>
-
-      {/* Gráficos Analíticos de Apoio */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <PremiumCard
-          title="Distribuição por Tipo"
-          icon={Layers}
-          className="hover:shadow-indigo-500/10"
-        >
-          <div className="h-[250px] w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={baixasPorTipo}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {baixasPorTipo.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    border: '1px solid rgba(51, 65, 85, 0.5)',
-                    borderRadius: '16px',
-                    color: '#f8fafc'
-                  }}
-                />
-                <Legend verticalAlign="bottom" height={36} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </PremiumCard>
-
-        <PremiumCard
-          title="TOP 5 Operadores"
-          icon={User}
-          className="hover:shadow-emerald-500/10"
-        >
-          <div className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                layout="vertical"
-                data={baixasPorOperador}
-                margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} className="opacity-10" />
-                <XAxis type="number" hide />
-                <YAxis
-                  dataKey="operador"
-                  type="category"
-                  tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }}
-                  width={80}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    border: '1px solid rgba(51, 65, 85, 0.5)',
-                    borderRadius: '12px',
-                  }}
-                  cursor={{ fill: 'rgba(59, 130, 246, 0.05)' }}
-                />
-                <Bar dataKey="quantidade" fill="#10b981" radius={[0, 4, 4, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </PremiumCard>
-      </div>
-
-      {/* Journal Operacional */}
-      <PremiumCard
-        title="Journal Operacional"
-        icon={Activity}
-        className="mb-12"
-        badge={
-          <Button variant="ghost" size="sm" className="h-12 px-6 rounded-2xl border border-slate-200 dark:border-white/10 dark:bg-white/5 text-[10px] font-black uppercase tracking-[0.2em] italic transition-all hover:bg-slate-50 dark:hover:bg-white/10 text-slate-900 dark:text-white">
-            <ArrowUpDown className="w-4 h-4 mr-2" />
-            Sync Order
-          </Button>
-        }
-      >
-        <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest italic mb-6 opacity-70">
-          Rastreabilidade Coleta • {baixasFiltradas.length} Eventos
-        </p>
-        {isLoading ? (
-          <div className="text-center py-12 text-slate-500 dark:text-slate-400 italic font-bold uppercase tracking-widest text-xs">Carregando Fluxos...</div>
-        ) : baixasFiltradas.length === 0 ? (
-          <div className="text-center py-12 text-slate-500 dark:text-slate-400 italic">Nenhum evento registrado no período selecionado</div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {baixasFiltradas.map((baixa) => (
-              <BaixaCard
-                key={baixa.id}
-                baixa={baixa}
-                setores={setores}
-              />
-            ))}
-          </div>
-        )}
-      </PremiumCard>
     </div>
   );
 }
