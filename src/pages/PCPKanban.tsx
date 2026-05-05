@@ -407,6 +407,8 @@ export default function PCPKanban() {
                 <select
                   value={form.category}
                   onChange={e => setForm({ ...form, category: e.target.value })}
+                  title="Selecionar raia"
+                  aria-label="Raia"
                   className="w-full h-12 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 px-4 text-[10px] font-black uppercase tracking-widest"
                 >
                   {LANES.map(l => <option key={l} value={l}>{l}</option>)}
@@ -417,6 +419,8 @@ export default function PCPKanban() {
                 <select
                   value={form.priority}
                   onChange={e => setForm({ ...form, priority: e.target.value })}
+                  title="Selecionar prioridade"
+                  aria-label="Prioridade"
                   className="w-full h-12 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 px-4 text-[10px] font-black uppercase tracking-widest"
                 >
                   <option value="high">🔴 Alta</option>
