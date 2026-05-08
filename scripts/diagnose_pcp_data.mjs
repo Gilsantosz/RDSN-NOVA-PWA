@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://saczzyiofmlvygsopfws.supabase.co';
-const SERVICE_ROLE_KEY = 'REMOVED_SEE_ENV';
+// ⚠️ NUNCA exponha a Service Role Key no código — use variável de ambiente
+// Para rodar localmente: SERVICE_ROLE_KEY=sua_chave node scripts/diagnose_pcp_data.mjs
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://saczzyiofmlvygsopfws.supabase.co';
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
