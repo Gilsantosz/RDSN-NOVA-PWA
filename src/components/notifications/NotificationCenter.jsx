@@ -30,7 +30,7 @@ export default function NotificationCenter({ userId }) {
   const {
     notificacoes,
     naoLidas,
-    isLoading,
+    isLoading: _isLoading,
     marcarComoLida,
     arquivar,
     marcarTodasComoLidas,

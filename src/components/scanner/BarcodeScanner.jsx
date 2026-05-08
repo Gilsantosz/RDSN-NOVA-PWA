@@ -11,7 +11,7 @@ export default function BarcodeScanner({ onScan, onClose, placeholder = "Aponte 
   const [status, setStatus] = useState('idle'); // idle, scanning, success, error
   const [lastCode, setLastCode] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const scannerRef = useRef(null);
+  const _scannerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
   const audioContextRef = useRef(null);
 
@@ -125,7 +125,7 @@ export default function BarcodeScanner({ onScan, onClose, placeholder = "Aponte 
             stopScanning();
           }, 800);
         },
-        (errorMessage) => {
+        (_errorMessage) => {
           // Ignorar erros de scan contínuo
         }
       );

@@ -79,7 +79,7 @@ import Usuarios from './pages/Usuarios';
 import PCPKanban from './pages/PCPKanban';
 import __Layout from './Layout';
 
-export interface PageComponent extends React.ComponentType<any> {}
+export type PageComponent = React.ComponentType<any>;
 
 export interface Pages {
     [key: string]: PageComponent;

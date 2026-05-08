@@ -25,7 +25,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-export default function FiltroBaixas({ filtros, onChange, baixas, setores }) {
+export default function FiltroBaixas({ filtros: _filtros, onChange, baixas: _baixas, setores: _setores }) {
   const [filtrosSalvos, setFiltrosSalvos] = useState([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);

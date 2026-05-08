@@ -66,7 +66,7 @@ const itemVariants = {
   }
 };
 
-const CustomTooltip = ({ active = false, payload = [], label = "" }) => {
+const CustomTooltip = ({ active = false, payload = [], label: _label = "" }) => {
   if (!active || !payload || !payload.length) return null;
   
   return (
@@ -101,7 +101,7 @@ const CustomTooltip = ({ active = false, payload = [], label = "" }) => {
 };
 
 export default function DashboardReservas({ filtroAno, setFiltroAno, setActiveTab, setFilters }) {
-  const { setorAtivo, isAdmin } = useSetor();
+  const { setorAtivo, isAdmin: _isAdmin } = useSetor();
   const queryClient = useQueryClient();
   const { status: realtimeStatus } = useRealtime();
 

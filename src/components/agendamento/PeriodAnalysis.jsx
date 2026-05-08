@@ -6,7 +6,7 @@ import { Factory, Package } from 'lucide-react';
 import { format, startOfWeek, startOfMonth, endOfMonth, addDays, isWithinInterval, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-export default function PeriodAnalysis({ reservas, produtos, todasReservas }) {
+export default function PeriodAnalysis({ reservas: _reservas, produtos, todasReservas }) {
   const [periodType, setPeriodType] = useState('weekly');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedCell, setSelectedCell] = useState('all');

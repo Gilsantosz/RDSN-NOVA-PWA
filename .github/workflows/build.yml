@@ -35,7 +35,7 @@ jobs:
           # Token gerado automaticamente pelo GitHub para subir a release
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Variáveis de ambiente devem estar configuradas nas definições (Secrets) do seu repositório GitHub
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL: "${{ secrets.VITE_SUPABASE_URL }}"
+          VITE_SUPABASE_ANON_KEY: "${{ secrets.VITE_SUPABASE_ANON_KEY }}"
         run: |
           npm run build:electron -- --publish always

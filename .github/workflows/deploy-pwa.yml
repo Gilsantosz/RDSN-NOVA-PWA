@@ -12,8 +12,8 @@ on:
 env:
   # ATENÇÃO: Nunca adicione SUPABASE_SERVICE_ROLE_KEY nestas definições (Lei 01: Isolamento Smith)
   # Apenas as chaves públicas (Anon) são permitidas para o PWA (Frontend)
-  VITE_PWA_SUPABASE_URL: ${{ secrets.VITE_PWA_SUPABASE_URL }}
-  VITE_PWA_SUPABASE_ANON_KEY: ${{ secrets.VITE_PWA_SUPABASE_ANON_KEY }}
+  VITE_PWA_SUPABASE_URL: "${{ secrets.VITE_PWA_SUPABASE_URL }}"
+  VITE_PWA_SUPABASE_ANON_KEY: "${{ secrets.VITE_PWA_SUPABASE_ANON_KEY }}"
 
 jobs:
   deploy:
@@ -39,16 +39,16 @@ jobs:
         if: github.ref != 'refs/heads/main'
         uses: amondnet/vercel-action@v25
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-token: "${{ secrets.VERCEL_TOKEN }}"
+          vercel-org-id: "${{ secrets.VERCEL_ORG_ID }}"
+          vercel-project-id: "${{ secrets.VERCEL_PROJECT_ID }}"
 
       # Deploy de Produção para branch Principal
       - name: Deploy to Vercel (Production)
         if: github.ref == 'refs/heads/main'
         uses: amondnet/vercel-action@v25
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-token: "${{ secrets.VERCEL_TOKEN }}"
+          vercel-org-id: "${{ secrets.VERCEL_ORG_ID }}"
+          vercel-project-id: "${{ secrets.VERCEL_PROJECT_ID }}"
           vercel-args: '--prod'

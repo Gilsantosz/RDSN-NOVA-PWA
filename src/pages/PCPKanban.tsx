@@ -5,7 +5,7 @@ import {
   Package, Settings, Plus, RotateCcw, Flag, Play,
   CircleCheck, AlertCircle, QrCode, Layers, ArrowRight,
   Factory, Clock, TrendingUp, AlertTriangle, ChevronDown, ChevronUp,
-  Gauge, Zap, CheckCircle2
+  Gauge, Zap, CheckCircle2, Scissors
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,18 +43,21 @@ interface KanbanCard {
 // ─── COMPONENTES MENORES ──────────────────────────────────────────────────────
 function MetricPill({ icon: Icon, label, value, color }: any) {
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-      <Icon className="w-3.5 h-3.5" style={{ color }} />
+    <div
+      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/60 dark:bg-white/5 border border-slate-200 dark:border-white/10"
+      style={{ '--pill-color': color } as React.CSSProperties}
+    >
+      <Icon className="w-3.5 h-3.5 text-[var(--pill-color)]" />
       <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</span>
-      <span className="text-[11px] font-black" style={{ color }}>{value}</span>
+      <span className="text-[11px] font-black text-[var(--pill-color)]">{value}</span>
     </div>
   );
 }
 
-function KanbanCardView({ card, col, provided, snapshot }: any) {
+function KanbanCardView({ card, col, provided, snapshot, onSplit }: any) {
   const progress = STAGE_PROGRESS[card.column] ?? 0;
   const priorityColors: Record<string, string> = { high: '#ef4444', mid: '#f59e0b', low: '#10b981' };
-  const pColor = priorityColors[card.priority ?? 'mid'];
+  const _pColor = priorityColors[card.priority ?? 'mid'];
 
   return (
     <div
@@ -79,7 +82,23 @@ function KanbanCardView({ card, col, provided, snapshot }: any) {
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0 ml-1">
-          <div className="w-1.5 h-1.5 rounded-full" style={{ background: pColor }} />
+          <div
+            className={cn(
+              "w-1.5 h-1.5 rounded-full",
+              card.priority === 'high' ? "bg-red-500" : card.priority === 'mid' ? "bg-amber-500" : "bg-emerald-500"
+            )}
+          />
+          {/* Cortar lote */}
+          {card.qty > 1 && (
+            <button
+              onMouseDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); onSplit(card); }}
+              title="Cortar lote"
+              className="p-1 rounded-lg bg-slate-50 dark:bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-amber-100 dark:hover:bg-amber-500/20"
+            >
+              <Scissors className="w-2.5 h-2.5 text-amber-500" />
+            </button>
+          )}
           <div className="p-1 rounded-lg bg-slate-50 dark:bg-white/5 opacity-40 group-hover:opacity-100 transition-opacity">
             <QrCode className="w-2.5 h-2.5 text-slate-400" />
           </div>
@@ -88,8 +107,8 @@ function KanbanCardView({ card, col, provided, snapshot }: any) {
 
       {/* Qty */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <Package className="w-3 h-3" style={{ color: col.color }} />
+        <div className="flex items-center gap-1.5" style={{ '--col-color': col.color } as React.CSSProperties}>
+          <Package className="w-3 h-3 text-[var(--col-color)]" />
           <span className="text-sm font-black text-slate-900 dark:text-white">{card.qty}</span>
           <span className="text-[8px] font-bold text-slate-400 uppercase">UN</span>
         </div>
@@ -102,7 +121,7 @@ function KanbanCardView({ card, col, provided, snapshot }: any) {
       <div className="mt-2.5 h-[3px] w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${progress}%`, background: col.color }}
+          style={{ width: `${progress}%`, backgroundColor: col.color } as React.CSSProperties}
         />
       </div>
     </div>
@@ -117,6 +136,8 @@ export default function PCPKanban() {
   ]);
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [splitModal, setSplitModal] = useState<{ open: boolean; card: KanbanCard | null }>({ open: false, card: null });
+  const [splitSize, setSplitSize] = useState('');
   const [collapsedLanes, setCollapsedLanes] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ name: '', totalQty: '', category: LANES[0], priority: 'mid', lotSize: String(DEFAULT_LOT) });
 
@@ -153,6 +174,31 @@ export default function PCPKanban() {
     setModalOpen(false);
     setForm({ name: '', totalQty: '', category: LANES[0], priority: 'mid', lotSize: String(DEFAULT_LOT) });
     toast.success(`${n} cartão(ões) criados no Backlog.`);
+  };
+
+  // ─── CORTE DE LOTE ──────────────────────────────────────────────────────────
+  const openSplit = (card: KanbanCard) => {
+    setSplitModal({ open: true, card });
+    setSplitSize(String(Math.floor(card.qty / 2)));
+  };
+
+  const handleSplit = () => {
+    const card = splitModal.card;
+    if (!card) return;
+    const cutQty = parseInt(splitSize);
+    if (isNaN(cutQty) || cutQty <= 0 || cutQty >= card.qty) {
+      toast.error('Quantidade de corte inválida.');
+      return;
+    }
+    const remainQty = card.qty - cutQty;
+    const ts = Date.now();
+    setCards(prev => [
+      ...prev.filter(c => c.id !== card.id),
+      { ...card, qty: remainQty, id: `${card.id}-A` },
+      { ...card, qty: cutQty, id: `${card.id}-B-${ts}`, lotIndex: (card.totalLots ?? 1) + 1, totalLots: (card.totalLots ?? 1) + 1 },
+    ]);
+    setSplitModal({ open: false, card: null });
+    toast.success(`Lote cortado: ${remainQty} + ${cutQty} UN`);
   };
 
   // ─── DRAG & DROP ────────────────────────────────────────────────────────────
@@ -223,7 +269,10 @@ export default function PCPKanban() {
 
       {/* PIPELINE HEADER (régua de colunas) */}
       <div className="mb-4 px-1">
-        <div className="grid gap-2" style={{ gridTemplateColumns: `120px repeat(${COLUMNS.length}, 1fr)` }}>
+        <div
+          className="grid gap-2"
+          style={{ gridTemplateColumns: `120px repeat(${COLUMNS.length}, 1fr)` } as React.CSSProperties}
+        >
           <div />
           {COLUMNS.map((col, idx) => {
             const total = cards.filter(c => c.column === col.id).length;
@@ -236,11 +285,14 @@ export default function PCPKanban() {
                     ? "bg-red-500/10 border-red-500/40 text-red-500"
                     : "bg-white dark:bg-slate-900/60 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400"
                 )}>
-                  <div className="flex items-center gap-1.5">
-                    <col.icon className="w-3 h-3" style={{ color: col.color }} />
+                  <div className="flex items-center gap-1.5" style={{ '--col-color': col.color } as React.CSSProperties}>
+                    <col.icon className="w-3 h-3 text-[var(--col-color)]" />
                     <span>{col.title}</span>
                   </div>
-                  <span className="font-black" style={{ color: over ? '#ef4444' : col.color }}>
+                  <span
+                    className={cn("font-black", over ? "text-red-500" : "text-[var(--col-color)]")}
+                    style={{ '--col-color': col.color } as React.CSSProperties}
+                  >
                     {total}{col.wipLimit ? `/${col.wipLimit}` : ''}
                   </span>
                 </div>
@@ -287,7 +339,7 @@ export default function PCPKanban() {
                 {!isCollapsed && (
                   <div
                     className="grid gap-2 p-3 overflow-x-auto"
-                    style={{ gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(200px, 1fr))` }}
+                    style={{ gridTemplateColumns: `repeat(${COLUMNS.length}, minmax(200px, 1fr))` } as React.CSSProperties}
                   >
                     {COLUMNS.map(col => {
                       const colCards = laneCards.filter(c => c.column === col.id);
@@ -297,7 +349,7 @@ export default function PCPKanban() {
                         <div key={`${col.id}-${lane}`} className={cn(
                           "rounded-xl p-2 flex flex-col gap-2 min-h-[120px] transition-colors",
                           isOver ? "ring-2 ring-red-500/30 bg-red-500/5" : ""
-                        )} style={{ background: isOver ? undefined : col.bg }}>
+                        )} style={{ backgroundColor: isOver ? undefined : col.bg } as React.CSSProperties}>
 
                           {/* Empty state */}
                           {colCards.length === 0 && (
@@ -319,7 +371,7 @@ export default function PCPKanban() {
                                 {colCards.map((card, idx) => (
                                   <Draggable key={card.id} draggableId={card.id} index={idx}>
                                     {(dp, ds) => (
-                                      <KanbanCardView card={card} col={col} provided={dp} snapshot={ds} />
+                                      <KanbanCardView card={card} col={col} provided={dp} snapshot={ds} onSplit={openSplit} />
                                     )}
                                   </Draggable>
                                 ))}
@@ -338,9 +390,70 @@ export default function PCPKanban() {
         </div>
       </DragDropContext>
 
-      {/* MODAL */}
+      {/* MODAL CORTE DE LOTE */}
+      <Dialog open={splitModal.open} onOpenChange={open => setSplitModal(s => ({ ...s, open }))}>
+        <DialogContent className="max-w-sm dark:bg-slate-900 rounded-[2rem] border-0 shadow-2xl p-0">
+          <div className="bg-amber-500 p-6 rounded-t-[2rem] text-white">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black uppercase italic tracking-tighter flex items-center gap-3 text-white">
+                <span className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Scissors className="w-4 h-4 text-white" />
+                </span>
+                Cortar <span className="text-white/80">Lote</span>
+              </DialogTitle>
+              {splitModal.card && (
+                <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest mt-1">
+                  {splitModal.card.sku} — {splitModal.card.qty} UN disponíveis
+                </p>
+              )}
+            </DialogHeader>
+          </div>
+          <div className="p-6 space-y-5 bg-white dark:bg-slate-900">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                Qtd a separar (novo lote)
+              </Label>
+              <Input
+                type="number"
+                value={splitSize}
+                onChange={e => setSplitSize(e.target.value)}
+                min={1}
+                max={splitModal.card ? splitModal.card.qty - 1 : undefined}
+                placeholder="0"
+                className="h-12 rounded-xl font-black text-lg"
+              />
+            </div>
+            {splitModal.card && splitSize && (
+              <div className="bg-slate-950 text-white rounded-xl p-4 flex items-center gap-3">
+                <Scissors className="w-4 h-4 text-amber-400 shrink-0" />
+                <p className="text-[11px] leading-relaxed">
+                  Lote A: <b>{splitModal.card.qty - (parseInt(splitSize) || 0)} UN</b>
+                  {' '}• Lote B: <b>{parseInt(splitSize) || 0} UN</b>
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="px-6 pb-6 flex gap-3 bg-white dark:bg-slate-900 rounded-b-[2rem]">
+            <Button
+              variant="outline"
+              onClick={() => setSplitModal({ open: false, card: null })}
+              className="flex-1 h-12 rounded-xl font-black uppercase text-[10px] tracking-widest"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSplit}
+              className="flex-[2] h-12 bg-amber-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 hover:bg-amber-600 active:scale-95 transition-all"
+            >
+              Cortar Lote <Scissors className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL NOVO LOTE */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-lg dark:bg-slate-900 rounded-[2rem] p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogContent className="max-w-lg dark:bg-slate-900 rounded-[2rem] border-0 shadow-2xl p-0">
           {/* Modal header */}
           <div className="bg-slate-950 p-7 text-white">
             <DialogHeader>

@@ -13,7 +13,7 @@ import { AlertTriangle, Factory } from 'lucide-react';
  * @param {React.ReactNode} children - Conteúdo a renderizar quando desbloqueado
  */
 export default function PCPSetorGuard({ children, action = 'realizar esta ação', inline = false }) {
-  const { setorAtivo, isAdmin } = useSetor();
+  const { setorAtivo, isAdmin: _isAdmin } = useSetor();
 
   const { data: setores = [] } = useQuery({
     queryKey: ['setores-all'],
@@ -26,7 +26,7 @@ export default function PCPSetorGuard({ children, action = 'realizar esta ação
 
   if (!bloqueado) return children;
 
-  const nomeSetor = setor?.nome || setorAtivo;
+  const _nomeSetor = setor?.nome || setorAtivo;
 
   if (inline) {
     return (
@@ -60,7 +60,7 @@ export default function PCPSetorGuard({ children, action = 'realizar esta ação
  * Hook para obter o setor ativo com nome, para exibir em formulários
  */
 export function usePCPSetor() {
-  const { setorAtivo, isAdmin } = useSetor();
+  const { setorAtivo, isAdmin: _isAdmin } = useSetor();
   const bloqueado = !setorAtivo || setorAtivo === 'ALL';
 
   const { data: setores = [] } = useQuery({

@@ -41,7 +41,7 @@ export default function AcessoInterno() {
     // chegar depois do login completar, apagando a sessão recém criada.
     SessionManager.clear();
     queryClient.clear();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const scrollToLogin = () => {
     loginRef.current?.scrollIntoView({ behavior: 'smooth' });

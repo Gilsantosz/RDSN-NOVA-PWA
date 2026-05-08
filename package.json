@@ -10,7 +10,7 @@
     "build:web": "VITE_BUILD_TARGET=web vite build",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
-    "typecheck": "tsc -p ./jsconfig.json",
+    "typecheck": "tsc -p ./tsconfig.json",
     "preview": "vite preview",
     "start": "electron .",
     "electron": "wait-on http://127.0.0.1:5173 && electron .",

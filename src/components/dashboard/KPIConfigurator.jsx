@@ -28,7 +28,7 @@ export default function KPIConfigurator({ setorId }) {
     ativo: true
   });
 
-  const { data: setores = [] } = useQuery({
+  const { data: _setores = [] } = useQuery({
     queryKey: ['setores'],
     queryFn: () => rdsn.entities.Setor.list()
   });

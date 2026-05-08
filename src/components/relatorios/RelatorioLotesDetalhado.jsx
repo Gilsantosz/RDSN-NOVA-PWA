@@ -48,7 +48,7 @@ export default function RelatorioLotesDetalhado() {
     enabled: !!setorAtivo
   });
 
-  const { data: baixas = [] } = useQuery({
+  const { data: _baixas = [] } = useQuery({
     queryKey: ['baixas-detalhado', setorAtivo],
     queryFn: async () => {
       if (!setorAtivo) return [];
@@ -63,7 +63,7 @@ export default function RelatorioLotesDetalhado() {
     enabled: !!setorAtivo
   });
 
-  const { data: clientes = [] } = useQuery({
+  const { data: _clientes = [] } = useQuery({
     queryKey: ['clientes-relatorio'],
     queryFn: () => rdsn.entities.Cliente.list()
   });

@@ -53,7 +53,7 @@ export default function ProdutoDetalheModal({ produto, open, onOpenChange }) {
     enabled: !!produto?.id && open
   });
 
-  const { data: alertas = [], isLoading: loadingAlertas } = useQuery({
+  const { data: alertas = [], isLoading: _loadingAlertas } = useQuery({
     queryKey: ['alertas-produto', produto?.id],
     queryFn: async () => {
       return await rdsn.entities.Alerta.filter({ 

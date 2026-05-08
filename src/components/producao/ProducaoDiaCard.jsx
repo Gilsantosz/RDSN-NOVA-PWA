@@ -31,8 +31,8 @@ export default function ProducaoDiaCard({
   onCancelar,
   isClosing,
   isSupervisor,
-  produtos = [],
-  setorInfo
+  produtos: _produtos = [],
+  setorInfo: _setorInfo
 }) {
   const [numInicial, setNumInicial] = useState(lote.numeracao_inicial?.toString() || '');
   const [numFinal, setNumFinal] = useState('');
@@ -40,6 +40,7 @@ export default function ProducaoDiaCard({
   const [showFechar, setShowFechar] = useState(false);
   const [isEditingPartida, setIsEditingPartida] = useState(false);
   const [numPartidaEdit, setNumPartidaEdit] = useState('');
+  const isReadonly = useSetorReadonly();
 
   // Detectar ordem do produto removido - mantendo lógica simplificada
 
@@ -310,7 +311,6 @@ export default function ProducaoDiaCard({
             {!showFechar ? (
               <div className="flex gap-4">
                 {(() => {
-                  const isReadonly = useSetorReadonly();
                   if (isReadonly) return (
                     <div className="flex-1 h-14 flex items-center justify-center bg-slate-100 dark:bg-slate-800/50 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic text-center px-4">

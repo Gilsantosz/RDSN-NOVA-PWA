@@ -42,7 +42,7 @@ export default function RestaurarBackup({ backups = [] }) {
       const response = await fetch(url);
       const data = await response.json();
       setPreviewDados(data);
-    } catch (err) {
+    } catch {
       toast.error('Erro ao carregar preview do backup');
     }
     setCarregandoPreview(false);

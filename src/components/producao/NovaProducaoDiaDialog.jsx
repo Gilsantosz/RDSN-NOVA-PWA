@@ -41,7 +41,7 @@ export default function NovaProducaoDiaDialog({
   onIniciar,
   isLoading,
   produtos = [],
-  setorInfo,
+  setorInfo: _setorInfo,
   lotesSessaoAbertos = []
 }) {
   const [search, setSearch] = useState('');
@@ -78,7 +78,7 @@ export default function NovaProducaoDiaDialog({
       const baixas = baixasPorReserva[reserva.id] || [];
       const lotesSessao = lotesSessaoAbertos.filter(l => l.reserva_id === reserva.id);
 
-      const prodInfo = produtos.find(p => p.codigo_produto === reserva.codigo_produto) ||
+      const _prodInfo = produtos.find(p => p.codigo_produto === reserva.codigo_produto) ||
         produtos.find(p => p.letra_produto === reserva.letra_produto && !p.codigo_produto);
       const isDecrescente = reserva.sequencia_decrescente === true;
 

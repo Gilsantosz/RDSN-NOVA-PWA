@@ -77,7 +77,7 @@ export const showToastWithAction = (message, description, actionLabel, actionCal
 
 // Toast de progresso personalizado
 export const showProgressToast = (message, progress) => {
-  return toast.custom((t) => (
+  return toast.custom((_t) => (
     <div className="w-full bg-white border border-slate-200 rounded-lg shadow-lg p-4">
       <div className="flex items-center gap-3 mb-2">
         <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">

@@ -42,11 +42,11 @@ export default function MonitorDisponibilidade({ letraProduto, ano, setorId }) {
   });
 
   // Cálculos removidos - limite expandido para >1M, sem risco de esgotamento
-  const numeroAtual = sequencia?.ultimo_numero || 0;
+  const _numeroAtual = sequencia?.ultimo_numero || 0;
   
-  const totalReservado = reservas.reduce((acc, r) => acc + r.quantidade, 0);
-  const totalProduzido = reservas.reduce((acc, r) => acc + (r.quantidade_baixada || 0), 0);
-  const totalDisponivel = numeracoesLivres.reduce((acc, n) => acc + n.quantidade, 0);
+  const _totalReservado = reservas.reduce((acc, r) => acc + r.quantidade, 0);
+  const _totalProduzido = reservas.reduce((acc, r) => acc + (r.quantidade_baixada || 0), 0);
+  const _totalDisponivel = numeracoesLivres.reduce((acc, n) => acc + n.quantidade, 0);
 
   // Componente removido - sem risco de esgotamento com limite >1M
   return null;

@@ -21,7 +21,7 @@ import { toast } from "sonner";
 export default function LimparDadosProducao() {
   const [showDialog, setShowDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [resultados, setResultados] = useState(null);
+  const [_resultados, _setResultados] = useState(null);
   const [modoExclusao, setModoExclusao] = useState('total');
   const [filtros, setFiltros] = useState({
     codigos: [],

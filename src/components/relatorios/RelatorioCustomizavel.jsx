@@ -21,7 +21,7 @@ export default function RelatorioCustomizavel() {
   const [filtros, setFiltros] = useState([]);
   const [agrupamento, setAgrupamento] = useState('');
   const [tipoGrafico, setTipoGrafico] = useState('barra');
-  const [campoGraficoX, setCampoGraficoX] = useState('');
+  const [_campoGraficoX, _setCampoGraficoX] = useState('');
   const [campoGraficoY, setCampoGraficoY] = useState('');
 
   const entidadesDisponiveis = {

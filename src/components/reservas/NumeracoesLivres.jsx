@@ -25,7 +25,7 @@ const meses = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
-export default function NumeracoesLivres({ produtos = [], sequencias = [], onReservaCreated }) {
+export default function NumeracoesLivres({ produtos = [], sequencias: _sequencias = [], onReservaCreated }) {
   const { setorAtivo } = useSetor();
   const [showForm, setShowForm] = useState(false);
   const [numeracaoSelecionada, setNumeracaoSelecionada] = useState(null);
@@ -69,7 +69,7 @@ export default function NumeracoesLivres({ produtos = [], sequencias = [], onRes
     setShowForm(true);
   };
 
-  const handleReservaCreated = async (numeracao) => {
+  const handleReservaCreated = async (_numeracao) => {
     // Aguardar um momento para garantir que o backend processou
     await new Promise(resolve => setTimeout(resolve, 300));
 
@@ -225,7 +225,7 @@ export default function NumeracoesLivres({ produtos = [], sequencias = [], onRes
   );
 }
 
-function ReservaFormSimples({ numeracao, produtos, onSubmit, isLoading, setorAtivo }) {
+function ReservaFormSimples({ numeracao, produtos, onSubmit, isLoading, setorAtivo: _setorAtivo }) {
   const [formData, setFormData] = useState({
     cliente: '',
     modelo: '',
