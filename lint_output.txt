@@ -1,0 +1,68 @@
+
+/Users/gil/Downloads/RDSN NOVA/src/components/admin/LimparDadosProducao.jsx
+  24:10  warning  'resultados' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/admin/RestaurarBackup.jsx
+  45:14  warning  'err' is defined but never used  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/agendamento/PeriodAnalysis.jsx
+  9:42  warning  'reservas' is defined but never used. Allowed unused args must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/alerts/AlertToast.jsx
+  80:24  warning  't' is defined but never used. Allowed unused args must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/baixas/FiltroBaixas.jsx
+  28:40  warning  'filtros' is defined but never used. Allowed unused args must match /^_/u  unused-imports/no-unused-vars
+  28:67  warning  'setores' is defined but never used. Allowed unused args must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/dashboard/KPIConfigurator.jsx
+  31:17  warning  'setores' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/estoque/ProdutoDetalheModal.jsx
+  56:42  warning  'loadingAlertas' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/notifications/NotificationCenter.jsx
+  33:5  warning  'isLoading' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/pcp/PCPSetorGuard.jsx
+  16:23  warning  'isAdmin' is assigned a value but never used. Allowed unused vars must match /^_/u    unused-imports/no-unused-vars
+  29:9   warning  'nomeSetor' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+  63:23  warning  'isAdmin' is assigned a value but never used. Allowed unused vars must match /^_/u    unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/producao/NovaProducaoDiaDialog.jsx
+  44:3   warning  'setorInfo' is defined but never used. Allowed unused args must match /^_/u          unused-imports/no-unused-vars
+  81:13  warning  'prodInfo' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/producao/ProducaoDiaCard.jsx
+  34:3  warning  'produtos' is assigned a value but never used. Allowed unused args must match /^_/u  unused-imports/no-unused-vars
+  35:3  warning  'setorInfo' is defined but never used. Allowed unused args must match /^_/u          unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/relatorios/RelatorioCustomizavel.jsx
+  24:10  warning  'campoGraficoX' is assigned a value but never used. Allowed unused vars must match /^_/u     unused-imports/no-unused-vars
+  24:25  warning  'setCampoGraficoX' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/relatorios/RelatorioLotesDetalhado.jsx
+  51:17  warning  'baixas' is assigned a value but never used. Allowed unused vars must match /^_/u    unused-imports/no-unused-vars
+  66:17  warning  'clientes' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/reservas/DashboardReservas.jsx
+   69:56  warning  'label' is assigned a value but never used. Allowed unused args must match /^_/u    unused-imports/no-unused-vars
+  104:23  warning  'isAdmin' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/reservas/MonitorDisponibilidade.jsx
+  45:9  warning  'numeroAtual' is assigned a value but never used. Allowed unused vars must match /^_/u      unused-imports/no-unused-vars
+  47:9  warning  'totalReservado' is assigned a value but never used. Allowed unused vars must match /^_/u   unused-imports/no-unused-vars
+  48:9  warning  'totalProduzido' is assigned a value but never used. Allowed unused vars must match /^_/u   unused-imports/no-unused-vars
+  49:9  warning  'totalDisponivel' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/reservas/NumeracoesLivres.jsx
+   28:59  warning  'sequencias' is assigned a value but never used. Allowed unused args must match /^_/u  unused-imports/no-unused-vars
+   72:39  warning  'numeracao' is defined but never used. Allowed unused args must match /^_/u            unused-imports/no-unused-vars
+  228:73  warning  'setorAtivo' is defined but never used. Allowed unused args must match /^_/u           unused-imports/no-unused-vars
+
+/Users/gil/Downloads/RDSN NOVA/src/components/scanner/BarcodeScanner.jsx
+   14:9   warning  'scannerRef' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+  128:10  warning  'errorMessage' is defined but never used. Allowed unused args must match /^_/u         unused-imports/no-unused-vars
+
+✖ 31 problems (0 errors, 31 warnings)
+

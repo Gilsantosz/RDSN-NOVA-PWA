@@ -27,7 +27,7 @@ const VAULT: VaultData = {
   
   // Supabase Credentials (Cloud Production)
   VITE_SUPABASE_URL: 'https://saczzyiofmlvygsopfws.supabase.co',
-  VITE_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhY3p6eWlvZm1sdnlnc29wZndzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDA0MzIsImV4cCI6MjA4ODIxNjQzMn0.Uv-HzvaHDbskLxcOaoHtzVq-QWcmDl6x9FUTe3VFiNQ',
+  VITE_SUPABASE_ANON_KEY: 'sb_publishable_vJ6z25g7TcVrhrsmHIESiA_EOr9lYVr',
 };
 
 export const getSecret = (key: string): any => {

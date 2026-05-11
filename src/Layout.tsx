@@ -42,6 +42,8 @@ import FeedbackToasts from '@/components/feedback/FeedbackToasts';
 import ThemeToggle from '@/components/ThemeToggle';
 import { useAuth } from '@/lib/AuthContext';
 import SessionManager, { User } from '@/lib/sessionManager';
+import { ConnectionStatusBar } from '@/components/ui/ConnectionStatusBar';
+import { AppUpdateBanner } from '@/components/ui/AppUpdateBanner';
 
 interface NavigationItem {
   name: string;
@@ -160,6 +162,8 @@ export default function Layout({ children, currentPageName }: LayoutProps) {
 
   return (
     <SetorProvider>
+      <ConnectionStatusBar />
+      <AppUpdateBanner />
       <FeedbackToasts />
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
         {sidebarOpen && (
@@ -183,7 +187,7 @@ export default function Layout({ children, currentPageName }: LayoutProps) {
                   <Zap className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1 truncate text-white">
-                  <span className="font-black text-sm block tracking-tighter">PCP <span className="text-blue-400">MATRIX</span></span>
+                  <span className="font-black text-sm block tracking-tighter">RDSN <span className="text-blue-400">NOVA</span></span>
                   <span className="text-[9px] font-bold opacity-50 block uppercase tracking-widest leading-none">Industrial Systems</span>
                 </div>
               </div>

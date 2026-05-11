@@ -1,6 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getEnvConfig } from '../utils/hybridContext';
 import SessionManager, { User } from '../lib/sessionManager';
+import { OfflineCache } from '../lib/offlineCache';
+import { ConnectionManager } from '../lib/connectionManager';
 
 const { supabaseUrl, supabaseAnonKey } = getEnvConfig();
 
@@ -44,104 +46,156 @@ export interface EntityAdapter<T = any> {
     subscribe: (callback: (payload: any) => void) => () => void;
 }
 
+const buildFilterQuery = (entityName: string, filters: Record<string, any>, sort?: string) => {
+    let query = supabase.from(entityName).select('*');
+    for (const [key, value] of Object.entries(filters)) {
+        const isStd = isStandardColumn(key);
+        const colName = isStd ? key : `j_data->>${key}`;
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            if (value.$in) query = query.in(colName, value.$in);
+            else if (value.$nin) query = (query as any).not(colName, 'in', `(${value.$nin.join(',')})`);
+            else if (value.$ne) query = query.neq(colName, value.$ne);
+            else if (value.$null === true) query = query.is(colName, null);
+            else if (value.$null === false) query = (query as any).not(colName, 'is', null);
+        } else if (typeof value === 'boolean') {
+            query = query.eq(colName, value.toString());
+        } else {
+            query = query.eq(colName, value);
+        }
+    }
+    if (sort) {
+        const isDesc = sort.startsWith('-');
+        const column = isDesc ? sort.substring(1) : sort;
+        const sortColumn = isStandardColumn(column) ? column : `j_data->>${column}`;
+        query = query.order(sortColumn, { ascending: !isDesc });
+    }
+    return query;
+};
+
 const createEntityAdapter = (entityName: string): EntityAdapter => ({
     list: async (sort, limitCount) => {
-        let query = supabase.from(entityName).select('*');
-        if (sort) {
-            const isDesc = sort.startsWith('-');
-            const column = isDesc ? sort.substring(1) : sort;
-            const sortColumn = isStandardColumn(column) ? column : `j_data->>${column}`;
-            query = query.order(sortColumn, { ascending: !isDesc });
-        }
-        if (limitCount) {
-            query = query.limit(limitCount);
-        }
-        const { data, error } = await query;
-        if (error) throw error;
-        return data ? data.map(unpackData) : [];
-    },
-    filter: async (filters, sort) => {
-        let query = supabase.from(entityName).select('*');
-        for (const [key, value] of Object.entries(filters)) {
-            const isStd = isStandardColumn(key);
-            // ->> extrai como text; -> extrai como JSONB (incompatível com .eq() direto)
-            const colName = isStd ? key : `j_data->>${key}`;
+        // Cache-first: serve cache enquanto busca dados frescos
+        const cacheKey = `list_${sort || ''}_${limitCount || ''}`;
+        const cached = OfflineCache.get<any[]>(entityName, cacheKey);
 
-            if (value && typeof value === 'object' && !Array.isArray(value)) {
-                // Operadores especiais: $in, $nin, $ne, $null
-                if (value.$in) {
-                    query = query.in(colName, value.$in);
-                } else if (value.$nin) {
-                    query = (query as any).not(colName, 'in', `(${value.$nin.join(',')})`);
-                } else if (value.$ne) {
-                    query = query.neq(colName, value.$ne);
-                } else if (value.$null === true) {
-                    query = query.is(colName, null);
-                } else if (value.$null === false) {
-                    query = (query as any).not(colName, 'is', null);
-                }
-            } else if (typeof value === 'boolean') {
-                // Booleanos em JSONB: ->> retorna "true"/"false" como texto
-                query = query.eq(colName, value.toString());
-            } else {
-                query = query.eq(colName, value);
+        try {
+            let query = supabase.from(entityName).select('*');
+            if (sort) {
+                const isDesc = sort.startsWith('-');
+                const column = isDesc ? sort.substring(1) : sort;
+                const sortColumn = isStandardColumn(column) ? column : `j_data->>${column}`;
+                query = query.order(sortColumn, { ascending: !isDesc });
             }
+            if (limitCount) query = query.limit(limitCount);
+
+            const { data, error } = await query;
+            if (error) throw error;
+
+            const result = data ? data.map(unpackData) : [];
+            OfflineCache.set(entityName, result, cacheKey); // atualiza cache
+            ConnectionManager.reportSuccess();
+            return result;
+        } catch (err: any) {
+            await ConnectionManager.reportError(err);
+            if (cached) {
+                console.warn(`[RDSN Offline] Usando cache para ${entityName}.list`);
+                return cached;
+            }
+            throw err;
         }
-        if (sort) {
-            const isDesc = sort.startsWith('-');
-            const column = isDesc ? sort.substring(1) : sort;
-            const sortColumn = isStandardColumn(column) ? column : `j_data->>${column}`;
-            query = query.order(sortColumn, { ascending: !isDesc });
-        }
-        const { data, error } = await query;
-        if (error) throw error;
-        return data ? data.map(unpackData) : [];
     },
+
+    filter: async (filters, sort, limitCount?: number) => {
+        const cacheKey = `filter_${JSON.stringify(filters)}_${sort || ''}`;
+        const cached = OfflineCache.get<any[]>(entityName, cacheKey);
+
+        try {
+            let query = buildFilterQuery(entityName, filters, sort);
+            if (limitCount) query = (query as any).limit(limitCount);
+
+            const { data, error } = await query;
+            if (error) throw error;
+
+            const result = data ? data.map(unpackData) : [];
+            OfflineCache.set(entityName, result, cacheKey);
+            ConnectionManager.reportSuccess();
+            return result;
+        } catch (err: any) {
+            await ConnectionManager.reportError(err);
+            if (cached) {
+                console.warn(`[RDSN Offline] Usando cache para ${entityName}.filter`);
+                return cached;
+            }
+            throw err;
+        }
+    },
+
     create: async (payload) => {
         const { data, error } = await supabase.from(entityName).insert(packData(payload)).select().single();
-        if (error) throw error;
+        if (error) {
+            await ConnectionManager.reportError(error);
+            throw error;
+        }
+        // Invalida cache desta entidade após escrita
+        OfflineCache.invalidate(entityName);
+        ConnectionManager.reportSuccess();
         return unpackData(data);
     },
+
     update: async (id, payload) => {
-        // Obter os dados dinâmicos atuais para não sobrescrever
         const { data: current } = await supabase.from(entityName).select('j_data').eq('id', id).single();
         const mevcutDyn = (current && current.j_data) ? current.j_data : {};
-
         const updateData = packData(payload);
-        if (updateData.j_data) {
-            updateData.j_data = { ...mevcutDyn, ...updateData.j_data };
-        }
+        if (updateData.j_data) updateData.j_data = { ...mevcutDyn, ...updateData.j_data };
 
         const { data, error } = await supabase.from(entityName).update(updateData).eq('id', id).select().single();
-        if (error) throw error;
+        if (error) {
+            await ConnectionManager.reportError(error);
+            throw error;
+        }
+        OfflineCache.invalidate(entityName);
+        ConnectionManager.reportSuccess();
         return unpackData(data);
     },
+
     delete: async (id) => {
         const { error } = await supabase.from(entityName).delete().eq('id', id);
-        if (error) throw error;
+        if (error) {
+            await ConnectionManager.reportError(error);
+            throw error;
+        }
+        OfflineCache.invalidate(entityName);
+        ConnectionManager.reportSuccess();
         return true;
     },
+
     bulkCreate: async (payloads) => {
         if (!Array.isArray(payloads)) throw new Error('Payload must be an array for bulkCreate');
         const packed = payloads.map(packData);
         const { data, error } = await supabase.from(entityName).insert(packed).select();
-        if (error) throw error;
+        if (error) {
+            await ConnectionManager.reportError(error);
+            throw error;
+        }
+        OfflineCache.invalidate(entityName);
+        ConnectionManager.reportSuccess();
         return data ? data.map(unpackData) : [];
     },
+
     subscribe: (callback) => {
         const channel = supabase
             .channel(`${entityName}_changes`)
             .on('postgres_changes', { event: '*', schema: 'public', table: entityName } as any, (payload: any) => {
+                // Invalida cache ao receber update realtime
+                OfflineCache.invalidate(entityName);
                 const newRec = payload.new ? unpackData(payload.new) : null;
                 const oldRec = payload.old ? unpackData(payload.old) : null;
                 callback({ ...payload, new: newRec, old: oldRec });
             })
             .subscribe();
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }
+        return () => { supabase.removeChannel(channel); };
+    },
 });
 
 interface IRDSNClient {

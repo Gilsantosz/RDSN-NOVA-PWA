@@ -1,7 +1,7 @@
 {
   "name": "rdsn-nova",
   "private": true,
-  "version": "2.0.5",
+  "version": "2.1.0",
   "main": "main.js",
   "type": "module",
   "scripts": {
@@ -16,6 +16,7 @@
     "electron": "wait-on http://127.0.0.1:5173 && electron .",
     "desktop": "concurrently \"npm run dev\" \"npm run electron\"",
     "build:electron": "vite build && electron-builder",
+    "release": "vite build && electron-builder --publish always",
     "dist": "npm run build:electron"
   },
   "dependencies": {
@@ -87,6 +88,7 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.171.0",
     "vaul": "^1.1.2",
+    "electron-updater": "^6.3.9",
     "zod": "^3.24.2"
   },
   "build": {
@@ -117,7 +119,12 @@
       "icon": "build/icons",
       "target": "AppImage"
     },
-    "publish": null
+    "publish": {
+      "provider": "github",
+      "owner": "Gilsantosz",
+      "repo": "RDSN-NOVA-PWA",
+      "releaseType": "release"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",

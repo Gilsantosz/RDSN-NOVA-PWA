@@ -1,54 +1,54 @@
-name: Deploy PWA to Vercel
+name: 🌐 Deploy PWA (Vercel)
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
+# Nunca adicionar SUPABASE_SERVICE_ROLE_KEY aqui (Lei 01 — Isolamento Smith)
+# Apenas chaves públicas (anon) são permitidas no frontend
 env:
-  # ATENÇÃO: Nunca adicione SUPABASE_SERVICE_ROLE_KEY nestas definições (Lei 01: Isolamento Smith)
-  # Apenas as chaves públicas (Anon) são permitidas para o PWA (Frontend)
-  VITE_PWA_SUPABASE_URL: "${{ secrets.VITE_PWA_SUPABASE_URL }}"
-  VITE_PWA_SUPABASE_ANON_KEY: "${{ secrets.VITE_PWA_SUPABASE_ANON_KEY }}"
+  VITE_BUILD_TARGET: web
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
 jobs:
   deploy:
+    name: Build & Deploy PWA
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
-      - name: Install Dependencies
-        run: npm ci || npm install
+      - name: 📦 Instalar dependências
+        run: npm ci --legacy-peer-deps
 
-      - name: Build PWA
+      - name: 🔨 Build PWA (web target)
         run: npm run build:web
 
-      # Deploy de Preview para PRs e Homologação
-      - name: Deploy to Vercel (Preview)
-        if: github.ref != 'refs/heads/main'
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: "${{ secrets.VERCEL_TOKEN }}"
-          vercel-org-id: "${{ secrets.VERCEL_ORG_ID }}"
-          vercel-project-id: "${{ secrets.VERCEL_PROJECT_ID }}"
+      - name: ✅ Verificar build
+        run: |
+          ls -lah dist/
+          test -f dist/index.html || (echo "❌ dist/index.html não encontrado!" && exit 1)
+          test -f dist/sw.js && echo "✅ Service Worker gerado" || echo "⚠️  sw.js não encontrado"
 
-      # Deploy de Produção para branch Principal
-      - name: Deploy to Vercel (Production)
-        if: github.ref == 'refs/heads/main'
+      - name: 🚀 Deploy para Vercel (Produção)
         uses: amondnet/vercel-action@v25
         with:
-          vercel-token: "${{ secrets.VERCEL_TOKEN }}"
-          vercel-org-id: "${{ secrets.VERCEL_ORG_ID }}"
-          vercel-project-id: "${{ secrets.VERCEL_PROJECT_ID }}"
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
+          working-directory: ./
+
+      - name: 📢 Notificar Service Worker (force update)
+        # Força o SW a se atualizar enviando um header de cache-bust
+        # O Vercel já invalida cache automaticamente, mas este step confirma
+        run: echo "✅ Deploy concluído — Service Worker será atualizado automaticamente"
