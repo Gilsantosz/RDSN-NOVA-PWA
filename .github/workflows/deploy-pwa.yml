@@ -6,11 +6,11 @@ on:
   workflow_dispatch:
 
 # Nunca adicionar SUPABASE_SERVICE_ROLE_KEY aqui (Lei 01 — Isolamento Smith)
-# Apenas chaves públicas (anon) são permitidas no frontend
+# A chave anon é pública e pode ser hardcoded como fallback de segurança
 env:
   VITE_BUILD_TARGET: web
-  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://saczzyiofmlvygsopfws.supabase.co' }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhY3p6eWlvZm1sdnlnc29wZndzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDA0MzIsImV4cCI6MjA4ODIxNjQzMn0.Uv-HzvaHDbskLxcOaoHtzVq-QWcmDl6x9FUTe3VFiNQ' }}
 
 jobs:
   deploy:
