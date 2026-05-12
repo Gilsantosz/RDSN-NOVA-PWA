@@ -1,8 +1,7 @@
 /**
  * Utility for Hybrid Application (Electron + PWA)
- * safely isolates logic between browser and desktop environments.
+ * Safely isolates logic between browser and desktop environments.
  */
-import { getSecret } from '../api/secure_vault';
 
 declare global {
   interface Window {
@@ -15,16 +14,16 @@ declare global {
 }
 
 export const isElectron = (): boolean => {
-  if (typeof window !== 'undefined' && window.process && window.process.type === 'renderer') return true;
-  if (typeof process !== 'undefined' && (process as any).versions && !!(process as any).versions.electron) return true;
-  if (typeof navigator === 'object' && typeof navigator.userAgent === 'string' && navigator.userAgent.indexOf('Electron') >= 0) return true;
+  if (typeof window !== 'undefined' && window.process?.type === 'renderer') return true;
+  if (typeof process !== 'undefined' && !!(process as any).versions?.electron) return true;
+  if (typeof navigator === 'object' && navigator.userAgent?.includes('Electron')) return true;
   return false;
 };
 
 export const isPWA = (): boolean => {
   return !isElectron() && (
-    (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
-    (typeof navigator !== 'undefined' && navigator.standalone === true)
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    (typeof navigator !== 'undefined' && (navigator as any).standalone === true)
   );
 };
 
@@ -40,15 +39,15 @@ export const safeIpcRenderer = (): SafeIpcRenderer => {
     try {
       return window.require('electron').ipcRenderer;
     } catch (e) {
-      console.warn('Electron ipcRenderer fetch failed', e);
+      console.warn('[HybridCtx] ipcRenderer unavailable:', e);
     }
   }
-  // Mock fallback para Web/PWA
+  // No-op fallback para PWA/Web
   return {
     on: () => {},
     send: () => {},
     invoke: async () => {},
-    removeListener: () => {}
+    removeListener: () => {},
   };
 };
 
@@ -59,25 +58,32 @@ export interface EnvConfig {
 }
 
 /**
- * Retorna as variáveis de ambiente baseadas no contexto (Teste Web vs Prod Desktop)
- * Regra: se está rodando no Desktop, procura VITE_ELECTRON_SUPABASE_URL, senão VITE_SUPABASE_URL (ou VITE_RDSN_SUPABASE_URL)
- * Se estiver no PWA/Web, procura VITE_PWA_SUPABASE_URL, e cai para os defaults.
+ * Retorna as variáveis de ambiente Supabase.
+ * Prioridade única: import.meta.env (Vite injeta em dev e build).
+ * Sem fallback para secure_vault — credenciais vêm APENAS do .env.
  */
 export const getEnvConfig = (): EnvConfig => {
-    const isDesk = isElectron();
-    
-    // Obter as credenciais com fallback lógico dependendo do ambiente
-    const url = isDesk 
-      ? (import.meta.env.VITE_ELECTRON_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_RDSN_SUPABASE_URL)
-      : (import.meta.env.VITE_PWA_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || import.meta.env.VITE_RDSN_SUPABASE_URL);
+  const isDesk = isElectron();
 
-    const key = isDesk
-      ? (import.meta.env.VITE_ELECTRON_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_RDSN_SUPABASE_ANON_KEY)
-      : (import.meta.env.VITE_PWA_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_RDSN_SUPABASE_ANON_KEY);
+  // Suporta tanto VITE_SUPABASE_URL quanto variantes com prefixo por ambiente
+  const url =
+    import.meta.env.VITE_SUPABASE_URL ||
+    import.meta.env.VITE_RDSN_SUPABASE_URL ||
+    (isDesk ? import.meta.env.VITE_ELECTRON_SUPABASE_URL : import.meta.env.VITE_PWA_SUPABASE_URL) ||
+    '';
 
-    return {
-        supabaseUrl: url || getSecret('VITE_SUPABASE_URL') || '',
-        supabaseAnonKey: key || getSecret('VITE_SUPABASE_ANON_KEY') || '',
-        isDesktop: isDesk
-    };
+  const key =
+    import.meta.env.VITE_SUPABASE_ANON_KEY ||
+    import.meta.env.VITE_RDSN_SUPABASE_ANON_KEY ||
+    (isDesk ? import.meta.env.VITE_ELECTRON_SUPABASE_ANON_KEY : import.meta.env.VITE_PWA_SUPABASE_ANON_KEY) ||
+    '';
+
+  if (!url || !key) {
+    console.error(
+      '[HybridCtx] ⚠️  Supabase URL/Key não configuradas!\n' +
+      'Verifique o arquivo .env: VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY são obrigatórios.'
+    );
+  }
+
+  return { supabaseUrl: url, supabaseAnonKey: key, isDesktop: isDesk };
 };

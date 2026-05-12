@@ -56,10 +56,9 @@ export default function AcessoInterno() {
     console.log('Iniciando login para:', username);
 
     try {
-      // ── CAMINHO 1: Admin local (Vault) ─────────────────────────────
-      // Validação 100% local, sem rede, sem edge function.
+      // ── CAMINHO 1: Admin de emergência local (sem rede) ─────────────
       if (validateAdmin(username, senha)) {
-        console.log('✅ Admin autenticado via Vault local');
+        console.log('✅ Admin autenticado via Vault local (offline)');
         const adminUser = {
           id: 'admin-vault',
           full_name: 'Administrador',
@@ -72,50 +71,55 @@ export default function AcessoInterno() {
         };
         login(adminUser);
         localStorage.setItem('setorAtivo', 'ALL');
-        console.log('🚀 Redirecionando para Dashboard...');
         console.groupEnd();
         navigate('/Dashboard', { replace: true });
         return;
       }
 
-      // ── CAMINHO 2: Usuários do Supabase ────────────────────────────
+      // ── CAMINHO 2: Usuários do banco Supabase (direto, sem Edge Function) ──
       const { rdsn } = await import('@/api/supabaseClient');
-      let user = null;
 
-      // 2a. Tenta via Edge Function
+      let dbUser = null;
       try {
-        const res = await rdsn.functions.invoke('loginUser', {
-          username,
-          password: senha,
-        });
-        if (res?.data?.success && res?.data?.user) {
-          user = res.data.user;
-          console.log('✅ Usuário autenticado via Edge Function');
-        } else if (res?.data?.error) {
-          // Edge Function respondeu com erro explícito de credenciais
-          throw new Error(res.data.error);
-        }
-      } catch (edgeErr) {
-        console.warn('⚠️ Edge Function falhou, tentando busca direta...', edgeErr.message);
+        const rows = await rdsn.entities.UsuarioInterno.filter({ username });
 
-        // 2b. Fallback: busca direta no banco pelo username
-        try {
-          const rows = await rdsn.entities.UsuarioInterno.filter({ username });
-          if (rows?.length > 0) {
-            const candidate = rows[0];
-            // Suporte a hash base64 simples (legado)
-            const hashMatch = candidate.password_hash === btoa(senha);
-            if (candidate.ativo !== false && hashMatch) {
-              user = candidate;
-              console.log('✅ Usuário autenticado via banco direto (fallback)');
-            }
+        if (rows?.length > 0) {
+          const candidate = rows[0];
+
+          // Verifica se o usuário está ativo
+          if (candidate.ativo === false) {
+            setError('Usuário desativado. Contate o administrador.');
+            setLoading(false);
+            console.groupEnd();
+            return;
           }
-        } catch (dbErr) {
-          console.error('❌ Falha no fallback de banco:', dbErr.message);
+
+          // Suporta dois formatos de hash:
+          // 1. Base64 simples: btoa(senha) — legado
+          // 2. Comparação direta (texto plano) — para migração
+          const senhaBase64 = btoa(senha);
+          const hashMatch =
+            candidate.password_hash === senhaBase64 ||
+            candidate.password_hash === senha; // fallback texto puro
+
+          if (hashMatch) {
+            dbUser = candidate;
+            console.log('✅ Usuário autenticado via banco Supabase');
+          } else {
+            console.warn('❌ Senha incorreta para:', username);
+          }
+        } else {
+          console.warn('❌ Usuário não encontrado:', username);
         }
+      } catch (dbErr) {
+        console.error('❌ Erro ao consultar banco:', dbErr.message);
+        setError('Erro de conexão com o servidor. Verifique sua internet.');
+        setLoading(false);
+        console.groupEnd();
+        return;
       }
 
-      if (!user) {
+      if (!dbUser) {
         setError('Usuário ou senha incorretos.');
         setLoading(false);
         console.groupEnd();
@@ -123,11 +127,11 @@ export default function AcessoInterno() {
       }
 
       // ── Sessão aprovada ────────────────────────────────────────────
-      login(user);
-      if (user.role_custom === 'Admin') {
+      login(dbUser);
+      if (dbUser.role_custom === 'Admin') {
         localStorage.setItem('setorAtivo', 'ALL');
-      } else if (user.setores_permitidos?.length > 0) {
-        localStorage.setItem('setorAtivo', user.setores_permitidos[0]);
+      } else if (dbUser.setores_permitidos?.length > 0) {
+        localStorage.setItem('setorAtivo', dbUser.setores_permitidos[0]);
       }
       console.log('🚀 Redirecionando para Dashboard...');
       console.groupEnd();
