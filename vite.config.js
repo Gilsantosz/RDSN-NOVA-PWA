@@ -1,9 +1,9 @@
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
-import path from 'path'
-import { fileURLToPath } from 'url'
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-import { VitePWA } from 'vite-plugin-pwa'
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { VitePWA } from 'vite-plugin-pwa';
 
 /**
  * Detecta se estamos building para web (GitHub Pages / PWA) ou para Electron.
@@ -15,8 +15,23 @@ const isWebBuild = process.env.VITE_BUILD_TARGET === 'web';
 // Base path do repositório no GitHub Pages
 const GITHUB_PAGES_BASE = '/RDSN-NOVA-PWA/';
 
+// Credenciais Supabase — a chave anon é PÚBLICA (safe para frontend)
+// Ordem de prioridade: env vars do CI > .env local > fallback hardcoded
+const SUPABASE_URL =
+  process.env.VITE_SUPABASE_URL ||
+  'https://saczzyiofmlvygsopfws.supabase.co';
+
+const SUPABASE_ANON_KEY =
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhY3p6eWlvZm1sdnlnc29wZndzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDA0MzIsImV4cCI6MjA4ODIxNjQzMn0.Uv-HzvaHDbskLxcOaoHtzVq-QWcmDl6x9FUTe3VFiNQ';
+
 // https://vite.dev/config/
 export default defineConfig({
+  // Garante que as variáveis sejam injetadas no bundle independente do .env
+  define: {
+    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(SUPABASE_URL),
+    'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(SUPABASE_ANON_KEY),
+  },
   server: {
     host: '127.0.0.1',
     port: 5173,
