@@ -35,11 +35,19 @@ jobs:
 
       - name: Build Web (PWA)
         env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          # Tenta secrets primeiro, cai no valor padrão público (anon key é segura para o client)
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL || 'https://saczzyiofmlvygsopfws.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhY3p6eWlvZm1sdnlnc29wZndzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDA0MzIsImV4cCI6MjA4ODIxNjQzMn0.Uv-HzvaHDbskLxcOaoHtzVq-QWcmDl6x9FUTe3VFiNQ' }}
           VITE_BUILD_TARGET: web
           CI: false
         run: npm run build:web
+
+      - name: Verify build output
+        run: |
+          ls -lah dist/
+          test -f dist/index.html || (echo "❌ dist/index.html não encontrado!" && exit 1)
+          # Garante que as credenciais foram injetadas no bundle
+          grep -r "saczzyiofmlvygsopfws" dist/ --include="*.js" -l && echo "✅ URL Supabase injetada no bundle" || echo "⚠️  URL Supabase NÃO encontrada no bundle!"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
