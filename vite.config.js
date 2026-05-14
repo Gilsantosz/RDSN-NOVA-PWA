@@ -15,7 +15,8 @@ const isWebBuild = process.env.VITE_BUILD_TARGET === 'web';
 // Base path do repositório no GitHub Pages
 const GITHUB_PAGES_BASE = '/RDSN-NOVA-PWA/';
 
-// Credenciais Supabase — a chave anon é PÚBLICA (safe para frontend)
+// Credenciais Supabase — a publishable key é PÚBLICA (safe para frontend)
+// Novo formato: sb_publishable_... (substitui o JWT legado eyJhbGci... revogado)
 // Ordem de prioridade: env vars do CI > .env local > fallback hardcoded
 const SUPABASE_URL =
   process.env.VITE_SUPABASE_URL ||
@@ -23,7 +24,7 @@ const SUPABASE_URL =
 
 const SUPABASE_ANON_KEY =
   process.env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhY3p6eWlvZm1sdnlnc29wZndzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDA0MzIsImV4cCI6MjA4ODIxNjQzMn0.Uv-HzvaHDbskLxcOaoHtzVq-QWcmDl6x9FUTe3VFiNQ';
+  'sb_publishable_vJ6z25g7TcVrhrsmHIESiA_EOr9lYVr';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -39,9 +40,14 @@ export default defineConfig({
   },
   base: isWebBuild ? GITHUB_PAGES_BASE : './',
   logLevel: 'error',
+  optimizeDeps: {
+    // fsevents é um módulo nativo macOS (.node) — não pode ser processado pelo esbuild
+    exclude: ['fsevents'],
+  },
   build: {
     rollupOptions: {
       maxParallelFileOps: 128,
+      external: ['fsevents'],
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {

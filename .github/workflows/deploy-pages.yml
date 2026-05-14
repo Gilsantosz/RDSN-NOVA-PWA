@@ -35,9 +35,9 @@ jobs:
 
       - name: Build Web (PWA)
         env:
-          # Tenta secrets primeiro, cai no valor padrão público (anon key é segura para o client)
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL || 'https://saczzyiofmlvygsopfws.supabase.co' }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhY3p6eWlvZm1sdnlnc29wZndzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDA0MzIsImV4cCI6MjA4ODIxNjQzMn0.Uv-HzvaHDbskLxcOaoHtzVq-QWcmDl6x9FUTe3VFiNQ' }}
+          # Tenta secrets primeiro, cai no valor padrão público (publishable key é segura para o client)
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://saczzyiofmlvygsopfws.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_vJ6z25g7TcVrhrsmHIESiA_EOr9lYVr' }}
           VITE_BUILD_TARGET: web
           CI: false
         run: npm run build:web
